@@ -1,0 +1,83 @@
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem;
+  height: 80px;
+  background: #1a1008;
+  border-bottom: 1px solid #3a2a14;
+}
+
+.navbar-logo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #e8c97a;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  padding-left: 3rem;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 3rem;
+  flex: 1;
+  justify-content: center;
+}
+
+.navbar-links a:hover {
+  color: #e8c97a;
+}
+
+.navbar-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.navbar-cta {
+  background: #F2E0C8;
+  color: #1a1008;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.navbar-cta:hover {
+  background: #f0d98a;
+}
+
+.navbar-login {
+  background: transparent;
+  color: #F2E0C8;
+  border: 1px solid #3a2a14;
+  padding: 0.5rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.navbar-login:hover {
+  border-color: #e8c97a;
+  color: #e8c97a;
+}
+
+.navbar-logo-img {
+  padding-top: 30px;
+  padding-bottom: 20px;
+  height: 140px;
+  width: auto;
+  object-fit: contain;
+}
