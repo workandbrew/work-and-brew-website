@@ -1140,6 +1140,21 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   </div>
 </div>
 
+<!-- CHANGE PASSWORD MODAL -->
+<div id="sb-changepw-modal" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(10,21,32,0.85);align-items:center;justify-content:center;">
+  <div style="background:#1b2d42;border:1px solid rgba(160,82,45,0.35);border-radius:16px;padding:32px 28px;max-width:320px;width:90%;text-align:center;font-family:Inter,sans-serif;">
+    <h3 style="color:#f4efe6;font-size:1.1rem;font-weight:700;margin:0 0 6px;">Change Password</h3>
+    <p style="color:rgba(244,239,230,0.45);font-size:0.75rem;margin:0 0 20px;">Enter your new password below.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <input id="sb-newpw" type="password" placeholder="New password" style="padding:11px 14px;border-radius:10px;border:1.5px solid rgba(160,82,45,0.35);background:rgba(244,239,230,0.07);color:#f4efe6;font-size:0.88rem;outline:none;text-align:center;letter-spacing:0.08em;width:100%;box-sizing:border-box;"/>
+      <input id="sb-newpw2" type="password" placeholder="Confirm new password" style="padding:11px 14px;border-radius:10px;border:1.5px solid rgba(160,82,45,0.35);background:rgba(244,239,230,0.07);color:#f4efe6;font-size:0.88rem;outline:none;text-align:center;letter-spacing:0.08em;width:100%;box-sizing:border-box;"/>
+      <p id="sb-changepw-msg" style="color:#ff8a70;font-size:0.75rem;margin:0;min-height:16px;"></p>
+      <button id="sb-changepw-btn" onclick="submitChangePassword()" style="padding:11px;border-radius:10px;border:none;background:#a0522d;color:#f4efe6;font-size:0.88rem;font-weight:700;cursor:pointer;">Update Password</button>
+      <button onclick="document.getElementById('sb-changepw-modal').style.display='none'" style="padding:8px;border-radius:10px;border:1px solid rgba(244,239,230,0.15);background:transparent;color:rgba(244,239,230,0.45);font-size:0.82rem;cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- HEADER -->
 <div id="header">
@@ -1159,6 +1174,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
     <div class="stat-chip" style="background:#6366F1">⏳ Pending: <span id="s-pending">0</span></div>
   </div>
   <button id="copy-all-btn">📋 Copy All</button>
+  <button id="btn-changepw" onclick="document.getElementById('sb-changepw-modal').style.display='flex'" style="display:none;font-size:0.72rem;padding:6px 12px;border-radius:8px;border:1px solid rgba(160,82,45,0.4);background:transparent;color:rgba(244,239,230,0.6);cursor:pointer;font-family:Inter,sans-serif;">🔑 Change Password</button>
   <button id="btn-add-cafe">+ Add Café</button>
 </div>
 
@@ -1433,11 +1449,34 @@ async function sbOnAuthSuccess(user) {
   _sbUser = user;
   const overlay = document.getElementById('sb-login-overlay');
   if (overlay) overlay.style.display = 'none';
+  const cpBtn = document.getElementById('btn-changepw');
+  if (cpBtn) cpBtn.style.display = 'inline-block';
   if (!_sbInitialized) {
     _sbInitialized = true;
     init();
   }
   await loadFromSupabase();
+}
+
+async function submitChangePassword() {
+  const pw1 = document.getElementById('sb-newpw').value;
+  const pw2 = document.getElementById('sb-newpw2').value;
+  const msg = document.getElementById('sb-changepw-msg');
+  const btn = document.getElementById('sb-changepw-btn');
+  msg.textContent = '';
+  if (!pw1 || pw1.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; return; }
+  if (pw1 !== pw2) { msg.textContent = 'Passwords do not match.'; return; }
+  btn.textContent = 'Updating…';
+  btn.disabled = true;
+  const { error } = await sb.auth.updateUser({ password: pw1 });
+  btn.textContent = 'Update Password';
+  btn.disabled = false;
+  if (error) { msg.style.color = '#ff8a70'; msg.textContent = error.message; return; }
+  msg.style.color = '#4ade80';
+  msg.textContent = '✓ Password updated successfully!';
+  document.getElementById('sb-newpw').value = '';
+  document.getElementById('sb-newpw2').value = '';
+  setTimeout(() => { document.getElementById('sb-changepw-modal').style.display = 'none'; msg.textContent = ''; msg.style.color = '#ff8a70'; }, 1800);
 }
 
 // Login form handler
