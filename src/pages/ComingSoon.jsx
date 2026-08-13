@@ -4,6 +4,9 @@ const PREVIEW_PASSWORD = "WnB!c0ff33@NYC#2026";
 const LAUNCH_DATE = new Date("2026-08-16T00:00:00");
 const STORAGE_KEY = "wb_preview_unlocked";
 
+// Known valid routes — anything else bypasses the wall and shows 404
+const VALID_PATHS = ["/", "/about", "/for-owners", "/login", "/signup", "/dashboard", "/settings"];
+
 // Color palette
 const C = {
   darkBlue:   "#0d1b2a",
@@ -71,7 +74,9 @@ export default function ComingSoon({ children }) {
     }
   };
 
-  if (unlocked || window.location.pathname.startsWith('/ops/')) return children;
+  const path = window.location.pathname;
+  const isKnownPath = VALID_PATHS.includes(path) || path.startsWith('/ops/');
+  if (unlocked || !isKnownPath) return children;
 
   const pad = (n) => String(n).padStart(2, "0");
 
