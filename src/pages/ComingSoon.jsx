@@ -1,8 +1,22 @@
 import { useState, useEffect } from "react";
 
-const PREVIEW_PASSWORD = "teambrew";
+const PREVIEW_PASSWORD = "WnB!c0ff33@NYC#2026";
 const LAUNCH_DATE = new Date("2026-08-16T00:00:00");
 const STORAGE_KEY = "wb_preview_unlocked";
+
+// Color palette
+const C = {
+  darkBlue:   "#0d1b2a",
+  midBlue:    "#1b2d42",
+  deepBlue:   "#0a1520",
+  brown:      "#3e1f0d",
+  brownLight: "#7a3b1e",
+  brownAccent:"#a0522d",
+  eggshell:   "#f4efe6",
+  eggshellDim:"rgba(244,239,230,0.55)",
+  eggshellFaint:"rgba(244,239,230,0.18)",
+  white:      "#ffffff",
+};
 
 function getTimeLeft() {
   const diff = LAUNCH_DATE - new Date();
@@ -13,6 +27,24 @@ function getTimeLeft() {
     minutes: Math.floor((diff / (1000 * 60)) % 60),
     seconds: Math.floor((diff / 1000) % 60),
   };
+}
+
+// Coffee mug SVG icon
+function CoffeeMugIcon() {
+  return (
+    <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Mug body */}
+      <rect x="6" y="18" width="30" height="26" rx="4" fill={C.brownAccent}/>
+      {/* Handle */}
+      <path d="M36 24 Q46 24 46 31 Q46 38 36 38" stroke={C.brownAccent} strokeWidth="3.5" fill="none" strokeLinecap="round"/>
+      {/* Steam wisps */}
+      <path d="M14 13 Q16 8 14 4" stroke={C.eggshell} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.7"/>
+      <path d="M21 11 Q23 6 21 2" stroke={C.eggshell} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.7"/>
+      <path d="M28 13 Q30 8 28 4" stroke={C.eggshell} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.7"/>
+      {/* Coffee surface highlight */}
+      <ellipse cx="21" cy="21" rx="12" ry="3" fill={C.brown} opacity="0.5"/>
+    </svg>
+  );
 }
 
 export default function ComingSoon({ children }) {
@@ -46,7 +78,7 @@ export default function ComingSoon({ children }) {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "linear-gradient(135deg, #0d0d0d 0%, #1a0a2e 50%, #0d0d0d 100%)",
+      background: `linear-gradient(145deg, ${C.deepBlue} 0%, ${C.darkBlue} 40%, ${C.midBlue} 100%)`,
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
@@ -57,25 +89,23 @@ export default function ComingSoon({ children }) {
       overflow: "hidden",
     }}>
 
-      {/* Background glow */}
+      {/* Subtle background glow — brown/warm tone */}
       <div style={{
-        position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)",
-        width: "600px", height: "600px",
-        background: "radial-gradient(circle, rgba(134,59,255,0.15) 0%, transparent 70%)",
+        position: "absolute", top: "15%", left: "50%", transform: "translateX(-50%)",
+        width: "700px", height: "500px",
+        background: `radial-gradient(ellipse, rgba(160,82,45,0.10) 0%, transparent 70%)`,
         pointerEvents: "none",
       }} />
 
-      {/* Logo */}
-      <div style={{ marginBottom: "32px", opacity: 0.95 }}>
-        <svg width="48" height="46" viewBox="0 0 48 46" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z" fill="#863bff"/>
-        </svg>
+      {/* Coffee mug icon */}
+      <div style={{ marginBottom: "28px", opacity: 0.95 }}>
+        <CoffeeMugIcon />
       </div>
 
-      {/* Launch heading */}
+      {/* Launch label */}
       <p style={{
-        color: "#863bff",
-        fontSize: "0.8rem",
+        color: C.brownAccent,
+        fontSize: "0.78rem",
         fontWeight: 700,
         letterSpacing: "0.18em",
         textTransform: "uppercase",
@@ -86,33 +116,36 @@ export default function ComingSoon({ children }) {
 
       {/* Main title */}
       <h1 style={{
-        color: "#ffffff",
+        color: C.eggshell,
         fontSize: "clamp(2.2rem, 6vw, 3.8rem)",
         fontWeight: 800,
         textAlign: "center",
-        margin: "0 0 12px",
+        margin: "0 0 14px",
         lineHeight: 1.1,
         letterSpacing: "-0.02em",
       }}>
         Work & Brew
       </h1>
 
+      {/* Subtitle */}
       <p style={{
-        color: "rgba(255,255,255,0.5)",
+        color: C.eggshellDim,
         fontSize: "1rem",
         textAlign: "center",
         marginBottom: "44px",
-        maxWidth: "360px",
-        lineHeight: 1.6,
+        maxWidth: "420px",
+        lineHeight: 1.65,
       }}>
-        NYC's guide to the best cafés for working, studying, and brewing up ideas.
+        A tool designed and backed up by real new yorkers for new yorkers for productivity with the help of caffeine and cafes — backed up by real research.
       </p>
 
       {/* Countdown */}
       <div style={{
         display: "flex",
-        gap: "20px",
+        gap: "16px",
         marginBottom: "52px",
+        flexWrap: "wrap",
+        justifyContent: "center",
       }}>
         {[
           { label: "Days",    value: time.days },
@@ -122,15 +155,15 @@ export default function ComingSoon({ children }) {
         ].map(({ label, value }) => (
           <div key={label} style={{ textAlign: "center" }}>
             <div style={{
-              background: "rgba(134,59,255,0.12)",
-              border: "1px solid rgba(134,59,255,0.25)",
+              background: C.eggshellFaint,
+              border: `1px solid rgba(160,82,45,0.30)`,
               borderRadius: "12px",
               padding: "14px 18px",
               minWidth: "64px",
               marginBottom: "8px",
             }}>
               <span style={{
-                color: "#fff",
+                color: C.eggshell,
                 fontSize: "1.8rem",
                 fontWeight: 700,
                 fontVariantNumeric: "tabular-nums",
@@ -138,7 +171,7 @@ export default function ComingSoon({ children }) {
               }}>{value}</span>
             </div>
             <span style={{
-              color: "rgba(255,255,255,0.35)",
+              color: "rgba(244,239,230,0.35)",
               fontSize: "0.65rem",
               fontWeight: 600,
               letterSpacing: "0.1em",
@@ -158,7 +191,7 @@ export default function ComingSoon({ children }) {
         maxWidth: "320px",
       }}>
         <p style={{
-          color: "rgba(255,255,255,0.35)",
+          color: "rgba(244,239,230,0.35)",
           fontSize: "0.75rem",
           margin: "0 0 4px",
           letterSpacing: "0.05em",
@@ -174,9 +207,9 @@ export default function ComingSoon({ children }) {
             width: "100%",
             padding: "12px 16px",
             borderRadius: "10px",
-            border: "1.5px solid rgba(134,59,255,0.3)",
-            background: "rgba(255,255,255,0.05)",
-            color: "#fff",
+            border: `1.5px solid rgba(160,82,45,0.35)`,
+            background: "rgba(244,239,230,0.06)",
+            color: C.eggshell,
             fontSize: "0.9rem",
             outline: "none",
             boxSizing: "border-box",
@@ -185,21 +218,21 @@ export default function ComingSoon({ children }) {
           }}
         />
         {error && (
-          <p style={{ color: "#ff6b6b", fontSize: "0.78rem", margin: 0 }}>{error}</p>
+          <p style={{ color: "#ff8a70", fontSize: "0.78rem", margin: 0 }}>{error}</p>
         )}
         <button type="submit" style={{
           width: "100%",
           padding: "12px",
           borderRadius: "10px",
           border: "none",
-          background: "#863bff",
-          color: "#fff",
+          background: C.brownAccent,
+          color: C.eggshell,
           fontSize: "0.9rem",
           fontWeight: 700,
           cursor: "pointer",
           transition: "opacity 0.15s",
         }}
-          onMouseOver={(e) => e.target.style.opacity = "0.85"}
+          onMouseOver={(e) => e.target.style.opacity = "0.82"}
           onMouseOut={(e) => e.target.style.opacity = "1"}
         >
           Preview Site →
