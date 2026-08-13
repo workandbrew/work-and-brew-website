@@ -1,112 +1,148 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
+import MapComponent from "../components/MapComponent";
+import SuggestionForm from "../components/SuggestionForm";
+import { useSavedCafes } from "../hooks/useSavedCafes";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import "./Home.css";
 
-// Placeholder café data for now.
-const PLACEHOLDER_CAFES = [
-  {
-    id: 1,
-    name: "Kofee",
-    neighborhood: "Inwood, Manhattan",
-    wifi: "Secured (WPA)",
-    outlets: "Yes",
-    noise: "Low",
-    seats: 24,
-    food: "Yes",
-    bathroom: "Yes",
-    hours: "7am – 8pm",
-    vibe: "A hidden gem in Inwood beloved by locals. Warm, quiet, and perfect for deep work sessions.",
-    tag: "Small Business ⭐",
-  },
-  {
-    id: 2,
-    name: "The Bronx Bean",
-    neighborhood: "Fordham, Bronx",
-    wifi: "Secured (WPA)",
-    outlets: "Yes",
-    noise: "Medium",
-    seats: 18,
-    food: "No",
-    bathroom: "Yes",
-    hours: "8am – 7pm",
-    vibe: "A community staple in Fordham. Great espresso and plenty of table space.",
-    tag: "Small Business ⭐",
-  },
-  {
-    id: 3,
-    name: "Brew & Co",
-    neighborhood: "Williamsburg, Brooklyn",
-    wifi: "Secured (WPA)",
-    outlets: "Limited",
-    noise: "Medium",
-    seats: 30,
-    food: "Yes",
-    bathroom: "Yes",
-    hours: "7am – 9pm",
-    vibe: "A Williamsburg staple with a great playlist and fast wifi.",
-    tag: "Scout Verified ✓",
-  },
-];
+// Map cafe names to up to 3 images: [hero, photo2, photo3]
+// Add more here as photos are scouted. Use null for empty slots.
+const CAFE_IMAGES = {
+  "Mottley Kitchen": ["/cafe-images/mottley-kitchen.avif", null, null],
+};
+
+// ── Photo carousel — shows one photo at a time, arrows to cycle ──────────────
+function CafePhotoCarousel({ photos }) {
+  const [idx, setIdx] = useState(0);
+  const slots = (photos && photos.length) ? photos : [null, null, null];
+  const total = slots.length;
+  const prev = () => setIdx((idx - 1 + total) % total);
+  const next = () => setIdx((idx + 1) % total);
+
+  return (
+    <div className="cafe-carousel">
+      <div className="cafe-carousel-frame">
+        {slots[idx] ? (
+          <img
+            src={slots[idx]}
+            alt={`Café photo ${idx + 1}`}
+            className="cafe-carousel-img"
+          />
+        ) : (
+          <div className="cafe-photo-placeholder">
+            <span>📷</span>
+            <small>Photo {idx + 1} coming soon</small>
+          </div>
+        )}
+        <button className="cafe-carousel-arrow cafe-carousel-arrow--left" onClick={prev} aria-label="Previous photo">‹</button>
+        <button className="cafe-carousel-arrow cafe-carousel-arrow--right" onClick={next} aria-label="Next photo">›</button>
+        <span className="cafe-carousel-counter">{idx + 1} / {total}</span>
+      </div>
+      <div className="cafe-carousel-dots">
+        {slots.map((_, i) => (
+          <button
+            key={i}
+            className={`cafe-carousel-dot${i === idx ? " active" : ""}`}
+            onClick={() => setIdx(i)}
+            aria-label={`Go to photo ${i + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const [selectedCafe, setSelectedCafe] = useState(null);
   const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState("");
+  const { user } = useAuth();
+  const { saveCafe, removeCafe, isSaved } = useSavedCafes(user?.username);
+  const navigate = useNavigate();
+
+  // saving is members-only — send guests to the login page
+  const handleSave = () => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    if (isSaved(selectedCafe)) removeCafe(selectedCafe);
+    else saveCafe(selectedCafe);
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // TODO: wire up to map + Supabase query by zipcode
-    alert(`Searching for cafés near: ${search}`);
+    setActiveFilter(search.trim());
+  };
+
+  const handleClear = () => {
+    setSearch("");
+    setActiveFilter("");
   };
 
   return (
     <div className="home">
       <Navbar />
 
-      {/* Search Bar */}
-      <div className="search-bar-container">
-        <form className="search-bar" onSubmit={handleSearch}>
-          <input
-            type="text"
-            placeholder="Enter a zipcode or neighborhood..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <button type="submit">Find Cafés ☕</button>
-        </form>
-      </div>
+      <div className={`home-content ${selectedCafe ? "panel-open" : ""}`}>
 
-      {/* Map Placeholder */}
-      <div className="map-container">
-        <div className="map-placeholder">
-          <p>🗺️ Map goes here</p>
-          <p className="map-placeholder-sub">
-            Map integration will live here.
-            <br />
-            Click a café below to preview the slide-over panel.
-          </p>
-          {/* Temporary café pins for testing slide-over */}
-          <div className="temp-pins">
-            {PLACEHOLDER_CAFES.map((cafe) => (
-              <button
-                key={cafe.id}
-                className="temp-pin"
-                onClick={() => setSelectedCafe(cafe)}
-              >
-                📍 {cafe.name}
-              </button>
-            ))}
+        {/* Left: main content */}
+        <div className="home-main">
+
+          {/* Hero Title */}
+          <div className="map-hero">
+            <h1 className="map-hero-title">Work & Brew Cafe Map</h1>
+            <p className="map-hero-subtitle">
+              Our official map made up of all of the small and independent cafes our team has scouted in New York City.
+            </p>
           </div>
-        </div>
-      </div>
 
-      {/* Slide Over Café Profile Panel */}
-      {selectedCafe && (
-        <>
-          <div
-            className="slide-over-backdrop"
-            onClick={() => setSelectedCafe(null)}
-          />
-          <div className="slide-over">
+          {/* Welcome message — only visible when logged in */}
+          {user && (() => {
+            const raw  = user.preferredName || user.username || "Friend";
+            const name = raw.charAt(0).toUpperCase() + raw.slice(1);
+            return (
+              <div className="map-welcome-wrap">
+                <p className="map-welcome">Welcome back, <span className="map-welcome-name">{name}</span>! ☕</p>
+                <p className="map-welcome-sub">Ready to find your next favourite spot?</p>
+              </div>
+            );
+          })()}
+
+          {/* Search Bar */}
+          <div className="search-bar-container">
+            <form className="search-bar" onSubmit={handleSearch}>
+              <input
+                type="text"
+                placeholder="Search by zipcode, borough or café name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {activeFilter && (
+                <button type="button" className="search-clear" onClick={handleClear}>
+                  ✕
+                </button>
+              )}
+              <button type="submit">Find Cafés ☕</button>
+            </form>
+          </div>
+
+          {/* Map */}
+          <div className="map-container">
+            <MapComponent
+              onMarkerClick={setSelectedCafe}
+              filterQuery={activeFilter}
+              panelOpen={!!selectedCafe}
+            />
+          </div>
+
+        </div>
+
+        {/* Right: Café Panel */}
+        {selectedCafe && (
+          <div className="slide-over" key={selectedCafe.Name + selectedCafe.Address}>
             <button
               className="slide-over-close"
               onClick={() => setSelectedCafe(null)}
@@ -114,50 +150,122 @@ export default function Home() {
               ✕
             </button>
 
-            <div className="slide-over-tag">{selectedCafe.tag}</div>
-            <h2 className="slide-over-name">{selectedCafe.name}</h2>
-            <p className="slide-over-neighborhood">
-              📍 {selectedCafe.neighborhood}
-            </p>
-            <p className="slide-over-vibe">{selectedCafe.vibe}</p>
+            {/* Photo carousel — one photo at a time, arrows to cycle */}
+            <CafePhotoCarousel
+              photos={CAFE_IMAGES[selectedCafe.Name] || [null, null, null]}
+            />
 
+            <h2 className="slide-over-name">{selectedCafe.Name}</h2>
+            <p className="slide-over-neighborhood">{selectedCafe.Address}</p>
+            <span className="slide-over-borough-badge">{selectedCafe.County}</span>
+
+            {/* Location count — only show if more than one */}
+            {selectedCafe._locationCount > 1 && (
+              <p className="slide-over-locations">
+                {selectedCafe._locationCount} locations in NYC
+              </p>
+            )}
+
+            <div className="slide-over-divider" />
+
+            {/* Amenities grid */}
             <div className="slide-over-amenities">
               <div className="amenity">
                 <span className="amenity-label">WiFi</span>
-                <span className="amenity-value">{selectedCafe.wifi}</span>
+                <span className="amenity-value">
+                  {selectedCafe.WiFi || "—"}
+                </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Outlets</span>
-                <span className="amenity-value">{selectedCafe.outlets}</span>
-              </div>
-              <div className="amenity">
-                <span className="amenity-label">Noise Level</span>
-                <span className="amenity-value">{selectedCafe.noise}</span>
-              </div>
-              <div className="amenity">
-                <span className="amenity-label">Seats</span>
-                <span className="amenity-value">{selectedCafe.seats}</span>
+                <span className="amenity-value">
+                  {selectedCafe.Outlets === "TRUE" || selectedCafe.Outlets === "true" ? "✓ Yes" : selectedCafe.Outlets === "FALSE" || selectedCafe.Outlets === "false" ? "✗ No" : selectedCafe.Outlets || "—"}
+                </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Hot Food</span>
-                <span className="amenity-value">{selectedCafe.food}</span>
+                <span className="amenity-value">
+                  {selectedCafe.HotFood === "TRUE" || selectedCafe.HotFood === "true" ? "✓ Yes" : selectedCafe.HotFood === "FALSE" || selectedCafe.HotFood === "false" ? "✗ No" : selectedCafe.HotFood || "—"}
+                </span>
               </div>
               <div className="amenity">
-                <span className="amenity-label">Bathroom</span>
-                <span className="amenity-value">{selectedCafe.bathroom}</span>
+                <span className="amenity-label">Restroom</span>
+                <span className="amenity-value">
+                  {selectedCafe.Restroom === "TRUE" || selectedCafe.Restroom === "true" ? "✓ Yes" : selectedCafe.Restroom === "FALSE" || selectedCafe.Restroom === "false" ? "✗ No" : selectedCafe.Restroom || "—"}
+                </span>
               </div>
               <div className="amenity">
-                <span className="amenity-label">Hours</span>
-                <span className="amenity-value">{selectedCafe.hours}</span>
+                <span className="amenity-label">Seating</span>
+                <span className="amenity-value">
+                  {(() => {
+                    const s = parseInt(selectedCafe.Seats);
+                    if (isNaN(s)) return "default";
+                    if (s <= 4) return `Few (${s})`;
+                    if (s <= 8) return `Some (${s})`;
+                    if (s <= 12) return `Many (${s})`;
+                    return `Ample (${s})`;
+                  })()}
+                </span>
+              </div>
+              <div className="amenity">
+                <span className="amenity-label">Time Limit</span>
+                <span className="amenity-value">
+                  {selectedCafe.TimeRestriction === "TRUE" || selectedCafe.TimeRestriction === "true"
+                    ? selectedCafe.RestrictionAmount || "Yes"
+                    : selectedCafe.TimeRestriction === "FALSE" || selectedCafe.TimeRestriction === "false"
+                    ? "None"
+                    : selectedCafe.TimeRestriction || "—"}
+                </span>
               </div>
             </div>
 
-            <button className="slide-over-save">
-              ♡ Save Café
+            <div className="slide-over-divider" />
+
+            {/* About */}
+            {selectedCafe.Description &&
+              selectedCafe.Description !== "TBD - Filler for cafe description and/or summary until reviewed and confirmed with all information up-to-date." && (
+                <>
+                  <p className="slide-over-section-label">About</p>
+                  <p className="slide-over-vibe">{selectedCafe.Description}</p>
+                </>
+              )}
+
+            <div className="slide-over-divider" />
+
+            {/* Scout */}
+            <p className="slide-over-section-label">Visited By</p>
+            <p className="slide-over-scout">
+              {selectedCafe.ScoutName || "—"}
+            </p>
+
+            <a
+              className="slide-over-directions"
+              href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedCafe.Address)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              🧭 Get Directions
+            </a>
+
+            <button
+              className={`slide-over-save ${user && isSaved(selectedCafe) ? "saved" : ""}`}
+              onClick={handleSave}
+            >
+              {user && isSaved(selectedCafe)
+                ? "♥ Saved"
+                : user
+                ? "♡ Save Café"
+                : "♡ Log in to save"}
             </button>
+
+            {/* Suggestion form — collapses/expands per café */}
+            <SuggestionForm
+              cafeName={selectedCafe.Name}
+            />
           </div>
-        </>
-      )}
+        )}
+
+      </div>
     </div>
   );
 }

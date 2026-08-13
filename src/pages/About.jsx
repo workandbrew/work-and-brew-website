@@ -57,13 +57,13 @@ const TEAM = [
   },
   {
     name: "Orlando S.",
-    role: "Scout & B2B Specialist",
+    role: "Scout (Bronx Chapter)",
     borough: "Bronx",
     occupation: "TBD",
     drink: "Iced Bodega Coffee",
     cafe: "787 Coffee @ Harlem",
     initial: "O",
-    tag: "B2B Management",
+    tag: "bronx-scout",
     photo: "/default-avatar.jpg",
     avatar: "/icedcoffee2.png",
     about: "Reason to join the community here.",
@@ -122,32 +122,102 @@ const TEAM = [
   },
 ];
 
+const TIMELINE = [
+  {
+    year: "March 2025",
+    title: "Work & Brew Is Born",
+    text: "After two years of café-hopping across NYC, the idea becomes real during a café conversation in Fort Greene, Brooklyn.",
+  },
+  {
+    year: "April 2025",
+    title: "The Scout System",
+    text: "The first borough scouts join to help verify cafés, wifi quality, seating, outlets, and work environment.",
+  },
+  {
+    year: "May 2025",
+    title: "Scouting All Five Boroughs",
+    text: "Café visits ramp up across Manhattan, Brooklyn, Queens, the Bronx and Staten Island — every spot checked in person.",
+  },
+  {
+    year: "June 2025",
+    title: "Prototype Development",
+    text: "Initial product planning, UX ideas, café mapping systems, and backend architecture begin development.",
+  },
+  {
+    year: "July–Aug 2025",
+    title: "Development Summer",
+    text: "The verified café map takes shape — markers, café stats, and the first working build of the site.",
+  },
+  {
+    year: "September 2025",
+    title: "Community Expansion",
+    text: "Work & Brew grows into more than a café platform — becoming a NYC creative and remote work community.",
+  },
+  {
+    year: "October 2025",
+    title: "The Website Goes Live",
+    text: "The official Work & Brew site launches with the master café map, scouted and verified by the team.",
+  },
+  {
+    year: "Nov–Dec 2025",
+    title: "What's Next",
+    text: "East Coast expansion planning begins, plus networking features and creator-friendly tools for the ecosystem.",
+  },
+];
+
 export default function About() {
   const [active, setActive] = useState(0);
   const [teamVisible, setTeamVisible] = useState(false);
   const teamRef = useRef(null);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setTeamVisible(true);
-      },
-      { threshold: 0.15 }
-    );
-    if (teamRef.current) observer.observe(teamRef.current);
-    return () => observer.disconnect();
-  }, []);
+  const [timelineVisible, setTimelineVisible] = useState(false);
+  const timelineRef = useRef(null);
+
+  // which milestone is expanded — null keeps the timeline dates-only.
+  // lastMilestone remembers the previous one so the card can animate
+  // closed smoothly instead of vanishing mid-collapse
+  const [activeMilestone, setActiveMilestone] = useState(null);
+  const [lastMilestone, setLastMilestone] = useState(0);
+
+  // Blur gate — hint + timeline stay blurred until user clicks the arrow
+  const [revealed, setRevealed] = useState(false);
+
+useEffect(() => {
+  const observer = new IntersectionObserver(
+    ([entry]) => {
+      if (entry.isIntersecting) setTeamVisible(true);
+    },
+    { threshold: 0.15 }
+  );
+
+  const timelineObserver = new IntersectionObserver(
+    ([entry]) => {
+      if (entry.isIntersecting) setTimelineVisible(true);
+    },
+    { threshold: 0.2 }
+  );
+
+  if (teamRef.current) observer.observe(teamRef.current);
+  if (timelineRef.current) timelineObserver.observe(timelineRef.current);
+
+  return () => {
+    observer.disconnect();
+    timelineObserver.disconnect();
+  };
+}, []);
 
   return (
     <div className="page-shell">
       <Navbar />
 
-      {/* About intro */}
+      {/* About intro — headline big top & center, story text left, photo right */}
       <div className="about-intro">
-        <div className="about-intro-inner">
-          <div className="about-intro-text">
+        <h1 className="page-title about-headline">
+          Building Work & Brew, <br />one milestone at a time.
+        </h1>
+        <div className="about-hero">
+          <div className="about-hero-left">
             <div className="page-badge">Our Story</div>
-            <h1 className="page-title">Built by NYC, <br />for NYC.</h1>
             <p className="page-body">
               Work & Brew was founded in February 2025 when Denisse — a coding student juggling
               part-time work across NYC — sat down with her best friend Sayraliz at an independently
@@ -159,33 +229,78 @@ export default function About() {
               tell the truth — because finding the right spot is only half the battle. Think our WFM
               friendly cafe map finder is all we're doing? We're just getting started.
             </p>
-            <p className="page-body">
-              Our scouts cover all five boroughs — from high schoolers to college seniors to working
-              professionals. No algorithm. No shortcuts. Just real TRUSTED people, real cafés with real stories
-              and the tools to help you actually get things done.
-            </p>
           </div>
-          <div className="about-intro-image">
-            <img src="/nycpicture.jpg" alt="NYC" className="about-img" />
+          <div className="about-hero-right">
+            <img src="/nycpicture.jpg" alt="NYC" className="about-img about-img--hero" />
           </div>
         </div>
 
-        {/* Scroll hint + The Team badge */}
+        {/* Scroll hint — blurred until user clicks */}
         <div className="about-scroll-hint">
+          <span className="about-scroll-label">Get to know the team &amp; our progress!</span>
           <button
             className="scroll-arrow"
-              onClick={() => {
-              const top = teamRef.current?.getBoundingClientRect().top + window.scrollY - 80;
+            onClick={() => {
+              // Reveal content first, then scroll so the photo is off-screen
+              setRevealed(true);
+              const hero = document.querySelector(".about-hero");
+              if (!hero) return;
+              const navH = document.querySelector(".navbar")?.offsetHeight ?? 80;
+              const top = hero.getBoundingClientRect().bottom + window.scrollY - navH;
               window.scrollTo({ top, behavior: "smooth" });
-          }}
-          aria-label="Scroll to team"
+            }}
+            aria-label="Scroll to timeline"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
         </div>
       </div>
+
+{/* Timeline Section */}
+<div
+  className={`timeline-section${timelineVisible ? " is-visible" : ""}${revealed ? "" : " about-blur-gate"}`}
+  ref={timelineRef}
+>
+  <div className="timeline-header">
+    <div className="page-badge">Work &amp; Brew's Timeline</div>
+  </div>
+
+  <div className="timeline-track-wrap">
+    <div className="timeline-track">
+      {TIMELINE.map((item, index) => (
+        <button
+          key={item.year}
+          className={`timeline-node ${timelineVisible ? "timeline-active" : ""} ${
+            activeMilestone === index ? "is-selected" : ""
+          }`}
+          style={{ animationDelay: `${index * 0.1}s` }}
+          onClick={() => {
+            setActiveMilestone(activeMilestone === index ? null : index);
+            setLastMilestone(index);
+          }}
+        >
+          <span className="timeline-node-dot">☕</span>
+          <span className="timeline-node-date">{item.year}</span>
+        </button>
+      ))}
+    </div>
+
+    {/* tap a date to peek at the milestone — wrapper animates open/closed */}
+    <div className={`timeline-detail-wrap ${activeMilestone !== null ? "is-open" : ""}`}>
+      <div className="timeline-detail-clip">
+        <div className="timeline-detail" key={activeMilestone ?? lastMilestone}>
+          <span className="timeline-year">
+            {TIMELINE[activeMilestone ?? lastMilestone].year}
+          </span>
+          <h3>{TIMELINE[activeMilestone ?? lastMilestone].title}</h3>
+          <p>{TIMELINE[activeMilestone ?? lastMilestone].text}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
       {/* Team section */}
       <div

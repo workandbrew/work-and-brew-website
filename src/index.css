@@ -1,3 +1,74 @@
+/* Brand Fonts */
+@font-face {
+  font-family: 'Lorida';
+  src: url('/fonts/Lorida-KVegA.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'IndoorDesign';
+  src: url('/fonts/Indoor Design.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Immermann';
+  src: url('/fonts/immermann.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'AppleGaramond';
+  src: url('/fonts/AppleGaramond-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'HukelaDisplay';
+  src: url('/fonts/hukeladisplay-regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Vertimes';
+  src: url('/fonts/vertimes.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PhaquitoClask';
+  src: url('/fonts/phaquito-clask.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Italo';
+  src: url('/fonts/Italo_Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'IAmSeventeen';
+  src: url('/fonts/I am Seventeen.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Clance';
+  src: url('/fonts/clance.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -7,6 +78,10 @@
 html, body, #root {
   height: 100%;
   width: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -27,4 +102,20 @@ button {
 
 input, textarea {
   font-family: inherit;
+}
+
+/* page transitions — each route fades in soft and settles up */
+.page-fade {
+  animation: pageFade 0.4s ease-out both;
+}
+
+@keyframes pageFade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

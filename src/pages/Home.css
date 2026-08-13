@@ -1,22 +1,84 @@
 /* Home */
 .home {
-  height: 100vh;
+  min-height: 100vh;
   width: 100%;
   background: #120C07;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-top: 80px; /* offset for fixed navbar */
+}
+
+/* Hero Title */
+.map-hero {
+  text-align: center;
+  padding: 2rem 1rem 0.5rem;
+}
+
+.map-hero-title {
+  font-family: 'HukelaDisplay', serif;
+  /* Scales from 1rem (tiny phones) up to 4.5rem (wide desktop).
+     white-space: nowrap guarantees it never wraps to a second line. */
+  font-size: clamp(1rem, 5vw, 4.5rem);
+  font-weight: normal;
+  color: #F2E0C8;
+  letter-spacing: 0.01em;
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
   overflow: hidden;
+}
+
+.map-hero-subtitle {
+  font-family: 'IAmSeventeen', serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #8C6E52;
+  max-width: 560px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Welcome message — shown to logged-in users between hero and search bar */
+.map-welcome-wrap {
+  text-align: center;
+  margin: 1.1rem auto 0.25rem;
+  max-width: 600px;
+  animation: welcomeFadeIn 0.6s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.map-welcome {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #F2E0C8;
+  letter-spacing: 0.01em;
+  margin: 0 0 0.3rem;
+  line-height: 1.2;
+  text-shadow: 0 0 40px rgba(200, 147, 42, 0.35);
+}
+
+.map-welcome-name {
+  color: #c8932a;
+}
+
+.map-welcome-sub {
+  font-size: 0.92rem;
+  color: #8C6E52;
+  margin: 0;
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+@keyframes welcomeFadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* Search Bar */
 .search-bar-container {
-  position: absolute;
-  top: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
   width: 100%;
-  max-width: 520px;
+  max-width: 560px;
+  margin: 1.25rem auto 1rem;
   padding: 0 1rem;
+  z-index: 10;
 }
 
 .search-bar {
@@ -47,25 +109,85 @@
   padding: 0.85rem 1.2rem;
   background: #F2E0C8;
   color: #1C110A;
-  border: none;
+  border: solid 2px #3D2B1F;
+  border-left: 1px solid #4a3520;
   font-weight: 700;
   font-size: 0.9rem;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.2s;
+  transition: all 0.3s;
+  outline: none;
+  user-select: none;
+  box-shadow:
+    inset 0px -6px 18px -6px rgba(28, 17, 10, 0),
+    inset rgba(92, 62, 43, 0.8) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 0),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 0),
+    rgba(92, 62, 43, 0.6) -1px -1px 6px 0px,
+    0 0 12px rgba(200, 147, 42, 0.18);
 }
 
 .search-bar button:hover {
   background: #F7EAD8;
+  box-shadow:
+    rgba(92, 62, 43, 0.4) -1px -1px 5px 0px,
+    0 0 14px rgba(200, 147, 42, 0.25);
 }
 
-/* Map */
+.search-bar button:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0px -12px 12px -6px rgba(28, 17, 10, 1),
+    inset 0px 12px 12px -6px rgba(28, 17, 10, 1),
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 1),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 1),
+    -1px -1px 6px 0px rgba(92, 62, 43, 0.8);
+}
+
+.search-clear {
+  padding: 0.85rem 0.75rem !important;
+  background: transparent !important;
+  color: #8C6E52 !important;
+  border: none;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.search-clear:hover {
+  color: #F2E0C8 !important;
+  background: transparent !important;
+}
+
+/* Layout */
+.home-content {
+  display: flex;
+  flex: 1;               /* fills all remaining viewport height */
+  overflow: visible;     /* lets body scroll work naturally */
+  align-items: stretch;
+}
+
+.home-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-bottom: 1.5rem; /* background strip visible below the map */
+  transition: flex 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: flex;
+}
+
+/* Map — fills remaining viewport height, centered with side breathing room */
 .map-container {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
+  width: calc(100% - 3rem);
+  max-width: 1100px;
+  margin: 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #3D2B1F;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  flex: 1;
+  min-height: 460px;
 }
 
 .map-placeholder {
@@ -101,45 +223,74 @@
 }
 
 .temp-pin {
-  background: #2C1A12;
-  border: 1px solid #3D2B1F;
-  color: #F2E0C8;
+  background: #F2E0C8;
+  color: #1C110A;
+  border: solid 2px #3D2B1F;
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s;
+  outline: none;
+  user-select: none;
+  box-shadow:
+    inset 0px -6px 18px -6px rgba(28, 17, 10, 0),
+    inset rgba(92, 62, 43, 0.8) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 0),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 0),
+    rgba(92, 62, 43, 0.6) -1px -1px 6px 0px,
+    0 0 12px rgba(200, 147, 42, 0.18);
 }
 
 .temp-pin:hover {
-  background: #3D2B1F;
-  border-color: #F2E0C8;
+  background: #F7EAD8;
+  transform: translateY(-2px);
+  box-shadow:
+    rgba(92, 62, 43, 0.45) -1px -1px 6px 0px,
+    0 6px 20px rgba(92, 62, 43, 0.18),
+    0 0 18px rgba(200, 147, 42, 0.3),
+    inset 0px -2px 6px -1px rgba(28, 17, 10, 0.12);
+}
+
+.temp-pin:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0px -12px 12px -6px rgba(28, 17, 10, 1),
+    inset 0px 12px 12px -6px rgba(28, 17, 10, 1),
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 1),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 1),
+    -1px -1px 6px 0px rgba(92, 62, 43, 0.8);
 }
 
 /* Slide Over */
-.slide-over-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-}
-
 .slide-over {
-  position: fixed;
-  top: 60px;
-  right: 0;
-  bottom: 0;
   width: 380px;
+  min-width: 380px;
   background: #1C110A;
   border-left: 1px solid #3D2B1F;
-  z-index: 95;
   overflow-y: auto;
   padding: 2rem 1.5rem;
-  animation: slideIn 0.25s ease;
+  position: relative;
+  animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
+
 @keyframes slideIn {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(40px);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+    filter: blur(0);
+  }
 }
 
 .slide-over-close {
@@ -179,7 +330,55 @@
 .slide-over-neighborhood {
   color: #8C6E52;
   font-size: 0.85rem;
-  margin: 0 0 1rem;
+  margin: 0.15rem 0 0.5rem;
+}
+
+.slide-over-borough-badge {
+  font-size: 0.78rem;
+  color: #F2E0C8;
+  background: #2C1A12;
+  border: 1px solid #3D2B1F;
+  border-radius: 20px;
+  padding: 0.2rem 0.75rem;
+  margin-bottom: 0.6rem;
+  display: inline-block;
+}
+
+.slide-over-locations {
+  font-size: 0.78rem;
+  color: #F2E0C8;
+  background: #2C1A12;
+  border: 1px solid #3D2B1F;
+  border-radius: 20px;
+  padding: 0.2rem 0.75rem;
+  margin: 0.25rem 0 0.75rem;
+  display: inline-block;
+}
+
+.slide-over-divider {
+  width: 100%;
+  height: 1px;
+  background: #3D2B1F;
+  margin: 1rem 0;
+}
+
+.slide-over-section-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #5a3e2b;
+  margin-bottom: 0.4rem;
+  width: 100%;
+  text-align: left;
+}
+
+.slide-over-scout {
+  font-size: 0.95rem;
+  color: #F2E0C8;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  width: 100%;
+  text-align: left;
 }
 
 .slide-over-vibe {
@@ -196,6 +395,7 @@
   flex-direction: column;
   gap: 0.75rem;
   margin-bottom: 1.5rem;
+  width: 100%;
 }
 
 .amenity {
@@ -214,20 +414,423 @@
   font-weight: 500;
 }
 
+.slide-over-directions {
+  display: block;
+  width: 100%;
+  padding: 0.85rem;
+  background: #F2E0C8;
+  color: #1C110A;
+  border: solid 2px #3D2B1F;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  margin-bottom: 0.75rem;
+  transition: all 0.3s;
+  outline: none;
+  user-select: none;
+  box-shadow:
+    inset 0px -6px 18px -6px rgba(28, 17, 10, 0),
+    inset rgba(92, 62, 43, 0.8) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 0),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 0),
+    rgba(92, 62, 43, 0.6) -1px -1px 6px 0px,
+    0 0 12px rgba(200, 147, 42, 0.18);
+}
+
+.slide-over-directions:hover {
+  background: #F7EAD8;
+  transform: translateY(-2px);
+  box-shadow:
+    rgba(92, 62, 43, 0.45) -1px -1px 6px 0px,
+    0 6px 20px rgba(92, 62, 43, 0.18),
+    0 0 18px rgba(200, 147, 42, 0.3),
+    inset 0px -2px 6px -1px rgba(28, 17, 10, 0.12);
+}
+
+.slide-over-directions:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0px -12px 12px -6px rgba(28, 17, 10, 1),
+    inset 0px 12px 12px -6px rgba(28, 17, 10, 1),
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 1),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 1),
+    -1px -1px 6px 0px rgba(92, 62, 43, 0.8);
+}
+
 .slide-over-save {
   width: 100%;
   padding: 0.85rem;
-  background: transparent;
-  border: 1px solid #F2E0C8;
-  color: #F2E0C8;
-  border-radius: 8px;
+  background: #F2E0C8;
+  color: #1C110A;
+  border: solid 2px #3D2B1F;
+  border-radius: 10px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s;
+  outline: none;
+  user-select: none;
+  box-shadow:
+    inset 0px -6px 18px -6px rgba(28, 17, 10, 0),
+    inset rgba(92, 62, 43, 0.8) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 0),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 0),
+    rgba(92, 62, 43, 0.6) -1px -1px 6px 0px,
+    0 0 12px rgba(200, 147, 42, 0.18);
 }
 
 .slide-over-save:hover {
-  background: #F2E0C8;
+  background: #F7EAD8;
+  transform: translateY(-2px);
+  box-shadow:
+    rgba(92, 62, 43, 0.45) -1px -1px 6px 0px,
+    0 6px 20px rgba(92, 62, 43, 0.18),
+    0 0 18px rgba(200, 147, 42, 0.3),
+    inset 0px -2px 6px -1px rgba(28, 17, 10, 0.12);
+}
+
+.slide-over-save:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0px -12px 12px -6px rgba(28, 17, 10, 1),
+    inset 0px 12px 12px -6px rgba(28, 17, 10, 1),
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 1),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 1),
+    -1px -1px 6px 0px rgba(92, 62, 43, 0.8);
+}
+
+.slide-over-save.saved {
+  background: #D4B896;
   color: #1C110A;
+  border-color: #5a3e2b;
+}
+
+.slide-over-save.saved:hover {
+  background: #C9AD8A;
+}
+/* ── Photo carousel (1 photo at a time) ─────────────────────────────────────── */
+.cafe-carousel {
+  width: 100%;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.cafe-carousel-frame {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1e120a;
+}
+
+.cafe-carousel-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Overlay arrows */
+.cafe-carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(20, 12, 6, 0.6);
+  border: 1px solid rgba(242, 224, 200, 0.18);
+  color: #F2E0C8;
+  font-size: 1.4rem;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 2;
+  transition: background 0.2s, border-color 0.2s;
+  /* override the global button styles */
+  box-shadow: none !important;
+  outline: none;
+}
+
+.cafe-carousel-arrow:hover {
+  background: rgba(20, 12, 6, 0.85) !important;
+  border-color: rgba(242, 224, 200, 0.45) !important;
+  transform: translateY(-50%) !important; /* keep centered, no lift */
+  box-shadow: none !important;
+}
+
+.cafe-carousel-arrow:active {
+  transform: translateY(-50%) scale(0.93) !important;
+  box-shadow: none !important;
+}
+
+.cafe-carousel-arrow--left  { left:  0.6rem; }
+.cafe-carousel-arrow--right { right: 0.6rem; }
+
+/* Counter badge (e.g. "1 / 3") */
+.cafe-carousel-counter {
+  position: absolute;
+  bottom: 0.55rem;
+  right: 0.7rem;
+  background: rgba(20, 12, 6, 0.65);
+  color: rgba(242, 224, 200, 0.8);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 20px;
+  pointer-events: none;
+}
+
+/* Dots */
+.cafe-carousel-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.cafe-carousel-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3D2B1F;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s, transform 0.2s;
+  /* override global button styles */
+  box-shadow: none !important;
+  outline: none;
+}
+
+.cafe-carousel-dot:hover {
+  background: #8C6E52 !important;
+  transform: scale(1.2) !important;
+  box-shadow: none !important;
+}
+
+.cafe-carousel-dot.active {
+  background: #c8932a;
+  transform: scale(1.35);
+}
+
+/* Placeholder when no photo exists */
+.cafe-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  color: #4a3520;
+}
+
+.cafe-photo-placeholder span {
+  font-size: 1.5rem;
+  opacity: 0.4;
+}
+
+.cafe-photo-placeholder small {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+/* ── Reset Map View button ─────────────────────────────────────────────────
+   Overlaid inside the map container (position: relative wrapper).
+   Sits bottom-left, above MapLibre's attribution bar.
+─────────────────────────────────────────────────────────────────────────── */
+.map-reset-btn {
+  position: absolute;
+  bottom: 2rem;
+  left: 1rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(28, 17, 10, 0.88);
+  border: 1px solid #3D2B1F;
+  border-radius: 8px;
+  color: #F2E0C8;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+  /* Reset any global button overrides */
+  outline: none;
+  user-select: none;
+}
+
+.map-reset-btn:hover {
+  background: rgba(44, 26, 14, 0.95);
+  border-color: #8C6E52;
+  color: #c8932a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6), 0 0 10px rgba(200, 147, 42, 0.18);
+}
+
+.map-reset-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 480px) {
+  .map-reset-btn {
+    font-size: 0.7rem;
+    padding: 0.38rem 0.7rem;
+    bottom: 1.5rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — TABLET (≤ 1024px)
+════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .slide-over {
+    width: 320px;
+    min-width: 320px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — MOBILE (≤ 768px)
+   Slide-over becomes a fixed bottom sheet over the map
+════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .home {
+    padding-top: 80px;
+  }
+
+  /* Hero */
+  .map-hero {
+    padding: 1.25rem 1rem 0.4rem;
+  }
+  .map-hero-subtitle {
+    font-size: 0.92rem;
+    max-width: 100%;
+  }
+
+  /* Welcome */
+  .map-welcome-wrap {
+    margin: 0.75rem 1rem 0.15rem;
+  }
+  .map-welcome {
+    font-size: 1.4rem;
+  }
+
+  /* Search */
+  .search-bar-container {
+    max-width: 100%;
+    padding: 0 0.75rem;
+    margin: 0.9rem auto 0.75rem;
+  }
+  .search-bar button {
+    padding: 0.85rem 0.9rem;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  /* Layout: main column takes full width */
+  .home-content {
+    flex-direction: column;
+    overflow: visible;
+  }
+  .home-main {
+    width: 100%;
+  }
+
+  /* Map — fills remaining height on mobile, centered with small margins */
+  .map-container {
+    width: calc(100% - 1.5rem);
+    max-width: 100%;
+    margin: 0 auto;
+    border-radius: 14px;
+    border: 1px solid #3D2B1F;
+    flex: 1;
+    min-height: 380px;
+  }
+
+  /* Slide-over: fixed bottom sheet */
+  .slide-over {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-width: 0;
+    max-height: 72vh;
+    border-left: none;
+    border-top: 2px solid #3D2B1F;
+    border-radius: 20px 20px 0 0;
+    z-index: 50;
+    /* override the slide-in-from-right animation */
+    animation: slideInBottomMobile 0.38s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.7);
+  }
+
+  @keyframes slideInBottomMobile {
+    from { transform: translateY(100%); opacity: 0.4; }
+    to   { transform: translateY(0);   opacity: 1; }
+  }
+
+  .slide-over-close {
+    top: 0.85rem;
+    right: 1rem;
+    font-size: 1.2rem;
+  }
+
+  /* Drag handle indicator */
+  .slide-over::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: #3D2B1F;
+    margin: 0.6rem auto 0.2rem;
+    flex-shrink: 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — SMALL PHONE (≤ 480px)
+════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .map-welcome {
+    font-size: 1.2rem;
+  }
+  /* Keep flex:1 so the map still extends to the bottom —
+     min-height is just the floor so it never gets tiny */
+  .map-container {
+    min-height: 320px;
+    border-radius: 12px;
+  }
+  .slide-over {
+    max-height: 78vh;
+  }
+  .search-bar input {
+    font-size: 0.85rem;
+  }
+  .search-bar button {
+    padding: 0.85rem 0.75rem;
+    font-size: 0.78rem;
+  }
 }
