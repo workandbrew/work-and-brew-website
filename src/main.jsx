@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import ScoutPortal from "./pages/ScoutPortal";
+import ComingSoon from "./pages/ComingSoon";
 import "./index.css";
 
 // fades each page in on navigation + scrolls back to the top
@@ -40,10 +41,12 @@ function AppRoutes() {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
+    <ComingSoon>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AuthProvider>
+    </ComingSoon>
   </React.StrictMode>
 );
