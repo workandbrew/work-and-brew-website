@@ -75,8 +75,9 @@ export default function ComingSoon({ children }) {
   };
 
   const path = window.location.pathname;
-  const isKnownPath = VALID_PATHS.includes(path) || path.startsWith('/ops/');
-  if (unlocked || !isKnownPath) return children;
+  const isOpsPath = path.startsWith('/ops/');
+  const isKnownPublicPath = VALID_PATHS.includes(path);
+  if (unlocked || isOpsPath || !isKnownPublicPath) return children;
 
   const pad = (n) => String(n).padStart(2, "0");
 
