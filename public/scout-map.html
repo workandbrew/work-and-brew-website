@@ -1114,8 +1114,32 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 .scout-banner-sub { font-size: 0.7rem; color: rgba(255,255,255,0.55); margin-left: 4px; }
 
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
+
+<!-- SUPABASE LOGIN OVERLAY -->
+<div id="sb-login-overlay" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(145deg,#0a1520 0%,#0d1b2a 50%,#1b2d42 100%);display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;">
+  <div style="background:rgba(244,239,230,0.06);border:1px solid rgba(160,82,45,0.3);border-radius:20px;padding:40px 36px;max-width:360px;width:90%;text-align:center;">
+    <svg width="44" height="44" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:16px">
+      <rect x="6" y="18" width="30" height="26" rx="4" fill="#a0522d"/>
+      <path d="M36 24 Q46 24 46 31 Q46 38 36 38" stroke="#a0522d" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M14 13 Q16 8 14 4" stroke="#f4efe6" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
+      <path d="M21 11 Q23 6 21 2" stroke="#f4efe6" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
+      <path d="M28 13 Q30 8 28 4" stroke="#f4efe6" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
+      <ellipse cx="21" cy="21" rx="12" ry="3" fill="#3e1f0d" opacity="0.5"/>
+    </svg>
+    <h2 style="color:#f4efe6;font-size:1.4rem;font-weight:800;margin:0 0 4px">Work &amp; Brew</h2>
+    <p style="color:rgba(244,239,230,0.45);font-size:0.78rem;margin:0 0 28px;letter-spacing:0.06em;text-transform:uppercase">Scout Portal</p>
+    <form id="sb-login-form" style="display:flex;flex-direction:column;gap:10px;">
+      <input id="sb-email" type="email" placeholder="Scout email" autocomplete="email" style="padding:11px 14px;border-radius:10px;border:1.5px solid rgba(160,82,45,0.35);background:rgba(244,239,230,0.07);color:#f4efe6;font-size:0.9rem;outline:none;text-align:center;width:100%;box-sizing:border-box;"/>
+      <input id="sb-password" type="password" placeholder="Password" autocomplete="current-password" style="padding:11px 14px;border-radius:10px;border:1.5px solid rgba(160,82,45,0.35);background:rgba(244,239,230,0.07);color:#f4efe6;font-size:0.9rem;outline:none;text-align:center;width:100%;box-sizing:border-box;letter-spacing:0.1em;"/>
+      <p id="sb-error" style="color:#ff8a70;font-size:0.78rem;margin:0;min-height:18px;"></p>
+      <button type="submit" id="sb-login-btn" style="padding:12px;border-radius:10px;border:none;background:#a0522d;color:#f4efe6;font-size:0.9rem;font-weight:700;cursor:pointer;transition:opacity 0.15s;">Sign In ☕</button>
+    </form>
+  </div>
+</div>
+
 
 <!-- HEADER -->
 <div id="header">
@@ -1347,6 +1371,101 @@ const BORO_COLORS = {
   Bronx:'#E53935', Manhattan:'#1E88E5', Brooklyn:'#43A047', Queens:'#FB8C00'
 };
 
+// ============================================================
+// SUPABASE AUTH + SYNC
+// ============================================================
+const SUPABASE_URL = 'https://occdbhckswnhzkubfyge.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jY2RiaGNrc3duaHprdWJmeWdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTIyMTMsImV4cCI6MjA5OTkyODIxM30.t8jbngCkE-UHrKpqoTUa82vnp8orbB5qCYnZ_nOIx6w';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let _sbUser = null;
+let _sbSyncTimer = null;
+let _sbInitialized = false;
+
+async function loadFromSupabase() {
+  if (!_sbUser) return;
+  try {
+    const { data, error } = await sb.from('cafes')
+      .select('id, status, ineligible_reason, notes')
+      .neq('status', 'Unvisited');
+    if (error) { console.warn('Supabase load error:', error.message); return; }
+    if (!data || data.length === 0) return;
+    const sbMap = {};
+    data.forEach(r => { sbMap[r.id] = r; });
+    state.cafes.forEach(cafe => {
+      const row = sbMap[cafe.id];
+      if (!row) return;
+      if (row.status) cafe.status = row.status;
+      if (row.ineligible_reason) cafe.ineligibleReason = row.ineligible_reason;
+      if (row.notes) cafe.notes = row.notes;
+    });
+    saveState(); // persist merged state to localStorage
+    applyFilters();
+    updateStats();
+    renderPanel();
+  } catch(e) { console.warn('Supabase load failed:', e); }
+}
+
+async function syncToSupabase() {
+  if (!_sbUser) return;
+  try {
+    const toSync = state.cafes
+      .filter(c => c.status !== 'Unvisited' || c.ineligibleReason)
+      .map(c => ({
+        id: c.id,
+        status: c.status || 'Unvisited',
+        ineligible_reason: c.ineligibleReason || null,
+        notes: c.notes || null,
+      }));
+    if (toSync.length === 0) return;
+    const { error } = await sb.from('cafes').upsert(toSync, { onConflict: 'id' });
+    if (error) console.warn('Supabase sync error:', error.message);
+  } catch(e) { console.warn('Supabase sync failed:', e); }
+}
+
+function debouncedSync() {
+  if (!_sbUser) return;
+  if (_sbSyncTimer) clearTimeout(_sbSyncTimer);
+  _sbSyncTimer = setTimeout(syncToSupabase, 1500);
+}
+
+async function sbOnAuthSuccess(user) {
+  _sbUser = user;
+  const overlay = document.getElementById('sb-login-overlay');
+  if (overlay) overlay.style.display = 'none';
+  if (!_sbInitialized) {
+    _sbInitialized = true;
+    init();
+  }
+  await loadFromSupabase();
+}
+
+// Login form handler
+document.getElementById('sb-login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('sb-email').value.trim();
+  const password = document.getElementById('sb-password').value;
+  const errEl = document.getElementById('sb-error');
+  const btn = document.getElementById('sb-login-btn');
+  errEl.textContent = '';
+  btn.textContent = 'Signing in…';
+  btn.disabled = true;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  btn.textContent = 'Sign In ☕';
+  btn.disabled = false;
+  if (error) { errEl.textContent = error.message; return; }
+  await sbOnAuthSuccess(data.user);
+});
+
+// Restore existing session on page load
+(async function checkSession() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    await sbOnAuthSuccess(session.user);
+  }
+  // If no session, the overlay stays visible — user must log in
+})();
+
 const STORAGE_KEY = 'wab_cafe_map_v3';
 
 // ============================================================
@@ -1413,6 +1532,7 @@ function saveState() {
       panelOpen: state.panelOpen,
       };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    debouncedSync();
   } catch(e) { console.warn('State save error', e); }
 }
 
@@ -3448,7 +3568,7 @@ function init() {
   setTimeout(() => { applyScoutModeFromURL(); }, 200);
 }
 
-init();
+// init() is called from sbOnAuthSuccess() after Supabase login
 </script>
 </body>
 </html>
