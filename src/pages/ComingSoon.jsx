@@ -71,7 +71,7 @@ export default function ComingSoon({ children }) {
     }
   };
 
-  if (unlocked) return children;
+  if (unlocked || window.location.pathname.startsWith('/ops/')) return children;
 
   const pad = (n) => String(n).padStart(2, "0");
 
