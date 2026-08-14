@@ -1424,8 +1424,14 @@ async function loadFromSupabase() {
       applyFilters();
       updateStats();
       renderPanel();
+      const completed = state.cafes.filter(c => c.status === 'Visit Completed').length;
+      const assigned  = state.cafes.filter(c => c.assignedTo != null).length;
+      showToast(`☁ Loaded ${data.length} rows — ${completed} completed, ${assigned} assigned`);
     }
-  } catch(e) { console.warn('Supabase load failed:', e); }
+  } catch(e) {
+    console.warn('Supabase load failed:', e);
+    showToast('⚠ Could not load data: ' + e.message);
+  }
 }
 
 async function syncToSupabase() {
