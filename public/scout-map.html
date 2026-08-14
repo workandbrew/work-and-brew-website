@@ -1425,8 +1425,6 @@ async function loadFromSupabase() {
       updateStats();
       renderPanel();
     }
-    // Always push local data up to Supabase on login (handles first-time migration)
-    await syncToSupabase();
   } catch(e) { console.warn('Supabase load failed:', e); }
 }
 
