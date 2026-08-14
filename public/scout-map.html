@@ -1407,8 +1407,7 @@ async function loadFromSupabase() {
   if (!_sbUser) return;
   try {
     const { data, error } = await sb.from('cafes')
-      .select('id, status, ineligible_reason, notes')
-      .neq('status', 'Unvisited');
+      .select('id, status, ineligible_reason, notes, assigned_scout_index');
     if (error) { console.warn('Supabase load error:', error.message); }
     // Merge Supabase data if any exists
     if (data && data.length > 0) {
@@ -3397,7 +3396,7 @@ async function lookupAddress() {
 // Usage: open the file with ?scout=Iris  (matches person name, case-insensitive)
 // This locks the view to Scout View, filtered to that scout,
 // and hides Armando's admin controls.
-(function applyScoutModeFromURL() {
+function applyScoutModeFromURL() {
   const params = new URLSearchParams(window.location.search);
   const scoutParam = params.get('scout');
   if (!scoutParam) return;
@@ -3458,7 +3457,7 @@ async function lookupAddress() {
   renderScoutFilterBar();
   applyFilters();
   showToast(`🗺 Scout View — ${person.name}'s assigned cafés`);
-})();
+}
 
 // ============================================================
 // GOOGLE MAPS URL PARSER (Bug 2 fix)
