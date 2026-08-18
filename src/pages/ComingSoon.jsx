@@ -1,7 +1,20 @@
 import { useState, useEffect } from "react";
 
-const PREVIEW_PASSWORD = "WnB!c0ff33@NYC#2026";
-const LAUNCH_DATE = new Date("2026-08-16T00:00:00");
+// SHA-256 hash of the preview password — the real password never lives in the bundle.
+// Generate a new hash any time you rotate the password:
+//   echo -n "yourpassword" | sha256sum
+const PREVIEW_HASH = "d15bc2f56495be079a8f8ef8c24aa097bb664053a4b2f4222cf519b8ce883526";
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(str)
+  );
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+const LAUNCH_DATE = new Date("2026-08-20T10:00:00");
 const STORAGE_KEY = "wb_preview_unlocked";
 
 // Known valid routes — anything else bypasses the wall and shows 404
@@ -63,9 +76,10 @@ export default function ComingSoon({ children }) {
     return () => clearInterval(t);
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (password === PREVIEW_PASSWORD) {
+    const inputHash = await sha256(password);
+    if (inputHash === PREVIEW_HASH) {
       localStorage.setItem(STORAGE_KEY, "true");
       setUnlocked(true);
     } else {
@@ -117,7 +131,7 @@ export default function ComingSoon({ children }) {
         textTransform: "uppercase",
         marginBottom: "12px",
       }}>
-        Launching August 16, 2026
+        Launching August 20, 2026
       </p>
 
       {/* Main title */}

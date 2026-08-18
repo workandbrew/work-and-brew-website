@@ -1496,6 +1496,116 @@ async function submitChangePassword() {
   setTimeout(() => { document.getElementById('sb-changepw-modal').style.display = 'none'; msg.textContent = ''; msg.style.color = '#ff8a70'; }, 1800);
 }
 
+// ============================================================
+// BACKLOG PANEL
+// ============================================================
+function renderBacklogPanel() {
+  const container = document.getElementById('persons-container');
+  const q = state.searchQuery ? state.searchQuery.toLowerCase() : '';
+  let cafes = state.cafes.filter(c =>
+    c.status === 'Unvisited' && c.assignedTo == null && !c.ineligibleReason
+  );
+  if (state.boroughFilter !== 'All') cafes = cafes.filter(c => c.borough === state.boroughFilter);
+  if (q) cafes = cafes.filter(c =>
+    c.name.toLowerCase().includes(q) || c.address.toLowerCase().includes(q) || c.borough.toLowerCase().includes(q)
+  );
+  cafes.sort((a,b) => a.borough.localeCompare(b.borough) || a.name.localeCompare(b.name));
+
+  const copyList = () => {
+    const text = cafes.map((c,i) => `${i+1}. ${c.name} — ${c.address} (${c.borough})`).join('\n');
+    navigator.clipboard.writeText(text).then(() => showToast('📋 Backlog list copied!')).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta); showToast('📋 Copied!');
+    });
+  };
+
+  container.innerHTML = `
+    <div class="backlog-header">
+      <h3>📋 Backlog — ${cafes.length} unvisited & unassigned</h3>
+      <button class="backlog-copy-btn" onclick="(${copyList.toString()})()">⎘ Copy List</button>
+    </div>
+    ${cafes.map(c => `
+      <div class="backlog-item cafe-item" data-id="${c.id}">
+        <input type="checkbox" class="cafe-item-cb" data-id="${c.id}" onchange="toggleBulkSelect('${c.id}',this.checked)" onclick="event.stopPropagation()">
+        <span style="flex:1">${escHtml(c.name)}<br><span style="font-size:0.72rem;color:#8a7a6a">${escHtml(c.address)}</span></span>
+        <span class="backlog-boro">${escHtml(c.borough)}</span>
+      </div>`).join('')}
+  `;
+  wireDragSelect(container);
+}
+
+// ============================================================
+// BULK SELECT
+// ============================================================
+const _bulkSelected = new Set();
+
+function toggleBulkSelect(id, checked) {
+  if (checked) _bulkSelected.add(id); else _bulkSelected.delete(id);
+  updateBulkBar();
+}
+
+function bulkClear() {
+  _bulkSelected.clear();
+  document.querySelectorAll('.cafe-item-cb').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.cafe-item.selected-bulk').forEach(el => el.classList.remove('selected-bulk'));
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-action-bar');
+  const cnt = document.getElementById('bulk-count');
+  if (_bulkSelected.size > 0) {
+    bar.classList.add('visible');
+    cnt.textContent = _bulkSelected.size + ' selected';
+  } else {
+    bar.classList.remove('visible');
+  }
+  document.querySelectorAll('.cafe-item').forEach(el => {
+    el.classList.toggle('selected-bulk', _bulkSelected.has(el.dataset.id));
+  });
+}
+
+function bulkApply() {
+  const newStatus = document.getElementById('bulk-status-select').value;
+  if (!newStatus) { showToast('⚠ Pick a status first'); return; }
+  _bulkSelected.forEach(id => {
+    const cafe = state.cafes.find(c => c.id === id);
+    if (cafe) cafe.status = newStatus;
+    if (markers[id]) {
+      markerLayer.removeLayer(markers[id]);
+      delete markers[id];
+    }
+  });
+  saveState();
+  bulkClear();
+  applyFilters();
+  updateStats();
+  renderPanel();
+  showToast(`✅ Updated ${_bulkSelected.size > 0 ? _bulkSelected.size : 'selected'} cafes to "${newStatus}"`);
+}
+
+function wireDragSelect(container) {
+  let dragging = false;
+  let lastChecked = null;
+  container.addEventListener('mousedown', e => {
+    const cb = e.target.closest('.cafe-item-cb');
+    if (!cb) return;
+    dragging = true;
+    lastChecked = cb;
+  });
+  container.addEventListener('mouseover', e => {
+    if (!dragging) return;
+    const cb = e.target.closest('.cafe-item-cb');
+    if (!cb || cb === lastChecked) return;
+    cb.checked = !cb.checked;
+    toggleBulkSelect(cb.dataset.id, cb.checked);
+    lastChecked = cb;
+  });
+  document.addEventListener('mouseup', () => { dragging = false; });
+}
+
+
 function exportSQL() {
   const rows = state.cafes.filter(c => c.status !== 'Unvisited' || c.ineligibleReason || c.assignedTo != null);
   if (rows.length === 0) { alert('No data to export.'); return; }
@@ -2380,9 +2490,15 @@ function renderPanel() {
   // List mode: show list in the list-view div instead
   if (state.listMode) { renderListMode(); return; }
 
-  // Ineligible tab: show ineligible cafes panel
+  // Ineligible tab
   if (state.activeTab === 'ineligible') {
     renderIneligiblePanel();
+    return;
+  }
+
+  // Backlog tab
+  if (state.activeTab === 'backlog') {
+    renderBacklogPanel();
     return;
   }
 
@@ -3697,6 +3813,25 @@ function init() {
 }
 
 // init() is called from sbOnAuthSuccess() after Supabase login
+
+<!-- Bulk action bar -->
+<div id="bulk-action-bar">
+  <span id="bulk-count">0 selected</span>
+  <select id="bulk-status-select">
+    <option value="">Change status to…</option>
+    <option>Unvisited</option>
+    <option>In Progress</option>
+    <option>Upcoming</option>
+    <option>Pending Visit</option>
+    <option>Visit Completed</option>
+    <option>Needs Revisit</option>
+    <option>Temporarily Unavailable</option>
+    <option>Permanently Closed</option>
+    <option>Ineligible Cafe</option>
+  </select>
+  <button class="bulk-apply-btn" onclick="bulkApply()">Apply</button>
+  <button class="bulk-clear-btn" onclick="bulkClear()">✕ Clear</button>
+</div>
 </script>
 </body>
 </html>

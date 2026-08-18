@@ -177,6 +177,12 @@ export default function Home() {
                 </span>
               </div>
               <div className="amenity">
+                <span className="amenity-label">Secured</span>
+                <span className="amenity-value">
+                  {selectedCafe.Secured === "TRUE" || selectedCafe.Secured === "true" ? "✓ WPA" : selectedCafe.Secured === "FALSE" || selectedCafe.Secured === "false" ? "✗ Open" : selectedCafe.Secured || "—"}
+                </span>
+              </div>
+              <div className="amenity">
                 <span className="amenity-label">Outlets</span>
                 <span className="amenity-value">
                   {selectedCafe.Outlets === "TRUE" || selectedCafe.Outlets === "true" ? "✓ Yes" : selectedCafe.Outlets === "FALSE" || selectedCafe.Outlets === "false" ? "✗ No" : selectedCafe.Outlets || "—"}
@@ -199,7 +205,7 @@ export default function Home() {
                 <span className="amenity-value">
                   {(() => {
                     const s = parseInt(selectedCafe.Seats);
-                    if (isNaN(s)) return "default";
+                    if (isNaN(s)) return "—";
                     if (s <= 4) return `Few (${s})`;
                     if (s <= 8) return `Some (${s})`;
                     if (s <= 12) return `Many (${s})`;

@@ -77,7 +77,7 @@ export default function ForOwners() {
             <ul>
               {REASONS.map((reason) => (
                 <li key={reason}>
-                  <span className="owners-why-arrow">▸</span>
+                  <span className="owners-why-arrow">▸</span>gi
                   {reason}
                 </li>
               ))}
