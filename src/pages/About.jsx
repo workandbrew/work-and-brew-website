@@ -12,7 +12,7 @@ const TEAM = [
     cafe: "Cup of Brooklyn",
     initial: "D",
     tag: "Founder",
-    photo: "/public/Team-photos/Denisse Medina F. - Founder.jpg",
+    photo: "/Team-photos/Denisse Medina F. - Founder.jpg",
     avatar: "/nutellalatte.png",
     about: "I founded Work & Brew during a chapter of uncertainty, juggling between coding school, freelancing culinary, UGC gigs, and presenting across NYC. Cafés became my office, my sancutary, and my community. What started as an accidental habit became a gap I couldn't ignore. I was always naturally drawn to technology but self-doubt kept me from committing, until my late coding school teacher Brian Hague changed that, leaving an imprint to believe in my ideas. Since 2022 I've been self-learning about softwares while enrolled at BloomTech, building my technical foundation from the ground up. Coming from culinary arts, content creation, and education, the pivot into tech was big but it always felt like where I was meant to end up. My real edge is thinking like a consumer, as one, myself. That instinct led me to Product Management, and Work & Brew is the proof of concept. Built from personal experience, backed by real research, and designed to fill a gap the market didn't know how to name yet.",    
   },
@@ -25,7 +25,7 @@ const TEAM = [
     cafe: "TBD",
     initial: "D",
     tag: "Co-Founder",
-    photo: "/public/Team-photos/David T. - Co-Founder.JPG",
+    photo: "/Team-photos/David T. - Co-Founder.JPG",
     avatar: "/coldbrew.png",    
     about: "Reason to join the community here.",
   },
@@ -38,7 +38,7 @@ const TEAM = [
     cafe: "TBD",
     initial: "A",
     tag: "Scout Lead",
-    photo: "/public/Team-photos/"
+    photo: null,
     avatar: "/americano.png",
     about: "Reason to join the community here.",
   },
@@ -51,7 +51,7 @@ const TEAM = [
     cafe: "Prince Coffee House",
     initial: "I",
     tag: "Artist",
-    photo: "/public/Team-photos/Iris - Artist Lead.jpg"
+    photo: "/Team-photos/Iris - Artist Lead.jpg",
     avatar: "/strawberrymatcha.png",
     about: "Reason to join the community here.",
   },
@@ -64,7 +64,7 @@ const TEAM = [
     cafe: "787 Coffee @ Harlem",
     initial: "O",
     tag: "bronx-scout",
-    photo: "/public/Team-photos/Orlando - Scout.jpg",
+    photo: "/Team-photos/Orlando - Scout.jpg",
     avatar: "/icedcoffee2.png",
     about: "Reason to join the community here.",
   },
@@ -77,7 +77,7 @@ const TEAM = [
     cafe: "TBD",
     initial: "M",
     tag: "Designer",
-    photo: "/public/Team-photos/Mellanie B. - Artist Asst..jpg"
+    photo: "/Team-photos/Mellanie B. - Artist Asst..jpg",
     avatar: "/icedcoffee.png",
     about: "Reason to join the community here.",
   },
@@ -90,7 +90,7 @@ const TEAM = [
     cafe: "TBD",
     initial: "C",
     tag: "Scout",
-    photo: "/public/Team-photos/Christopher E. - QA Tester.png"
+    photo: "/Team-photos/Christopher E. - QA Tester.png",
     avatar: "/frappe.png",
     about: "Reason to join the community here.",
   },
@@ -103,7 +103,7 @@ const TEAM = [
     cafe: "Sweet Moment",
     initial: "S",
     tag: "Copywriter",
-    photo: "/public/Team-photos/Sayraliz R. - B2B Management.jpg"
+    photo: "/Team-photos/Sayraliz R. - B2B Management.jpg",
     avatar: "/icedlatte.png",
     about: "Reason to join the community here.",
   },
@@ -116,7 +116,7 @@ const TEAM = [
     cafe: "TBD",
     initial: "J",
     tag: "Brand Rep",
-    photo: "/public/Team-photos/Jadyn - Campus Ambassador.jpg"
+    photo: "/Team-photos/Jadyn - Campus Ambassador.jpg",
     avatar: "/caramelcraze.png",
     about: "Reason to join the community here.",
   },
@@ -173,44 +173,39 @@ export default function About() {
   const [timelineVisible, setTimelineVisible] = useState(false);
   const timelineRef = useRef(null);
 
-  // which milestone is expanded — null keeps the timeline dates-only.
-  // lastMilestone remembers the previous one so the card can animate
-  // closed smoothly instead of vanishing mid-collapse
   const [activeMilestone, setActiveMilestone] = useState(null);
   const [lastMilestone, setLastMilestone] = useState(0);
 
-  // Blur gate — hint + timeline stay blurred until user clicks the arrow
   const [revealed, setRevealed] = useState(false);
 
-useEffect(() => {
-  const observer = new IntersectionObserver(
-    ([entry]) => {
-      if (entry.isIntersecting) setTeamVisible(true);
-    },
-    { threshold: 0.15 }
-  );
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setTeamVisible(true);
+      },
+      { threshold: 0.15 }
+    );
 
-  const timelineObserver = new IntersectionObserver(
-    ([entry]) => {
-      if (entry.isIntersecting) setTimelineVisible(true);
-    },
-    { threshold: 0.2 }
-  );
+    const timelineObserver = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setTimelineVisible(true);
+      },
+      { threshold: 0.2 }
+    );
 
-  if (teamRef.current) observer.observe(teamRef.current);
-  if (timelineRef.current) timelineObserver.observe(timelineRef.current);
+    if (teamRef.current) observer.observe(teamRef.current);
+    if (timelineRef.current) timelineObserver.observe(timelineRef.current);
 
-  return () => {
-    observer.disconnect();
-    timelineObserver.disconnect();
-  };
-}, []);
+    return () => {
+      observer.disconnect();
+      timelineObserver.disconnect();
+    };
+  }, []);
 
   return (
     <div className="page-shell">
       <Navbar />
 
-      {/* About intro — headline big top & center, story text left, photo right */}
       <div className="about-intro">
         <h1 className="page-title about-headline">
           Building Work & Brew, <br />one milestone at a time.
@@ -235,13 +230,11 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Scroll hint — blurred until user clicks */}
         <div className="about-scroll-hint">
           <span className="about-scroll-label">Get to know the team &amp; our progress!</span>
           <button
             className="scroll-arrow"
             onClick={() => {
-              // Reveal content first, then scroll so the photo is off-screen
               setRevealed(true);
               const hero = document.querySelector(".about-hero");
               if (!hero) return;
@@ -258,61 +251,57 @@ useEffect(() => {
         </div>
       </div>
 
-{/* Timeline Section */}
-<div
-  className={`timeline-section${timelineVisible ? " is-visible" : ""}${revealed ? "" : " about-blur-gate"}`}
-  ref={timelineRef}
->
-  <div className="timeline-header">
-    <div className="page-badge">Work &amp; Brew's Timeline</div>
-  </div>
+      <div
+        className={`timeline-section${timelineVisible ? " is-visible" : ""}${revealed ? "" : " about-blur-gate"}`}
+        ref={timelineRef}
+      >
+        <div className="timeline-header">
+          <div className="page-badge">Work &amp; Brew's Timeline</div>
+        </div>
 
-  <div className="timeline-track-wrap">
-    <div className="timeline-track">
-      {TIMELINE.map((item, index) => (
-        <button
-          key={item.year}
-          className={`timeline-node ${timelineVisible ? "timeline-active" : ""} ${
-            activeMilestone === index ? "is-selected" : ""
-          }`}
-          style={{ animationDelay: `${index * 0.1}s` }}
-          onClick={() => {
-            setActiveMilestone(activeMilestone === index ? null : index);
-            setLastMilestone(index);
-          }}
-        >
-          <span className="timeline-node-dot">☕</span>
-          <span className="timeline-node-date">{item.year}</span>
-        </button>
-      ))}
-    </div>
+        <div className="timeline-track-wrap">
+          <div className="timeline-track">
+            {TIMELINE.map((item, index) => (
+              <button
+                key={item.year}
+                className={`timeline-node ${timelineVisible ? "timeline-active" : ""} ${
+                  activeMilestone === index ? "is-selected" : ""
+                }`}
+                style={{ animationDelay: `${index * 0.1}s` }}
+                onClick={() => {
+                  setActiveMilestone(activeMilestone === index ? null : index);
+                  setLastMilestone(index);
+                }}
+              >
+                <span className="timeline-node-dot">☕</span>
+                <span className="timeline-node-date">{item.year}</span>
+              </button>
+            ))}
+          </div>
 
-    {/* tap a date to peek at the milestone — wrapper animates open/closed */}
-    <div className={`timeline-detail-wrap ${activeMilestone !== null ? "is-open" : ""}`}>
-      <div className="timeline-detail-clip">
-        <div className="timeline-detail" key={activeMilestone ?? lastMilestone}>
-          <span className="timeline-year">
-            {TIMELINE[activeMilestone ?? lastMilestone].year}
-          </span>
-          <h3>{TIMELINE[activeMilestone ?? lastMilestone].title}</h3>
-          <p>{TIMELINE[activeMilestone ?? lastMilestone].text}</p>
+          <div className={`timeline-detail-wrap ${activeMilestone !== null ? "is-open" : ""}`}>
+            <div className="timeline-detail-clip">
+              <div className="timeline-detail" key={activeMilestone ?? lastMilestone}>
+                <span className="timeline-year">
+                  {TIMELINE[activeMilestone ?? lastMilestone].year}
+                </span>
+                <h3>{TIMELINE[activeMilestone ?? lastMilestone].title}</h3>
+                <p>{TIMELINE[activeMilestone ?? lastMilestone].text}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-</div>
 
-      {/* Team section */}
       <div
         className={`ed-section ${teamVisible ? "is-visible" : ""}`}
         ref={teamRef}
       >
-        {/* Left - kraft paper receipt */}
-          <div className="ed-featured" key={active}>
-            <div className="ed-featured-top">
-              <div className="page-badge">The Team</div>
-            </div>
-            <div className="kraft-receipt">
+        <div className="ed-featured" key={active}>
+          <div className="ed-featured-top">
+            <div className="page-badge">The Team</div>
+          </div>
+          <div className="kraft-receipt">
             <div className="kraft-header">
               <p className="kraft-store">WORK & BREW ☕</p>
               <p className="kraft-address">New York City, NY</p>
@@ -323,7 +312,6 @@ useEffect(() => {
 
             <div className="kraft-divider-dashed" />
 
-            {/* Avatar */}
             <div className="kraft-avatar-wrap">
               <div className="ed-featured-avatar">
                 {TEAM[active].photo ? (
@@ -340,7 +328,6 @@ useEffect(() => {
 
             <div className="kraft-divider-dashed" />
 
-            {/* Name & role */}
             <div className="kraft-name-block">
               <div className="ed-featured-tag">{TEAM[active].tag}</div>
               <h2 className="ed-featured-name">{TEAM[active].name}</h2>
@@ -349,7 +336,6 @@ useEffect(() => {
 
             <div className="kraft-divider-dashed" />
 
-            {/* Stats */}
             <div className="kraft-stats">
               <div className="kraft-stat-row">
                 <span className="kraft-stat-label">BOROUGH CHAPTER</span>
@@ -367,10 +353,10 @@ useEffect(() => {
                 <span className="kraft-stat-label">FAVORITE SPOT</span>
                 <span className="kraft-stat-val">{TEAM[active].cafe}</span>
               </div>
-            <div className="kraft-about">
-              <span className="kraft-about-label">ABOUT ME</span>
-              <p className="kraft-about-text">{TEAM[active].about}</p>
-            </div>
+              <div className="kraft-about">
+                <span className="kraft-about-label">ABOUT ME</span>
+                <p className="kraft-about-text">{TEAM[active].about}</p>
+              </div>
             </div>
 
             <div className="kraft-divider-dashed" />
@@ -378,7 +364,6 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Right - team list */}
         <div className="ed-list">
           <div className="ed-list-label">Work & Brew's Team</div>
           {TEAM.map((member, i) => (

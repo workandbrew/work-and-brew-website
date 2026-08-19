@@ -7,16 +7,13 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import "./Home.css";
 
-// Map cafe names to up to 3 images: [hero, photo2, photo3]
-// Add more here as photos are scouted. Use null for empty slots.
 const CAFE_IMAGES = {
   "Mottley Kitchen": ["/cafe-images/mottley-kitchen.avif", null, null],
 };
 
-// ── Photo carousel — shows one photo at a time, arrows to cycle ──────────────
 function CafePhotoCarousel({ photos }) {
   const [idx, setIdx] = useState(0);
-  const slots = (photos && photos.length) ? photos : [null, null, null];
+  const slots = photos && photos.length ? photos : [null, null, null];
   const total = slots.length;
   const prev = () => setIdx((idx - 1 + total) % total);
   const next = () => setIdx((idx + 1) % total);
@@ -62,7 +59,6 @@ export default function Home() {
   const { saveCafe, removeCafe, isSaved } = useSavedCafes(user?.username);
   const navigate = useNavigate();
 
-  // saving is members-only — send guests to the login page
   const handleSave = () => {
     if (!user) {
       navigate("/login");
@@ -82,16 +78,15 @@ export default function Home() {
     setActiveFilter("");
   };
 
+  const isTrue = (val) => String(val).toUpperCase() === "TRUE" || String(val).toUpperCase() === "YES";
+  const isFalse = (val) => String(val).toUpperCase() === "FALSE" || String(val).toUpperCase() === "NO";
+
   return (
     <div className="home">
       <Navbar />
 
       <div className={`home-content ${selectedCafe ? "panel-open" : ""}`}>
-
-        {/* Left: main content */}
         <div className="home-main">
-
-          {/* Hero Title */}
           <div className="map-hero">
             <h1 className="map-hero-title">Work & Brew Cafe Map</h1>
             <p className="map-hero-subtitle">
@@ -99,9 +94,8 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Welcome message — only visible when logged in */}
           {user && (() => {
-            const raw  = user.preferredName || user.username || "Friend";
+            const raw = user.preferredName || user.username || "Friend";
             const name = raw.charAt(0).toUpperCase() + raw.slice(1);
             return (
               <div className="map-welcome-wrap">
@@ -111,7 +105,6 @@ export default function Home() {
             );
           })()}
 
-          {/* Search Bar */}
           <div className="search-bar-container">
             <form className="search-bar" onSubmit={handleSearch}>
               <input
@@ -129,7 +122,6 @@ export default function Home() {
             </form>
           </div>
 
-          {/* Map */}
           <div className="map-container">
             <MapComponent
               onMarkerClick={setSelectedCafe}
@@ -137,20 +129,14 @@ export default function Home() {
               panelOpen={!!selectedCafe}
             />
           </div>
-
         </div>
 
-        {/* Right: Café Panel */}
         {selectedCafe && (
           <div className="slide-over" key={selectedCafe.Name + selectedCafe.Address}>
-            <button
-              className="slide-over-close"
-              onClick={() => setSelectedCafe(null)}
-            >
+            <button className="slide-over-close" onClick={() => setSelectedCafe(null)}>
               ✕
             </button>
 
-            {/* Photo carousel — one photo at a time, arrows to cycle */}
             <CafePhotoCarousel
               photos={CAFE_IMAGES[selectedCafe.Name] || [null, null, null]}
             />
@@ -159,7 +145,6 @@ export default function Home() {
             <p className="slide-over-neighborhood">{selectedCafe.Address}</p>
             <span className="slide-over-borough-badge">{selectedCafe.County}</span>
 
-            {/* Location count — only show if more than one */}
             {selectedCafe._locationCount > 1 && (
               <p className="slide-over-locations">
                 {selectedCafe._locationCount} locations in NYC
@@ -168,36 +153,35 @@ export default function Home() {
 
             <div className="slide-over-divider" />
 
-            {/* Amenities grid */}
             <div className="slide-over-amenities">
               <div className="amenity">
                 <span className="amenity-label">WiFi</span>
                 <span className="amenity-value">
-                  {selectedCafe.WiFi || "—"}
+                  {selectedCafe.WiFi || selectedCafe["Wi-fi"] || "—"}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Secured</span>
                 <span className="amenity-value">
-                  {selectedCafe.Secured === "TRUE" || selectedCafe.Secured === "true" ? "✓ WPA" : selectedCafe.Secured === "FALSE" || selectedCafe.Secured === "false" ? "✗ Open" : selectedCafe.Secured || "—"}
+                  {isTrue(selectedCafe.Secured) ? "✓ WPA" : isFalse(selectedCafe.Secured) ? "✗ Open" : selectedCafe.Secured || "—"}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Outlets</span>
                 <span className="amenity-value">
-                  {selectedCafe.Outlets === "TRUE" || selectedCafe.Outlets === "true" ? "✓ Yes" : selectedCafe.Outlets === "FALSE" || selectedCafe.Outlets === "false" ? "✗ No" : selectedCafe.Outlets || "—"}
+                  {isTrue(selectedCafe.Outlets) ? "✓ Yes" : isFalse(selectedCafe.Outlets) ? "✗ No" : selectedCafe.Outlets || "—"}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Hot Food</span>
                 <span className="amenity-value">
-                  {selectedCafe.HotFood === "TRUE" || selectedCafe.HotFood === "true" ? "✓ Yes" : selectedCafe.HotFood === "FALSE" || selectedCafe.HotFood === "false" ? "✗ No" : selectedCafe.HotFood || "—"}
+                  {isTrue(selectedCafe.HotFood) ? "✓ Yes" : isFalse(selectedCafe.HotFood) ? "✗ No" : selectedCafe.HotFood || "—"}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Restroom</span>
                 <span className="amenity-value">
-                  {selectedCafe.Restroom === "TRUE" || selectedCafe.Restroom === "true" ? "✓ Yes" : selectedCafe.Restroom === "FALSE" || selectedCafe.Restroom === "false" ? "✗ No" : selectedCafe.Restroom || "—"}
+                  {isTrue(selectedCafe.Restroom) ? "✓ Yes" : isFalse(selectedCafe.Restroom) ? "✗ No" : selectedCafe.Restroom || "—"}
                 </span>
               </div>
               <div className="amenity">
@@ -205,43 +189,42 @@ export default function Home() {
                 <span className="amenity-value">
                   {(() => {
                     const s = parseInt(selectedCafe.Seats);
-                    if (isNaN(s)) return "—";
-                    if (s <= 4) return `Few (${s})`;
-                    if (s <= 8) return `Some (${s})`;
-                    if (s <= 12) return `Many (${s})`;
-                    return `Ample (${s})`;
+                    if (!isNaN(s)) {
+                      if (s <= 4) return `Few (${s})`;
+                      if (s <= 8) return `Some (${s})`;
+                      if (s <= 12) return `Many (${s})`;
+                      return `Ample (${s})`;
+                    }
+                    return selectedCafe.Seats || "—";
                   })()}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Time Limit</span>
                 <span className="amenity-value">
-                  {selectedCafe.TimeRestriction === "TRUE" || selectedCafe.TimeRestriction === "true"
-                    ? selectedCafe.RestrictionAmount || "Yes"
-                    : selectedCafe.TimeRestriction === "FALSE" || selectedCafe.TimeRestriction === "false"
+                  {isTrue(selectedCafe.TimeRestriction || selectedCafe.Restrictions)
+                    ? selectedCafe.RestrictionAmount || selectedCafe.RestrictionInfo || "Yes"
+                    : isFalse(selectedCafe.TimeRestriction || selectedCafe.Restrictions)
                     ? "None"
-                    : selectedCafe.TimeRestriction || "—"}
+                    : "—"}
                 </span>
               </div>
             </div>
 
             <div className="slide-over-divider" />
 
-            {/* About */}
-            {selectedCafe.Description &&
-              selectedCafe.Description !== "TBD - Filler for cafe description and/or summary until reviewed and confirmed with all information up-to-date." && (
-                <>
-                  <p className="slide-over-section-label">About</p>
-                  <p className="slide-over-vibe">{selectedCafe.Description}</p>
-                </>
-              )}
+            {selectedCafe.Description && (
+              <>
+                <p className="slide-over-section-label">About</p>
+                <p className="slide-over-vibe">{selectedCafe.Description}</p>
+              </>
+            )}
 
             <div className="slide-over-divider" />
 
-            {/* Scout */}
             <p className="slide-over-section-label">Visited By</p>
             <p className="slide-over-scout">
-              {selectedCafe.ScoutName || "—"}
+              {selectedCafe.ScoutName || selectedCafe.VisitedBy || "—"}
             </p>
 
             <a
@@ -264,13 +247,9 @@ export default function Home() {
                 : "♡ Log in to save"}
             </button>
 
-            {/* Suggestion form — collapses/expands per café */}
-            <SuggestionForm
-              cafeName={selectedCafe.Name}
-            />
+            <SuggestionForm cafeName={selectedCafe.Name} />
           </div>
         )}
-
       </div>
     </div>
   );
