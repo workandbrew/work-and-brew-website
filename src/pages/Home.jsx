@@ -55,6 +55,7 @@ export default function Home() {
   const [selectedCafe, setSelectedCafe] = useState(null);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("");
+  const [boroughFilter, setBoroughFilter] = useState("");
   const { user } = useAuth();
   const { saveCafe, removeCafe, isSaved } = useSavedCafes(user?.username);
   const navigate = useNavigate();
@@ -78,8 +79,16 @@ export default function Home() {
     setActiveFilter("");
   };
 
+  // Helper to format stats: removes checkmarks & capitalizes first letter only (e.g. Yes, No, Many, Ample)
+  const formatStat = (val) => {
+    if (!val || val === "—" || val === "NONE" || val === "none") return "—";
+    const str = String(val).trim();
+    if (str.toUpperCase() === "TRUE" || str.toUpperCase() === "YES") return "Yes";
+    if (str.toUpperCase() === "FALSE" || str.toUpperCase() === "NO") return "No";
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
+
   const isTrue = (val) => String(val).toUpperCase() === "TRUE" || String(val).toUpperCase() === "YES";
-  const isFalse = (val) => String(val).toUpperCase() === "FALSE" || String(val).toUpperCase() === "NO";
 
   return (
     <div className="home">
@@ -122,10 +131,36 @@ export default function Home() {
             </form>
           </div>
 
+          {/* Map with Seating Key (top-left) & Borough Filter (top-right) */}
           <div className="map-container">
+            <div className="map-overlay-key">
+              <span className="key-label">🪑 Seating Key:</span>
+              <span className="key-badge">Few (0–4)</span>
+              <span className="key-badge">Some (4–8)</span>
+              <span className="key-badge">Many (8–12)</span>
+              <span className="key-badge">Ample (12+)</span>
+            </div>
+
+            <div className="map-overlay-filter">
+              <select
+                className="map-filter-select"
+                value={boroughFilter}
+                onChange={(e) => setBoroughFilter(e.target.value)}
+                aria-label="Filter by borough"
+              >
+                <option value="">All Boroughs ▾</option>
+                <option value="Manhattan">Manhattan</option>
+                <option value="Brooklyn">Brooklyn</option>
+                <option value="Queens">Queens</option>
+                <option value="Bronx">Bronx</option>
+                <option value="Staten Island">Staten Island</option>
+              </select>
+            </div>
+
             <MapComponent
               onMarkerClick={setSelectedCafe}
               filterQuery={activeFilter}
+              boroughFilter={boroughFilter}
               panelOpen={!!selectedCafe}
             />
           </div>
@@ -141,47 +176,45 @@ export default function Home() {
               photos={CAFE_IMAGES[selectedCafe.Name] || [null, null, null]}
             />
 
-            <h2 className="slide-over-name">{selectedCafe.Name}</h2>
-            <p className="slide-over-neighborhood">{selectedCafe.Address}</p>
-            <span className="slide-over-borough-badge">{selectedCafe.County}</span>
+            {/* Centered Title & Location */}
+            <div className="slide-over-header-centered">
+              <h2 className="slide-over-name">{selectedCafe.Name}</h2>
+              <p className="slide-over-neighborhood">{selectedCafe.Address}</p>
+              <span className="slide-over-borough-badge">{selectedCafe.County}</span>
 
-            {selectedCafe._locationCount > 1 && (
-              <p className="slide-over-locations">
-                {selectedCafe._locationCount} locations in NYC
-              </p>
-            )}
+              {selectedCafe._locationCount > 1 && (
+                <p className="slide-over-locations">
+                  {selectedCafe._locationCount} locations in NYC
+                </p>
+              )}
+            </div>
 
             <div className="slide-over-divider" />
 
+            {/* Amenities Grid */}
             <div className="slide-over-amenities">
               <div className="amenity">
                 <span className="amenity-label">WiFi</span>
                 <span className="amenity-value">
-                  {selectedCafe.WiFi || selectedCafe["Wi-fi"] || "—"}
-                </span>
-              </div>
-              <div className="amenity">
-                <span className="amenity-label">Secured</span>
-                <span className="amenity-value">
-                  {isTrue(selectedCafe.Secured) ? "✓ WPA" : isFalse(selectedCafe.Secured) ? "✗ Open" : selectedCafe.Secured || "—"}
+                  {formatStat(selectedCafe.WiFi || selectedCafe["Wi-fi"] || "Yes")}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Outlets</span>
                 <span className="amenity-value">
-                  {isTrue(selectedCafe.Outlets) ? "✓ Yes" : isFalse(selectedCafe.Outlets) ? "✗ No" : selectedCafe.Outlets || "—"}
+                  {formatStat(selectedCafe.Outlets)}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Hot Food</span>
                 <span className="amenity-value">
-                  {isTrue(selectedCafe.HotFood) ? "✓ Yes" : isFalse(selectedCafe.HotFood) ? "✗ No" : selectedCafe.HotFood || "—"}
+                  {formatStat(selectedCafe.HotFood)}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Restroom</span>
                 <span className="amenity-value">
-                  {isTrue(selectedCafe.Restroom) ? "✓ Yes" : isFalse(selectedCafe.Restroom) ? "✗ No" : selectedCafe.Restroom || "—"}
+                  {formatStat(selectedCafe.Restroom)}
                 </span>
               </div>
               <div className="amenity">
@@ -195,7 +228,7 @@ export default function Home() {
                       if (s <= 12) return `Many (${s})`;
                       return `Ample (${s})`;
                     }
-                    return selectedCafe.Seats || "—";
+                    return formatStat(selectedCafe.Seats) || "—";
                   })()}
                 </span>
               </div>
@@ -203,29 +236,21 @@ export default function Home() {
                 <span className="amenity-label">Time Limit</span>
                 <span className="amenity-value">
                   {isTrue(selectedCafe.TimeRestriction || selectedCafe.Restrictions)
-                    ? selectedCafe.RestrictionAmount || selectedCafe.RestrictionInfo || "Yes"
-                    : isFalse(selectedCafe.TimeRestriction || selectedCafe.Restrictions)
-                    ? "None"
-                    : "—"}
+                    ? formatStat(selectedCafe.RestrictionAmount || selectedCafe.RestrictionInfo || "Yes")
+                    : "None"}
                 </span>
               </div>
             </div>
 
-            <div className="slide-over-divider" />
-
             {selectedCafe.Description && (
               <>
+                <div className="slide-over-divider" />
                 <p className="slide-over-section-label">About</p>
                 <p className="slide-over-vibe">{selectedCafe.Description}</p>
               </>
             )}
 
             <div className="slide-over-divider" />
-
-            <p className="slide-over-section-label">Visited By</p>
-            <p className="slide-over-scout">
-              {selectedCafe.ScoutName || selectedCafe.VisitedBy || "—"}
-            </p>
 
             <a
               className="slide-over-directions"
@@ -241,12 +266,18 @@ export default function Home() {
               onClick={handleSave}
             >
               {user && isSaved(selectedCafe)
-                ? "♥ Saved"
+                ? "🤍 Saved"
                 : user
-                ? "♡ Save Café"
-                : "♡ Log in to save"}
+                ? "🤍 Save Café"
+                : "🤍 Log in to save"}
             </button>
+
             <SuggestionForm cafeName={selectedCafe.Name} />
+
+            {/* Centered Visited by Scout at bottom */}
+            <div className="slide-over-visited-centered">
+              Visited by <strong>{selectedCafe.ScoutName || selectedCafe.VisitedBy || "Work & Brew Team"}</strong>
+            </div>
           </div>
         )}
       </div>

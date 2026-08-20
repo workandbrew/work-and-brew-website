@@ -14,10 +14,10 @@ async function sha256(str) {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
-const LAUNCH_DATE = new Date("2026-08-20T10:00:00");
+const LAUNCH_DATE = new Date("2026-08-20T23:30:00-04:00");
 const STORAGE_KEY = "wb_preview_unlocked";
 
-// Known valid routes — anything else bypasses the wall and shows 404
+// Known valid routes — anything else bypasses the wall and shows 404.
 const VALID_PATHS = ["/", "/about", "/for-owners", "/login", "/signup", "/dashboard", "/settings"];
 
 // Color palette
@@ -123,16 +123,16 @@ export default function ComingSoon({ children }) {
       </div>
 
       {/* Launch label */}
-      <p style={{
-        color: C.brownAccent,
-        fontSize: "0.78rem",
-        fontWeight: 700,
-        letterSpacing: "0.18em",
-        textTransform: "uppercase",
-        marginBottom: "12px",
-      }}>
-        Launching August 20, 2026
-      </p>
+        <p style={{
+          color: C.brownAccent,
+          fontSize: "0.78rem",
+          fontWeight: 700,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          marginBottom: "12px",
+        }}>
+          Launching August 20, 2026 at 11:30 PM EST
+        </p>
 
       {/* Main title */}
       <h1 style={{
