@@ -14,44 +14,71 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
   const mapRef = useRef(null);
   const markersRef = useRef([]); // [{ marker, data }]
 
-  // Drop a set of café rows onto the map as markers
-  const plotMarkers = (data) => {
-    // Count how many locations each cafe name has across the whole dataset
-    const locationCount = {};
-    data.forEach((row) => {
-      const key = row.Name?.trim().toLowerCase();
-      if (key) locationCount[key] = (locationCount[key] || 0) + 1;
-    });
+// Map cafe names to their preview photos (matches Home.jsx)
+const CAFE_IMAGES = {
+  "Mottley Kitchen": "/cafe-images/mottley-kitchen.avif",
+  // Add more as scouted: "Cafe Name": "/cafe-images/filename.jpg"
+};
 
-    data.forEach((row) => {
-      const lat = parseFloat(row.Latitude);
-      const lon = parseFloat(row.Longitude);
-      if (isNaN(lat) || isNaN(lon)) return;
+const plotMarkers = (data) => {
+  const locationCount = {};
+  data.forEach((row) => {
+    const key = row.Name?.trim().toLowerCase();
+    if (key) locationCount[key] = (locationCount[key] || 0) + 1;
+  });
 
-      const marker = new maplibregl.Marker({ color: "#4e312d" })
-        .setLngLat([lon, lat])
-        .addTo(mapRef.current);
+  data.forEach((row) => {
+    const lat = parseFloat(row.Latitude);
+    const lon = parseFloat(row.Longitude);
+    if (isNaN(lat) || isNaN(lon)) return;
 
-      const popup = new maplibregl.Popup({ offset: 25 }).setHTML(
-        `<strong>${row.Name}</strong><br/>${row.Address}`
-      );
-      marker.setPopup(popup);
+    // ── 1. Bigger, bolder pin marker ──
+    const el = document.createElement("div");
+    el.className = "custom-cafe-marker";
+    el.style.width = "70px";          // Increased size for visibility
+    el.style.height = "70px";
+    el.style.backgroundImage = 'url("/espressomug-pin.png")';
+    el.style.backgroundSize = "contain";
+    el.style.backgroundRepeat = "no-repeat";
+    el.style.backgroundPosition = "center bottom";
+    el.style.cursor = "pointer";
 
-      // Attach total location count to row data
-      const enriched = {
-        ...row,
-        _locationCount: locationCount[row.Name?.trim().toLowerCase()] || 1,
-      };
+    const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
+      .setLngLat([lon, lat])
+      .addTo(mapRef.current);
 
-      if (onMarkerClick) {
-        marker.getElement().addEventListener("click", () => {
-          onMarkerClick(enriched);
-        });
-      }
+    // ── 2. Photo preview + dark brown text popup ──
+    const photoUrl = row.Photo || CAFE_IMAGES[row.Name] || null;
+    const photoHtml = photoUrl
+      ? `<div class="popup-photo-wrap"><img src="${photoUrl}" alt="${row.Name}" class="popup-photo" /></div>`
+      : `<div class="popup-photo-wrap popup-photo-placeholder">☕ <span>Work & Brew</span></div>`;
 
-      markersRef.current.push({ marker, data: enriched });
-    });
-  };
+    const popup = new maplibregl.Popup({ offset: 30, closeButton: true }).setHTML(`
+      <div class="custom-map-popup">
+        ${photoHtml}
+        <div class="popup-content-body">
+          <h4 class="popup-title">${row.Name}</h4>
+          <p class="popup-address">${row.Address}</p>
+          <span class="popup-tap-hint">Tap to view details →</span>
+        </div>
+      </div>
+    `);
+    marker.setPopup(popup);
+
+    const enriched = {
+      ...row,
+      _locationCount: locationCount[row.Name?.trim().toLowerCase()] || 1,
+    };
+
+    if (onMarkerClick) {
+      el.addEventListener("click", () => {
+        onMarkerClick(enriched);
+      });
+    }
+
+    markersRef.current.push({ marker, data: enriched });
+  });
+};
 
   // Initialize map once
   useEffect(() => {

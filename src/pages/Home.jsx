@@ -246,7 +246,6 @@ export default function Home() {
                 ? "♡ Save Café"
                 : "♡ Log in to save"}
             </button>
-
             <SuggestionForm cafeName={selectedCafe.Name} />
           </div>
         )}
