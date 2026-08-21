@@ -14,10 +14,10 @@ async function sha256(str) {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
-const LAUNCH_DATE = new Date("2026-08-20T23:30:00-04:00");
+const LAUNCH_DATE = new Date("2026-08-22T12:30:00-04:00");
 const STORAGE_KEY = "wb_preview_unlocked";
 
-// Known valid routes — anything else bypasses the wall and shows 404.
+// Known valid routes — anything else bypasses the wall and shows 404.gg
 const VALID_PATHS = ["/", "/about", "/for-owners", "/login", "/signup", "/dashboard", "/settings"];
 
 // Color palette
@@ -131,7 +131,7 @@ export default function ComingSoon({ children }) {
           textTransform: "uppercase",
           marginBottom: "12px",
         }}>
-          Launching August 20, 2026 at 11:30 PM EST
+          Launching August 22, 2026 at 12:30 PM EST
         </p>
 
       {/* Main title */}
