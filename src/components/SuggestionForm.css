@@ -1,0 +1,338 @@
+/* SuggestionForm — matches the slide-over panel's dark coffee theme */
+
+/* ── Trigger button (collapsed state) ─────────────────────────────────────── */
+.suggestion-toggle {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  background: #F2E0C8;
+  color: #1C110A;
+  border: solid 2px #3D2B1F;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  outline: none;
+  user-select: none;
+  text-align: center;
+  box-shadow:
+    inset 0px -6px 18px -6px rgba(28, 17, 10, 0),
+    inset rgba(92, 62, 43, 0.8) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 0),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 0),
+    rgba(92, 62, 43, 0.6) -1px -1px 6px 0px,
+    0 0 12px rgba(200, 147, 42, 0.18);
+}
+
+.suggestion-toggle:hover {
+  background: #F7EAD8;
+  transform: translateY(-2px);
+  box-shadow:
+    rgba(92, 62, 43, 0.45) -1px -1px 6px 0px,
+    0 6px 20px rgba(92, 62, 43, 0.18),
+    0 0 18px rgba(200, 147, 42, 0.3),
+    inset 0px -2px 6px -1px rgba(28, 17, 10, 0.12);
+}
+
+.suggestion-toggle:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0px -12px 12px -6px rgba(28, 17, 10, 1),
+    inset 0px 12px 12px -6px rgba(28, 17, 10, 1),
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 1),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 1),
+    -1px -1px 6px 0px rgba(92, 62, 43, 0.8);
+}
+
+/* ── Fullscreen overlay backdrop ───────────────────────────────────────────── */
+.suggestion-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: suggestionOverlayIn 0.2s ease;
+}
+
+@keyframes suggestionOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Modal card ────────────────────────────────────────────────────────────── */
+.suggestion-wrap {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #1C110A;
+  border: 1px solid #3D2B1F;
+  border-radius: 14px;
+  overflow: hidden;
+  animation: suggestionOpen 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes suggestionOpen {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Header row ────────────────────────────────────────────────────────────── */
+.suggestion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #3D2B1F;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #D9C4A8;
+  text-align: left;
+}
+
+.suggestion-x {
+  background: transparent;
+  border: none;
+  color: #5a3e2b;
+  font-size: 0.95rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.suggestion-x:hover {
+  color: #F2E0C8;
+}
+
+/* ── Form ──────────────────────────────────────────────────────────────────── */
+.suggestion-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.suggestion-form input,
+.suggestion-form textarea {
+  width: 100%;
+  background: #1C110A;
+  border: 1px solid #3D2B1F;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  color: #F2E0C8;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  font-family: inherit;
+  resize: none;
+}
+
+.suggestion-form input::placeholder,
+.suggestion-form textarea::placeholder {
+  color: #5a3e2b;
+}
+
+.suggestion-form input:focus,
+.suggestion-form textarea:focus {
+  border-color: #8C6E52;
+}
+
+/* ── Textarea + character counter ─────────────────────────────────────────── */
+.suggestion-textarea-wrap {
+  position: relative;
+}
+
+.suggestion-charcount {
+  position: absolute;
+  bottom: 0.45rem;
+  right: 0.6rem;
+  font-size: 0.72rem;
+  color: #5a3e2b;
+  pointer-events: none;
+  transition: color 0.2s;
+}
+
+.suggestion-charcount.at-limit {
+  color: #c0705a;
+}
+
+.suggestion-form textarea {
+  padding-bottom: 1.6rem; /* room for the counter */
+}
+
+/* ── Actions row ───────────────────────────────────────────────────────────── */
+.suggestion-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.suggestion-cancel {
+  flex: 1;
+  padding: 0.65rem;
+  background: #E8D4B4;
+  color: #3a2a14;
+  border: solid 2px #5a3e2b;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  outline: none;
+  user-select: none;
+  box-shadow:
+    inset 0px -6px 18px -6px rgba(28, 17, 10, 0),
+    inset rgba(92, 62, 43, 0.6) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 0),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 0),
+    rgba(92, 62, 43, 0.4) -1px -1px 6px 0px,
+    0 0 10px rgba(200, 147, 42, 0.12);
+}
+
+.suggestion-cancel:hover {
+  background: #DECA9E;
+  transform: translateY(-2px);
+  box-shadow:
+    rgba(92, 62, 43, 0.35) -1px -1px 6px 0px,
+    0 5px 16px rgba(92, 62, 43, 0.14),
+    0 0 14px rgba(200, 147, 42, 0.22),
+    inset 0px -2px 5px -1px rgba(28, 17, 10, 0.1);
+}
+
+.suggestion-cancel:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0px -12px 12px -6px rgba(28, 17, 10, 1),
+    inset 0px 12px 12px -6px rgba(28, 17, 10, 1),
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 1),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 1),
+    -1px -1px 6px 0px rgba(92, 62, 43, 0.6);
+}
+
+.suggestion-submit {
+  flex: 2;
+  padding: 0.65rem;
+  background: #F2E0C8;
+  color: #1C110A;
+  border: solid 2px #3D2B1F;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  outline: none;
+  user-select: none;
+  box-shadow:
+    inset 0px -6px 18px -6px rgba(28, 17, 10, 0),
+    inset rgba(92, 62, 43, 0.8) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 0),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 0),
+    rgba(92, 62, 43, 0.6) -1px -1px 6px 0px,
+    0 0 12px rgba(200, 147, 42, 0.18);
+}
+
+.suggestion-submit:hover {
+  background: #F7EAD8;
+  transform: translateY(-2px);
+  box-shadow:
+    rgba(92, 62, 43, 0.45) -1px -1px 6px 0px,
+    0 6px 20px rgba(92, 62, 43, 0.18),
+    0 0 18px rgba(200, 147, 42, 0.3),
+    inset 0px -2px 6px -1px rgba(28, 17, 10, 0.12);
+}
+
+.suggestion-submit:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0px -12px 12px -6px rgba(28, 17, 10, 1),
+    inset 0px 12px 12px -6px rgba(28, 17, 10, 1),
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 1),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 1),
+    -1px -1px 6px 0px rgba(92, 62, 43, 0.8);
+}
+
+.suggestion-submit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── Error message ─────────────────────────────────────────────────────────── */
+.suggestion-error {
+  font-size: 0.8rem;
+  color: #c0705a;
+  text-align: left;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.suggestion-error a {
+  color: #c0705a;
+}
+
+/* ── Success state ─────────────────────────────────────────────────────────── */
+.suggestion-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.suggestion-success span {
+  font-size: 1.6rem;
+}
+
+.suggestion-success p {
+  color: #D9C4A8;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.suggestion-success button {
+  margin-top: 0.5rem;
+  padding: 0.55rem 1.5rem;
+  background: #F2E0C8;
+  color: #1C110A;
+  border: solid 2px #3D2B1F;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  outline: none;
+  user-select: none;
+  box-shadow:
+    inset 0px -6px 18px -6px rgba(28, 17, 10, 0),
+    inset rgba(92, 62, 43, 0.8) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 0),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 0),
+    rgba(92, 62, 43, 0.6) -1px -1px 6px 0px,
+    0 0 12px rgba(200, 147, 42, 0.18);
+}
+
+.suggestion-success button:hover {
+  background: #F7EAD8;
+  transform: translateY(-2px);
+  box-shadow:
+    rgba(92, 62, 43, 0.45) -1px -1px 6px 0px,
+    0 6px 20px rgba(92, 62, 43, 0.18),
+    0 0 18px rgba(200, 147, 42, 0.3),
+    inset 0px -2px 6px -1px rgba(28, 17, 10, 0.12);
+}
+
+.suggestion-success button:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0px -12px 12px -6px rgba(28, 17, 10, 1),
+    inset 0px 12px 12px -6px rgba(28, 17, 10, 1),
+    inset 12px 0px 12px -6px rgba(28, 17, 10, 1),
+    inset -12px 0px 12px -6px rgba(28, 17, 10, 1),
+    -1px -1px 6px 0px rgba(92, 62, 43, 0.8);
+}
