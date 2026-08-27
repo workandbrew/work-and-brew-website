@@ -34,14 +34,9 @@ export default function Navbar() {
             {(user.username || "?").charAt(0).toUpperCase()}
           </button>
         ) : (
-          <>
-            <button className="navbar-login" onClick={() => navigate("/login")}>
-              Log In
-            </button>
-            <button className="navbar-cta" onClick={() => navigate("/signup")}>
-              Sign Up
-            </button>
-          </>
+          <button className="navbar-cta" onClick={() => navigate("/signup")}>
+            Sign Up
+          </button>
         )}
       </div>
 
@@ -71,17 +66,12 @@ export default function Navbar() {
               Account Settings
             </button>
           ) : (
-            <>
-              <button onClick={() => { navigate("/login"); close(); }}>
-                Log In
-              </button>
-              <button
-                className="navbar-cta"
-                onClick={() => { navigate("/signup"); close(); }}
-              >
-                Sign Up
-              </button>
-            </>
+            <button
+              className="navbar-cta"
+              onClick={() => { navigate("/signup"); close(); }}
+            >
+              Sign Up
+            </button>
           )}
         </div>
       </div>

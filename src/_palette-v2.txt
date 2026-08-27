@@ -1,0 +1,23 @@
+WORK & BREW — PALETTE V2 ✓ CONFIRMED
+======================================
+Body / page bg:            #0F1A2E  Deep Navy
+Cards / Navbar / Panels:   #1C2E52  Midnight Navy
+COFFEE accent borders:     #372414  Coffee Brown  ← signature of v2
+Structural/interactive:    #2E5482  Steel Blue
+Accent / highlights:       #C8A77A  Caramel
+Text / Fills:              #E0D9CF  Pale Cream
+
+Map tile style: streets-v2 (MapTiler)
+
+Coffee #372414 applied to:
+  - Navbar: 3px bottom border + button/avatar borders
+  - Search bar: 2px outer border + warm glow ring
+  - Map container: 2px outer frame
+  - Map reset button: 1.5px outline
+  - Auth card: 4px left accent bar + button border + input focus
+  - Auth/page badge pill outlines
+  - Our Story: timeline node date labels (idle)
+  - Our Story: milestone detail card left accent bar
+  - Our Story: timeline track gradient
+  - Our Story: dashed section dividers + team dotted separators
+  - Business Inquiry: form card border + input focus + submit button border

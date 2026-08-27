@@ -58,8 +58,7 @@ export default function Auth({ mode = "login" }) {
       <div className="page-content page-content--centered">
         <h1 className="page-title auth-hero">Welcome to the Work & Brew community!</h1>
         <p className="auth-hero-sub">
-          Whether you're a native, visiting, or just a fan — we welcome you!
-          No lies, BS, or payment. 100% free :)
+          Whether you're a native, visiting or just joining us, we welcome you! No lies, payment or catch ever, 100% made for New Yorkers by New Yorkers
         </p>
 
         <div className="auth-card">

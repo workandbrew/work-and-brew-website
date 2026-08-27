@@ -1,0 +1,12 @@
+WORK & BREW — PALETTE V1 (Monaco Coffee)
+=========================================
+Body bg (darkest):   #0F1A2E  Deep Navy
+Cards / Navbar:      #1C2E52  Midnight Navy
+Borders / Dividers:  #2E5482  Steel Blue
+Accent:              #C8A77A  Caramel
+Text / Fills:        #F4E8D0  Pale Cream
+
+rgba navy:           rgba(15, 26, 46, ...)
+rgba steel:          rgba(46, 84, 130, ...)
+rgba caramel:        rgba(200, 167, 122, ...)
+rgba cream:          rgba(244, 232, 208, ...)

@@ -7,6 +7,34 @@
 }
 
 @font-face {
+  font-family: 'Butter';
+  src: url('/fonts/butter.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'InstrumentSerif';
+  src: url('/fonts/InstrumentSerif-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Imbue';
+  src: url('/fonts/Imbue-VariableFont_opsz,wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'BacasimeAntique';
+  src: url('/fonts/BacasimeAntique-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
   font-family: 'IndoorDesign';
   src: url('/fonts/Indoor Design.otf') format('opentype');
   font-weight: normal;
@@ -85,9 +113,9 @@ html {
 }
 
 body {
-  font-family: Georgia, 'Times New Roman', serif;
-  background: #0f0a05;
-  color: #F2E0C8;
+  font-family: 'InstrumentSerif', Georgia, 'Times New Roman', serif;
+  background: #0F1A2E;
+  color: #E0D9CF;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -96,12 +124,16 @@ a {
   text-decoration: none;
 }
 
-button {
-  font-family: inherit;
+p, li, span, label {
+  font-family: 'Imbue', serif;
 }
 
-input, textarea {
-  font-family: inherit;
+button {
+  font-family: 'Imbue', serif;
+}
+
+input, textarea, select {
+  font-family: 'Imbue', serif;
 }
 
 /* page transitions — each route fades in soft and settles up */

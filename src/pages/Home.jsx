@@ -7,47 +7,34 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import "./Home.css";
 
-const CAFE_IMAGES = {
-  "Mottley Kitchen": ["/cafe-images/mottley-kitchen.avif", null, null],
+const CAFE_PHOTOS = {
+  "Artizen Cafe":              "/cafes/Website Cafes/Artizen Cafe/IMG_8975.PNG",
+  "Avenue Coffee House":       "/cafes/Website Cafes/Avenue Coffee House/IMG_5873.jpg",
+  "Burly Coffee BK":           "/cafes/Website Cafes/Burly Coffee BK/IMG_1422.JPG",
+  "Full Moon Cafe Queens":     "/cafes/Website Cafes/Full Moon Cafe Queens/IMG_1449.JPG",
+  "Koffee BK":                 "/cafes/Website Cafes/Koffee BK/IMG_1434.JPG",
+  "PostMark Cafe BK":          "/cafes/Website Cafes/PostMark Cafe BK/IMG_1407.JPG",
+  "Savor Coffee and More":     "/cafes/Website Cafes/Savor Coffee and More/IMG_8988.PNG",
+  "Stepping Stone Cafe":       "/cafes/Website Cafes/Stepping Stone Cafe/IMG_5685.jpg",
+  "The Boogie Down Grind":     "/cafes/Website Cafes/The Boogie Down Grind/IMG_8955.PNG",
 };
 
-function CafePhotoCarousel({ photos }) {
-  const [idx, setIdx] = useState(0);
-  const slots = (photos && photos.length) ? photos : [null, null, null];
-  const total = slots.length;
-  const prev = () => setIdx((idx - 1 + total) % total);
-  const next = () => setIdx((idx + 1) % total);
-
+function CafePhoto({ name }) {
+  const src = CAFE_PHOTOS[name];
+  if (!src) {
+    return (
+      <div className="cafe-photo-placeholder">
+        <span>📷</span>
+        <small>Photo coming soon</small>
+      </div>
+    );
+  }
   return (
-    <div className="cafe-carousel">
-      <div className="cafe-carousel-frame">
-        {slots[idx] ? (
-          <img
-            src={slots[idx]}
-            alt={`Café photo ${idx + 1}`}
-            className="cafe-carousel-img"
-          />
-        ) : (
-          <div className="cafe-photo-placeholder">
-            <span>📷</span>
-            <small>Photo {idx + 1} coming soon</small>
-          </div>
-        )}
-        <button className="cafe-carousel-arrow cafe-carousel-arrow--left" onClick={prev} aria-label="Previous photo">‹</button>
-        <button className="cafe-carousel-arrow cafe-carousel-arrow--right" onClick={next} aria-label="Next photo">›</button>
-        <span className="cafe-carousel-counter">{idx + 1} / {total}</span>
-      </div>
-      <div className="cafe-carousel-dots">
-        {slots.map((_, i) => (
-          <button
-            key={i}
-            className={`cafe-carousel-dot${i === idx ? " active" : ""}`}
-            onClick={() => setIdx(i)}
-            aria-label={`Go to photo ${i + 1}`}
-          />
-        ))}
-      </div>
-    </div>
+    <img
+      src={src}
+      alt={`${name} interior`}
+      className="cafe-hero-photo"
+    />
   );
 }
 
@@ -161,12 +148,11 @@ export default function Home() {
               ✕
             </button>
 
-            <CafePhotoCarousel
-              photos={CAFE_IMAGES[selectedCafe.Name] || [null, null, null]}
-            />
+            <CafePhoto name={selectedCafe.Name} />
 
+            <div className="slide-over-body">
             <h2 className="slide-over-name">{selectedCafe.Name}</h2>
-            <p className="slide-over-neighborhood">{selectedCafe.Address}</p>
+            <p className="slide-over-neighborhood">{selectedCafe.Address?.replace(/, United States$/, ", U.S.")}</p>
             <span className="slide-over-borough-badge">{selectedCafe.County}</span>
 
             {selectedCafe._locationCount > 1 && (
@@ -186,62 +172,37 @@ export default function Home() {
               <div className="amenity">
                 <span className="amenity-label">Secured</span>
                 <span className="amenity-value">
-                  {selectedCafe.Secured === "TRUE" || selectedCafe.Secured === "true"
-                    ? "✓ WPA"
-                    : selectedCafe.Secured === "FALSE" || selectedCafe.Secured === "false"
-                    ? "✗ Open"
-                    : selectedCafe.Secured || "—"}
+                  {selectedCafe.Secured === "YES" ? "✓ Yes" : selectedCafe.Secured === "NO" ? "✗ No" : selectedCafe.Secured || "—"}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Outlets</span>
                 <span className="amenity-value">
-                  {selectedCafe.Outlets === "TRUE" || selectedCafe.Outlets === "true"
-                    ? "✓ Yes"
-                    : selectedCafe.Outlets === "FALSE" || selectedCafe.Outlets === "false"
-                    ? "✗ No"
-                    : selectedCafe.Outlets || "—"}
+                  {selectedCafe.Outlets === "YES" ? "✓ Yes" : selectedCafe.Outlets === "NO" ? "✗ No" : selectedCafe.Outlets || "—"}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Hot Food</span>
                 <span className="amenity-value">
-                  {selectedCafe.HotFood === "TRUE" || selectedCafe.HotFood === "true"
-                    ? "✓ Yes"
-                    : selectedCafe.HotFood === "FALSE" || selectedCafe.HotFood === "false"
-                    ? "✗ No"
-                    : selectedCafe.HotFood || "—"}
+                  {selectedCafe.HotFood === "YES" ? "✓ Yes" : selectedCafe.HotFood === "NO" ? "✗ No" : selectedCafe.HotFood || "—"}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Restroom</span>
                 <span className="amenity-value">
-                  {selectedCafe.Restroom === "TRUE" || selectedCafe.Restroom === "true"
-                    ? "✓ Yes"
-                    : selectedCafe.Restroom === "FALSE" || selectedCafe.Restroom === "false"
-                    ? "✗ No"
-                    : selectedCafe.Restroom || "—"}
+                  {selectedCafe.Restroom === "YES" ? "✓ Yes" : selectedCafe.Restroom === "NO" ? "✗ No" : selectedCafe.Restroom || "—"}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Seating</span>
-                <span className="amenity-value">
-                  {(() => {
-                    const s = parseInt(selectedCafe.Seats);
-                    if (isNaN(s)) return "—";
-                    if (s <= 4) return `Few (${s})`;
-                    if (s <= 8) return `Some (${s})`;
-                    if (s <= 12) return `Many (${s})`;
-                    return `Ample (${s})`;
-                  })()}
-                </span>
+                <span className="amenity-value">{selectedCafe.Seats || "—"}</span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Time Limit</span>
                 <span className="amenity-value">
-                  {selectedCafe.TimeRestriction === "TRUE" || selectedCafe.TimeRestriction === "true"
+                  {selectedCafe.TimeRestriction === "YES"
                     ? selectedCafe.RestrictionAmount || "Yes"
-                    : selectedCafe.TimeRestriction === "FALSE" || selectedCafe.TimeRestriction === "false"
+                    : selectedCafe.TimeRestriction === "NO"
                     ? "None"
                     : selectedCafe.TimeRestriction || "—"}
                 </span>
@@ -256,16 +217,12 @@ export default function Home() {
                 <>
                   <p className="slide-over-section-label">About</p>
                   <p className="slide-over-vibe">{selectedCafe.Description}</p>
-                  <div className="slide-over-divider" />
                 </>
               )}
 
             {/* Visited By Section */}
-            <p className="slide-over-section-label">Visited By</p>
-            <p className="slide-over-scout">
-              <span className="slide-over-scout-badge">
-                🔍 {getScoutName(selectedCafe)}
-              </span>
+            <p className="slide-over-scout" style={{ textAlign: "center" }}>
+              Visited by {getScoutName(selectedCafe)}
             </p>
 
             <a
@@ -289,6 +246,7 @@ export default function Home() {
             </button>
 
             <SuggestionForm cafeName={selectedCafe.Name} />
+            </div>
           </div>
         )}
       </div>

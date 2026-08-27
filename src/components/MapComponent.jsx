@@ -3,6 +3,18 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Papa from "papaparse";
 
+const CAFE_PHOTOS = {
+  "Artizen Cafe":              "/cafes/Website Cafes/Artizen Cafe/IMG_8975.PNG",
+  "Avenue Coffee House":       "/cafes/Website Cafes/Avenue Coffee House/IMG_5873.jpg",
+  "Burly Coffee BK":           "/cafes/Website Cafes/Burly Coffee BK/IMG_1422.JPG",
+  "Full Moon Cafe Queens":     "/cafes/Website Cafes/Full Moon Cafe Queens/IMG_1449.JPG",
+  "Koffee BK":                 "/cafes/Website Cafes/Koffee BK/IMG_1434.JPG",
+  "PostMark Cafe BK":          "/cafes/Website Cafes/PostMark Cafe BK/IMG_1407.JPG",
+  "Savor Coffee and More":     "/cafes/Website Cafes/Savor Coffee and More/IMG_8988.PNG",
+  "Stepping Stone Cafe":       "/cafes/Website Cafes/Stepping Stone Cafe/IMG_5685.jpg",
+  "The Boogie Down Grind":     "/cafes/Website Cafes/The Boogie Down Grind/IMG_8955.PNG",
+};
+
 const API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
 
 // Initial NYC center & zoom
@@ -54,26 +66,43 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
 
       const scout = extractScoutName(row);
 
-      const marker = new maplibregl.Marker({ color: "#4e312d" })
+      const el = document.createElement("img");
+      el.src = "/espressomug-pin.png";
+      el.style.width = "70px";
+      el.style.height = "70px";
+      el.style.objectFit = "contain";
+      el.style.cursor = "pointer";
+
+      const marker = new maplibregl.Marker({ element: el })
         .setLngLat([lon, lat])
         .addTo(mapRef.current);
 
-      const popup = new maplibregl.Popup({ offset: 25 }).setHTML(
-        `<strong>${row.Name}</strong><br/>${row.Address}`
-      );
-      marker.setPopup(popup);
-
+      const photo = CAFE_PHOTOS[row.Name];
+      const popup = new maplibregl.Popup({ offset: 25, maxWidth: "220px" }).setHTML(`
+        <div style="font-family:'Inter',sans-serif;border-radius:10px;overflow:hidden;min-width:180px;">
+          ${photo
+            ? `<img src="${photo}" alt="${row.Name}" style="width:100%;height:120px;object-fit:cover;display:block;border-radius:8px 8px 0 0;" />`
+            : `<div style="width:100%;height:120px;background:#1C2E52;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;">📷</div>`
+          }
+          <div style="padding:10px 12px 12px;">
+            <strong style="font-size:0.9rem;color:#1C2E52;display:block;margin-bottom:4px;">${row.Name}</strong>
+            <span style="font-size:0.75rem;color:#2E5482;">${(row.Address || "").replace(/, United States$/, ", U.S.")}</span>
+          </div>
+        </div>
+      `);
       const enriched = {
         ...row,
         ScoutName: scout || row.ScoutName || "",
         _locationCount: locationCount[row.Name?.trim().toLowerCase()] || 1,
       };
 
-      if (onMarkerClick) {
-        marker.getElement().addEventListener("click", () => {
-          onMarkerClick(enriched);
-        });
-      }
+      marker.getElement().addEventListener("click", (e) => {
+        e.stopPropagation();
+        // Close any other open popups first
+        document.querySelectorAll(".maplibregl-popup").forEach(el => el.remove());
+        popup.setLngLat([lon, lat]).addTo(mapRef.current);
+        if (onMarkerClick) onMarkerClick(enriched);
+      });
 
       markersRef.current.push({ marker, data: enriched });
     });
@@ -85,7 +114,7 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
 
     mapRef.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: `https://api.maptiler.com/maps/dataviz-v4/style.json?key=${API_KEY}`,
+      style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${API_KEY}`,
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
       fadeDuration: 0, // Instantly displays tiles as they load
@@ -222,10 +251,10 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
         aria-label="Reset map view"
       >
         <img
-          src="/espressobear.png"
+          src="/wb-logo-light.png"
           alt=""
           aria-hidden="true"
-          style={{ width: "20px", height: "20px", objectFit: "contain" }}
+          style={{ width: "20px", height: "20px", objectFit: "contain", filter: "brightness(0) saturate(1) invert(88%) sepia(8%) saturate(400%) hue-rotate(350deg) brightness(1.0)" }}
         />
         <span className="map-reset-text">Reset</span>
       </button>

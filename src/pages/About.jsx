@@ -163,6 +163,7 @@ const TIMELINE = [
 export default function About() {
   const [active, setActive] = useState(0);
   const [teamVisible, setTeamVisible] = useState(false);
+  const [teamRevealed, setTeamRevealed] = useState(false);
   const teamRef = useRef(null);
 
   const [timelineVisible, setTimelineVisible] = useState(false);
@@ -172,13 +173,6 @@ export default function About() {
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setTeamVisible(true);
-      },
-      { threshold: 0.15 }
-    );
-
     const timelineObserver = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) setTimelineVisible(true);
@@ -186,11 +180,9 @@ export default function About() {
       { threshold: 0.2 }
     );
 
-    if (teamRef.current) observer.observe(teamRef.current);
     if (timelineRef.current) timelineObserver.observe(timelineRef.current);
 
     return () => {
-      observer.disconnect();
       timelineObserver.disconnect();
     };
   }, []);
@@ -206,6 +198,7 @@ export default function About() {
 
   const scrollToTeam = () => {
     setTeamVisible(true);
+    setTeamRevealed(true);
     if (teamRef.current) {
       const navH = document.querySelector(".navbar")?.offsetHeight ?? 64;
       const top = teamRef.current.getBoundingClientRect().top + window.scrollY - navH - 10;
@@ -263,7 +256,7 @@ export default function About() {
         ref={timelineRef}
       >
         <div className="timeline-header">
-          <div className="page-badge">Work &amp; Brew's Timeline</div>
+          <div className="page-badge">Our Story So Far</div>
         </div>
 
         <div className="timeline-track-wrap">
@@ -320,7 +313,7 @@ export default function About() {
 
       {/* Team Section */}
       <div
-        className={`ed-section ${teamVisible ? "is-visible" : ""}`}
+        className={`ed-section ${teamVisible ? "is-visible" : ""} ${teamRevealed ? "" : "team-blur-gate"}`}
         ref={teamRef}
         id="team-section"
       >
@@ -420,7 +413,11 @@ export default function About() {
                 <span className="ed-list-name">{member.name}</span>
                 <span className="ed-list-role">{member.role}</span>
               </div>
-              <div className="ed-list-arrow">→</div>
+              <div className="ed-list-arrow">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </div>
             </button>
           ))}
         </div>

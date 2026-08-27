@@ -14,24 +14,24 @@ async function sha256(str) {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
-const LAUNCH_DATE = new Date("2026-08-27T19:30:00-04:00");
+const LAUNCH_DATE = new Date("2026-08-27T23:30:00-04:00");
 const STORAGE_KEY = "wb_preview_unlocked";
 
 // Known valid routes — anything else bypasses the wall and shows 404.gg
 const VALID_PATHS = ["/", "/about", "/for-owners", "/login", "/signup", "/dashboard", "/settings"];
 
-// Color palette
+// Color palette — Work & Brew brand
 const C = {
-  darkBlue:   "#0d1b2a",
-  midBlue:    "#1b2d42",
-  deepBlue:   "#0a1520",
-  brown:      "#3e1f0d",
-  brownLight: "#7a3b1e",
-  brownAccent:"#a0522d",
-  eggshell:   "#f4efe6",
-  eggshellDim:"rgba(244,239,230,0.55)",
-  eggshellFaint:"rgba(244,239,230,0.18)",
-  white:      "#ffffff",
+  darkBlue:      "#0F1A2E",
+  midBlue:       "#1C2E52",
+  deepBlue:      "#0F1A2E",
+  brown:         "#1C2E52",
+  brownLight:    "#2E5482",
+  brownAccent:   "#E0D9CF",
+  eggshell:      "#E0D9CF",
+  eggshellDim:   "rgba(224, 217, 207,0.55)",
+  eggshellFaint: "rgba(224, 217, 207,0.18)",
+  white:         "#ffffff",
 };
 
 function getTimeLeft() {
@@ -113,7 +113,7 @@ export default function ComingSoon({ children }) {
       <div style={{
         position: "absolute", top: "15%", left: "50%", transform: "translateX(-50%)",
         width: "700px", height: "500px",
-        background: `radial-gradient(ellipse, rgba(160,82,45,0.10) 0%, transparent 70%)`,
+        background: `radial-gradient(ellipse, rgba(224, 217, 207, 0.10) 0%, transparent 70%)`,
         pointerEvents: "none",
       }} />
 
@@ -131,7 +131,7 @@ export default function ComingSoon({ children }) {
           textTransform: "uppercase",
           marginBottom: "12px",
         }}>
-          Launching August 27, 2026 at 7:30 PM EST
+          Launching August 27, 2026 at 11:30 PM EST
         </p>
 
       {/* Main title */}
@@ -176,7 +176,7 @@ export default function ComingSoon({ children }) {
           <div key={label} style={{ textAlign: "center" }}>
             <div style={{
               background: C.eggshellFaint,
-              border: `1px solid rgba(160,82,45,0.30)`,
+              border: `1px solid rgba(46, 84, 130, 0.30)`,
               borderRadius: "12px",
               padding: "14px 18px",
               minWidth: "64px",
@@ -191,7 +191,7 @@ export default function ComingSoon({ children }) {
               }}>{value}</span>
             </div>
             <span style={{
-              color: "rgba(244,239,230,0.35)",
+              color: "rgba(224, 217, 207, 0.35)",
               fontSize: "0.65rem",
               fontWeight: 600,
               letterSpacing: "0.1em",
@@ -211,7 +211,7 @@ export default function ComingSoon({ children }) {
         maxWidth: "320px",
       }}>
         <p style={{
-          color: "rgba(244,239,230,0.35)",
+          color: "rgba(224, 217, 207, 0.35)",
           fontSize: "0.75rem",
           margin: "0 0 4px",
           letterSpacing: "0.05em",
@@ -227,8 +227,8 @@ export default function ComingSoon({ children }) {
             width: "100%",
             padding: "12px 16px",
             borderRadius: "10px",
-            border: `1.5px solid rgba(160,82,45,0.35)`,
-            background: "rgba(244,239,230,0.06)",
+            border: `1.5px solid rgba(46, 84, 130, 0.35)`,
+            background: "rgba(224, 217, 207, 0.06)",
             color: C.eggshell,
             fontSize: "0.9rem",
             outline: "none",

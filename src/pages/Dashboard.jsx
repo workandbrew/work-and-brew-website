@@ -149,7 +149,7 @@ export default function Dashboard() {
                                 <div className="dash-cafe-top">
                                   <div className="dash-cafe-text">
                                     <p className="saved-cafe-name">{cafe.Name}</p>
-                                    <p className="saved-cafe-neighborhood">{cafe.Address}</p>
+                                    <p className="saved-cafe-neighborhood">{cafe.Address?.replace(/, United States$/, ", U.S.")}</p>
                                   </div>
                                   <div className="dash-cafe-actions">
                                     <button
