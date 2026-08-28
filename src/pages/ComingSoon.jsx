@@ -189,7 +189,7 @@ export default function ComingSoon({ children }) {
                 fontVariantNumeric: "tabular-nums",
                 display: "block",
               }}>{value}</span>
-            </div>
+            </div> 
             <span style={{
               color: "rgba(224, 217, 207, 0.35)",
               fontSize: "0.65rem",
