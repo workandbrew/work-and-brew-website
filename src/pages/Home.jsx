@@ -2,6 +2,7 @@ import { useState } from "react";
 import Navbar from "../components/Navbar";
 import MapComponent from "../components/MapComponent";
 import SuggestionForm from "../components/SuggestionForm";
+import SiteFooter from "../components/SiteFooter";
 import { useSavedCafes } from "../hooks/useSavedCafes";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -172,25 +173,25 @@ export default function Home() {
               <div className="amenity">
                 <span className="amenity-label">Secured</span>
                 <span className="amenity-value">
-                  {selectedCafe.Secured === "YES" ? "✓ Yes" : selectedCafe.Secured === "NO" ? "✗ No" : selectedCafe.Secured || "—"}
+                  {selectedCafe.Secured === "YES" ? "Yes" : selectedCafe.Secured === "NO" ? "No" : selectedCafe.Secured || "—"}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Outlets</span>
                 <span className="amenity-value">
-                  {selectedCafe.Outlets === "YES" ? "✓ Yes" : selectedCafe.Outlets === "NO" ? "✗ No" : selectedCafe.Outlets || "—"}
+                  {selectedCafe.Outlets === "YES" ? "Yes" : selectedCafe.Outlets === "NO" ? "No" : selectedCafe.Outlets || "—"}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Hot Food</span>
                 <span className="amenity-value">
-                  {selectedCafe.HotFood === "YES" ? "✓ Yes" : selectedCafe.HotFood === "NO" ? "✗ No" : selectedCafe.HotFood || "—"}
+                  {selectedCafe.HotFood === "YES" ? "Yes" : selectedCafe.HotFood === "NO" ? "No" : selectedCafe.HotFood || "—"}
                 </span>
               </div>
               <div className="amenity">
                 <span className="amenity-label">Restroom</span>
                 <span className="amenity-value">
-                  {selectedCafe.Restroom === "YES" ? "✓ Yes" : selectedCafe.Restroom === "NO" ? "✗ No" : selectedCafe.Restroom || "—"}
+                  {selectedCafe.Restroom === "YES" ? "Yes" : selectedCafe.Restroom === "NO" ? "No" : selectedCafe.Restroom || "—"}
                 </span>
               </div>
               <div className="amenity">
@@ -221,9 +222,10 @@ export default function Home() {
               )}
 
             {/* Visited By Section */}
-            <p className="slide-over-scout" style={{ textAlign: "center" }}>
+            <p className="slide-over-scout">
               Visited by {getScoutName(selectedCafe)}
             </p>
+            <div className="slide-over-divider" />
 
             <a
               className="slide-over-directions"
@@ -250,6 +252,7 @@ export default function Home() {
           </div>
         )}
       </div>
+      <SiteFooter />
     </div>
   );
 }

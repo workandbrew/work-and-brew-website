@@ -5,9 +5,9 @@ import { useAuth } from "../context/AuthContext";
 import "./PageShared.css";
 
 export default function Settings() {
-  const { user, signOut, updateUsername } = useAuth();
+  const { user, signOut, updatePreferredName } = useAuth();
   const navigate = useNavigate();
-  const [name, setName] = useState(user?.username || "");
+  const [name, setName] = useState(user?.preferredName || "");
 
   // no account, no settings
   useEffect(() => {
@@ -16,10 +16,10 @@ export default function Settings() {
 
   if (!user) return null;
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
-    updateUsername(name.trim());
+    await updatePreferredName(name.trim());
     alert("Saved! ☕");
   };
 
@@ -48,8 +48,7 @@ export default function Settings() {
 
         <div className="page-section-label">More Coming Soon</div>
         <div className="settings-placeholder">
-          Email, password, and notification settings will live here once
-          Supabase auth is fully wired up.
+          Email, password, and notification settings will live here soon.
         </div>
 
         <button className="settings-logout" onClick={handleLogout}>

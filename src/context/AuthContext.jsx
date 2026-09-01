@@ -7,11 +7,20 @@ const cap = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : str);
 
 function buildUser(supabaseUser) {
   const meta = supabaseUser.user_metadata || {};
+  // Google OAuth sends given_name (first name) and full_name.
+  // Email/password signup stores preferred_name and username in metadata.
+  const preferredName = cap(
+    meta.preferred_name ||            // user set this themselves
+    meta.given_name ||                // Google first name
+    meta.name?.split(" ")[0] ||       // fallback: first word of Google full name
+    meta.username ||                  // email/password signup
+    supabaseUser.email?.split("@")[0] // last resort
+  );
   return {
     id:            supabaseUser.id,
     email:         supabaseUser.email,
-    username:      meta.username || supabaseUser.email,
-    preferredName: cap(meta.preferred_name || meta.username || supabaseUser.email?.split("@")[0]),
+    username:      meta.username || meta.name || supabaseUser.email,
+    preferredName,
   };
 }
 
@@ -34,9 +43,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signUp = async (email, password, username, preferredName) => {
-    const { error } = await supabaseSignUp(email, password, username, preferredName);
+    const { data, error } = await supabaseSignUp(email, password, username, preferredName);
     if (error) return { error };
-    return { error: null };
+    // session is null when Supabase requires email confirmation before the user is active
+    return { error: null, needsConfirmation: !data?.session };
   };
 
   const signIn = async (email, password) => {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import SiteFooter from "../components/SiteFooter";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import "./PageShared.css";
@@ -13,6 +14,7 @@ export default function Auth({ mode = "login" }) {
   const [confirmPw,     setConfirmPw]     = useState("");
   const [error,         setError]         = useState("");
   const [submitting,    setSubmitting]    = useState(false);
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -41,6 +43,12 @@ export default function Auth({ mode = "login" }) {
       return;
     }
 
+    // Supabase returns session:null when email confirmation is required
+    if (result?.needsConfirmation) {
+      setAwaitingConfirm(true);
+      return;
+    }
+
     navigate("/");
   };
 
@@ -63,6 +71,24 @@ export default function Auth({ mode = "login" }) {
 
         <div className="auth-card">
           <div className="page-badge">{isLogin ? "Login Page" : "Join the community!"}</div>
+
+          {awaitingConfirm ? (
+            <div style={{ textAlign: "center", padding: "1rem 0" }}>
+              <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>☕</p>
+              <p style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Check your email!</p>
+              <p style={{ fontSize: "0.9rem", color: "rgba(224,217,207,0.75)", lineHeight: 1.6 }}>
+                We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account, then come back and log in.
+              </p>
+              <button
+                type="button"
+                style={{ marginTop: "1.25rem" }}
+                onClick={() => { setAwaitingConfirm(false); navigate("/login"); }}
+              >
+                Go to Login
+              </button>
+            </div>
+          ) : (
+          <>
 
           {error && (
             <p style={{ color: "#c0392b", fontSize: "0.85rem", marginBottom: "10px", textAlign: "center" }}>
@@ -155,9 +181,6 @@ export default function Auth({ mode = "login" }) {
             <button type="button" onClick={() => handleSocial("Google")}>
               {isLogin ? "Log in with Google" : "Sign up with Google"}
             </button>
-            <button type="button" onClick={() => handleSocial("Facebook")}>
-              {isLogin ? "Log in with Facebook" : "Sign up with Facebook"}
-            </button>
           </div>
 
           <p className="auth-switch">
@@ -166,8 +189,11 @@ export default function Auth({ mode = "login" }) {
               {isLogin ? "Sign up with your email" : "Log in"}
             </Link>
           </p>
+
+          </> )}
         </div>
       </div>
+      <SiteFooter />
     </div>
   );
 }

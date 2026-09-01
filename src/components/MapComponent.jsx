@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Papa from "papaparse";
 
@@ -16,39 +15,67 @@ const CAFE_PHOTOS = {
 };
 
 const API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
-
-// Initial NYC center & zoom
 const INITIAL_CENTER = [-73.97539, 40.7646];
 const INITIAL_ZOOM   = 11;
 
-// In-memory cache so markers.csv is fetched and parsed only once per session
+// ── Proximity helpers ────────────────────────────────────────────────────────
+
+// Haversine distance in miles between two lat/lng points
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 3958.8;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Geocode a query to lat/lng, restricted to NYC metro bounding box
+async function geocodeNYC(query, apiKey) {
+  try {
+    const url =
+      `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json` +
+      `?key=${apiKey}&limit=1&bbox=-74.26,40.47,-73.68,40.92`;
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.features?.length > 0) {
+      const [lon, lat] = json.features[0].center;
+      return { lat, lon };
+    }
+  } catch (_) {}
+  return null;
+}
+
+// Prefetch CSV before any component mounts
 let cachedMarkerData = null;
+let _prefetchPromise = null;
+function prefetchMarkers() {
+  if (cachedMarkerData || _prefetchPromise) return;
+  _prefetchPromise = fetch("/markers.csv")
+    .then((res) => res.text())
+    .then((csvText) => {
+      cachedMarkerData = Papa.parse(csvText, { header: true, skipEmptyLines: true }).data;
+    })
+    .catch(() => {});
+}
+prefetchMarkers();
 
 export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, cafes }) {
   const mapContainer = useRef(null);
-  const mapRef = useRef(null);
-  const markersRef = useRef([]); // [{ marker, data }]
+  const mapRef       = useRef(null);
+  const mlRef        = useRef(null); // lazy-loaded maplibre-gl module
+  const markersRef   = useRef([]);
   const [mapLoaded, setMapLoaded] = useState(false);
 
-  // Normalize scout name from different possible CSV column formats
-  const extractScoutName = (row) => {
-    return (
-      row.ScoutName ||
-      row.Scout ||
-      row["Scout Name"] ||
-      row["Scouted By"] ||
-      row.ScoutedBy ||
-      row["Visited By"] ||
-      row.VisitedBy ||
-      row.scout_name ||
-      row.scout ||
-      ""
-    );
-  };
+  const extractScoutName = (row) =>
+    row.ScoutName || row.Scout || row["Scout Name"] || row["Scouted By"] ||
+    row.ScoutedBy || row["Visited By"] || row.VisitedBy || row.scout_name || row.scout || "";
 
-  // Plot café markers on map
   const plotMarkers = (data) => {
-    if (!mapRef.current) return;
+    const maplibregl = mlRef.current;
+    if (!mapRef.current || !maplibregl) return;
 
     markersRef.current.forEach(({ marker }) => marker.remove());
     markersRef.current = [];
@@ -90,6 +117,7 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
           </div>
         </div>
       `);
+
       const enriched = {
         ...row,
         ScoutName: scout || row.ScoutName || "",
@@ -98,8 +126,7 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
 
       marker.getElement().addEventListener("click", (e) => {
         e.stopPropagation();
-        // Close any other open popups first
-        document.querySelectorAll(".maplibregl-popup").forEach(el => el.remove());
+        document.querySelectorAll(".maplibregl-popup").forEach((el) => el.remove());
         popup.setLngLat([lon, lat]).addTo(mapRef.current);
         if (onMarkerClick) onMarkerClick(enriched);
       });
@@ -108,44 +135,65 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
     });
   };
 
-  // Initialize MapLibre with zero fade delay for fast loading
+  // Initialize map — lazy-load maplibre-gl and defer until container is near viewport
   useEffect(() => {
-    if (mapRef.current) return;
+    if (mapRef.current || !mapContainer.current) return;
 
-    mapRef.current = new maplibregl.Map({
-      container: mapContainer.current,
-      style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${API_KEY}`,
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
-      fadeDuration: 0, // Instantly displays tiles as they load
-      trackResize: true,
-    });
+    const initMap = async () => {
+      // Dynamically import the heavy MapLibre bundle only when needed
+      const maplibregl = (await import("maplibre-gl")).default;
+      mlRef.current = maplibregl;
 
-    mapRef.current.addControl(new maplibregl.NavigationControl(), "top-right");
+      if (!mapContainer.current || mapRef.current) return;
 
-    mapRef.current.on("load", () => {
-      setMapLoaded(true);
-    });
+      mapRef.current = new maplibregl.Map({
+        container: mapContainer.current,
+        style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${API_KEY}`,
+        center: INITIAL_CENTER,
+        zoom: INITIAL_ZOOM,
+        fadeDuration: 0,
+        trackResize: true,
+      });
 
-    if (!cafes) {
-      if (cachedMarkerData) {
-        plotMarkers(cachedMarkerData);
-      } else {
-        fetch("/markers.csv")
-          .then((res) => res.text())
-          .then((csvText) => {
-            const parsed = Papa.parse(csvText, {
-              header: true,
-              skipEmptyLines: true,
-            }).data;
-            cachedMarkerData = parsed;
-            plotMarkers(parsed);
-          })
-          .catch((err) => console.error("Error loading markers.csv:", err));
-      }
-    }
+      mapRef.current.addControl(new maplibregl.NavigationControl(), "top-right");
+
+      // If the API key is blocked (e.g. domain restriction on localhost), clear the shimmer anyway
+      mapRef.current.on("error", () => setMapLoaded(true));
+
+      mapRef.current.on("load", () => {
+        setMapLoaded(true);
+
+        if (!cafes) {
+          if (cachedMarkerData) {
+            plotMarkers(cachedMarkerData);
+          } else {
+            fetch("/markers.csv")
+              .then((res) => res.text())
+              .then((csvText) => {
+                const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true }).data;
+                cachedMarkerData = parsed;
+                plotMarkers(parsed);
+              })
+              .catch((err) => console.error("Error loading markers.csv:", err));
+          }
+        }
+      });
+    };
+
+    // Start loading 200px before the map enters the viewport
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        observer.disconnect();
+        initMap();
+      },
+      { rootMargin: "200px", threshold: 0 }
+    );
+
+    observer.observe(mapContainer.current);
 
     return () => {
+      observer.disconnect();
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -164,7 +212,7 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
     if (coords.length === 1) {
       mapRef.current.flyTo({ center: coords[0], zoom: 14, speed: 1.4 });
     } else if (coords.length > 1) {
-      const bounds = new maplibregl.LngLatBounds();
+      const bounds = new mlRef.current.LngLatBounds();
       coords.forEach((c) => bounds.extend(c));
       mapRef.current.fitBounds(bounds, { padding: 70, maxZoom: 13 });
     }
@@ -177,12 +225,13 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
     return () => clearTimeout(timer);
   }, [panelOpen]);
 
-  // Filter markers on search query change
+  // Filter markers on search query change — with proximity fallback
   useEffect(() => {
-    if (!markersRef.current.length || !mapRef.current) return;
+    if (!markersRef.current.length || !mapRef.current || !mlRef.current) return;
 
     const q = (filterQuery || "").trim().toLowerCase();
 
+    // Clear search — show all markers
     if (!q) {
       markersRef.current.forEach(({ marker }) => {
         if (!marker._map) marker.addTo(mapRef.current);
@@ -190,8 +239,26 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
       return;
     }
 
-    const matches = [];
+    // Helper: fly to or fit-bounds a set of matched data rows
+    const flyToMatches = (matches) => {
+      if (matches.length === 0) return;
+      if (matches.length === 1) {
+        mapRef.current.flyTo({
+          center: [parseFloat(matches[0].Longitude), parseFloat(matches[0].Latitude)],
+          zoom: 15,
+          speed: 1.4,
+        });
+      } else {
+        const bounds = new mlRef.current.LngLatBounds();
+        matches.forEach((d) =>
+          bounds.extend([parseFloat(d.Longitude), parseFloat(d.Latitude)])
+        );
+        mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 14, speed: 1.4 });
+      }
+    };
 
+    // Step 1: exact text match (name, address, borough, zipcode)
+    const exactMatches = [];
     markersRef.current.forEach(({ marker, data }) => {
       const haystack = [data.Name, data.Address, data.County, data.Zipcode]
         .filter(Boolean)
@@ -200,30 +267,53 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
 
       if (haystack.includes(q)) {
         if (!marker._map) marker.addTo(mapRef.current);
-        matches.push(data);
+        exactMatches.push(data);
       } else {
         marker.remove();
       }
     });
 
-    if (matches.length === 1) {
-      mapRef.current.flyTo({
-        center: [parseFloat(matches[0].Longitude), parseFloat(matches[0].Latitude)],
-        zoom: 15,
-        speed: 1.4,
-      });
-    } else if (matches.length > 1) {
-      const bounds = new maplibregl.LngLatBounds();
-      matches.forEach((d) =>
-        bounds.extend([parseFloat(d.Longitude), parseFloat(d.Latitude)])
-      );
-      mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 14, speed: 1.4 });
+    if (exactMatches.length > 0) {
+      flyToMatches(exactMatches);
+      return;
     }
+
+    // Step 2: no exact match — geocode the query and find the 3 closest cafés
+    let cancelled = false;
+    geocodeNYC(q, API_KEY).then((coords) => {
+      if (cancelled || !coords || !mapRef.current) return;
+
+      // Rank every café by distance from the geocoded point
+      const ranked = markersRef.current
+        .map(({ marker, data }) => {
+          const lat = parseFloat(data.Latitude);
+          const lon = parseFloat(data.Longitude);
+          if (isNaN(lat) || isNaN(lon)) return null;
+          return { marker, data, dist: haversineDistance(coords.lat, coords.lon, lat, lon) };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.dist - b.dist);
+
+      // Show only the 3 nearest cafés
+      const nearest = ranked.slice(0, 3);
+      const nearestSet = new Set(nearest.map((r) => r.marker));
+
+      markersRef.current.forEach(({ marker }) => {
+        if (nearestSet.has(marker)) {
+          if (!marker._map) marker.addTo(mapRef.current);
+        } else {
+          marker.remove();
+        }
+      });
+
+      flyToMatches(nearest.map((r) => r.data));
+    });
+
+    return () => { cancelled = true; };
   }, [filterQuery]);
 
-  // Reset map view back to NYC initial frame
   const resetView = () => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !mlRef.current) return;
 
     const coords = markersRef.current
       .map(({ data }) => [parseFloat(data.Longitude), parseFloat(data.Latitude)])
@@ -234,16 +324,29 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
       return;
     }
 
-    const bounds = new maplibregl.LngLatBounds();
+    const bounds = new mlRef.current.LngLatBounds();
     coords.forEach((c) => bounds.extend(c));
     mapRef.current.fitBounds(bounds, { padding: 70, maxZoom: 13, speed: 1.2 });
   };
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "500px" }}>
+      {!mapLoaded && (
+        <div style={{
+          position: "absolute", inset: 0, zIndex: 2,
+          background: "linear-gradient(120deg, #1C2E52 0%, #0F1A2E 50%, #1C2E52 100%)",
+          backgroundSize: "200% 100%",
+          animation: "mapShimmer 1.4s ease-in-out infinite",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "rgba(224,217,207,0.4)", fontFamily: "'Imbue', serif", fontSize: "0.9rem",
+          letterSpacing: "0.08em",
+        }}>
+          Loading map…
+          <style>{`@keyframes mapShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
+        </div>
+      )}
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
 
-      {/* Redesigned Reset Button with Espresso Bear */}
       <button
         className="map-reset-btn"
         onClick={resetView}

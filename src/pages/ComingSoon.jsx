@@ -14,7 +14,7 @@ async function sha256(str) {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
-const LAUNCH_DATE = new Date("2026-08-28T19:00:00-04:00");
+const LAUNCH_DATE = new Date("2026-09-02T20:00:00-04:00");
 const STORAGE_KEY = "wb_preview_unlocked";
 
 // Known valid routes — anything else bypasses the wall and shows 404.gg
@@ -131,7 +131,7 @@ export default function ComingSoon({ children }) {
           textTransform: "uppercase",
           marginBottom: "12px",
         }}>
-          Launching August 28, 2026 at 7:00 PM EST
+          Launching September 2, 2026 at 8:00 PM EST
         </p>
 
       {/* Main title */}
@@ -246,7 +246,7 @@ export default function ComingSoon({ children }) {
           borderRadius: "10px",
           border: "none",
           background: C.brownAccent,
-          color: C.eggshell,
+          color: C.darkBlue,
           fontSize: "0.9rem",
           fontWeight: 700,
           cursor: "pointer",

@@ -11,14 +11,23 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import ScoutPortal from "./pages/ScoutPortal";
 import ComingSoon from "./pages/ComingSoon";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 import "./index.css";
 
-// fades each page in on navigation + scrolls back to the top
+// fades each page in on navigation + scrolls back to top + fires GA page_view
 function AppRoutes() {
   const location = useLocation();
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    // Tell GA4 about the new page — needed for SPAs since the page doesn't reload
+    if (typeof window.gtag === "function") {
+      window.gtag("event", "page_view", {
+        page_path: location.pathname + location.search,
+        page_title: document.title,
+      });
+    }
   }, [location.pathname]);
 
   return (
@@ -31,6 +40,8 @@ function AppRoutes() {
         <Route path="/signup" element={<Auth mode="signup" />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
         {/* Hidden scout portal — not linked anywhere in the UI */}
         <Route path="/ops/:key" element={<ScoutPortal />} />
         <Route path="*" element={<NotFound />} />

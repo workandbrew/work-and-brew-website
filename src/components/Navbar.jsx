@@ -31,7 +31,7 @@ export default function Navbar() {
             title="Account settings"
             onClick={() => navigate("/settings")}
           >
-            {(user.username || "?").charAt(0).toUpperCase()}
+            {(user.preferredName || user.username || "?").charAt(0).toUpperCase()}
           </button>
         ) : (
           <button className="navbar-cta" onClick={() => navigate("/signup")}>
