@@ -18,36 +18,6 @@ const API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
 const INITIAL_CENTER = [-73.97539, 40.7646];
 const INITIAL_ZOOM   = 11;
 
-// ── Proximity helpers ────────────────────────────────────────────────────────
-
-// Haversine distance in miles between two lat/lng points
-function haversineDistance(lat1, lon1, lat2, lon2) {
-  const R = 3958.8;
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-// Geocode a query to lat/lng, restricted to NYC metro bounding box
-async function geocodeNYC(query, apiKey) {
-  try {
-    const url =
-      `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json` +
-      `?key=${apiKey}&limit=1&bbox=-74.26,40.47,-73.68,40.92`;
-    const res = await fetch(url);
-    const json = await res.json();
-    if (json.features?.length > 0) {
-      const [lon, lat] = json.features[0].center;
-      return { lat, lon };
-    }
-  } catch (_) {}
-  return null;
-}
-
 // Prefetch CSV before any component mounts
 let cachedMarkerData = null;
 let _prefetchPromise = null;
@@ -148,7 +118,8 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
 
       mapRef.current = new maplibregl.Map({
         container: mapContainer.current,
-        style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${API_KEY}`,
+        // basic-v2 loads ~60% fewer tile layers than streets-v2
+        style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${API_KEY}`,
         center: INITIAL_CENTER,
         zoom: INITIAL_ZOOM,
         fadeDuration: 0,
@@ -156,9 +127,6 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
       });
 
       mapRef.current.addControl(new maplibregl.NavigationControl(), "top-right");
-
-      // If the API key is blocked (e.g. domain restriction on localhost), clear the shimmer anyway
-      mapRef.current.on("error", () => setMapLoaded(true));
 
       mapRef.current.on("load", () => {
         setMapLoaded(true);
@@ -225,13 +193,12 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
     return () => clearTimeout(timer);
   }, [panelOpen]);
 
-  // Filter markers on search query change — with proximity fallback
+  // Filter markers on search query change
   useEffect(() => {
     if (!markersRef.current.length || !mapRef.current || !mlRef.current) return;
 
     const q = (filterQuery || "").trim().toLowerCase();
 
-    // Clear search — show all markers
     if (!q) {
       markersRef.current.forEach(({ marker }) => {
         if (!marker._map) marker.addTo(mapRef.current);
@@ -239,26 +206,8 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
       return;
     }
 
-    // Helper: fly to or fit-bounds a set of matched data rows
-    const flyToMatches = (matches) => {
-      if (matches.length === 0) return;
-      if (matches.length === 1) {
-        mapRef.current.flyTo({
-          center: [parseFloat(matches[0].Longitude), parseFloat(matches[0].Latitude)],
-          zoom: 15,
-          speed: 1.4,
-        });
-      } else {
-        const bounds = new mlRef.current.LngLatBounds();
-        matches.forEach((d) =>
-          bounds.extend([parseFloat(d.Longitude), parseFloat(d.Latitude)])
-        );
-        mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 14, speed: 1.4 });
-      }
-    };
+    const matches = [];
 
-    // Step 1: exact text match (name, address, borough, zipcode)
-    const exactMatches = [];
     markersRef.current.forEach(({ marker, data }) => {
       const haystack = [data.Name, data.Address, data.County, data.Zipcode]
         .filter(Boolean)
@@ -267,49 +216,25 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
 
       if (haystack.includes(q)) {
         if (!marker._map) marker.addTo(mapRef.current);
-        exactMatches.push(data);
+        matches.push(data);
       } else {
         marker.remove();
       }
     });
 
-    if (exactMatches.length > 0) {
-      flyToMatches(exactMatches);
-      return;
-    }
-
-    // Step 2: no exact match — geocode the query and find the 3 closest cafés
-    let cancelled = false;
-    geocodeNYC(q, API_KEY).then((coords) => {
-      if (cancelled || !coords || !mapRef.current) return;
-
-      // Rank every café by distance from the geocoded point
-      const ranked = markersRef.current
-        .map(({ marker, data }) => {
-          const lat = parseFloat(data.Latitude);
-          const lon = parseFloat(data.Longitude);
-          if (isNaN(lat) || isNaN(lon)) return null;
-          return { marker, data, dist: haversineDistance(coords.lat, coords.lon, lat, lon) };
-        })
-        .filter(Boolean)
-        .sort((a, b) => a.dist - b.dist);
-
-      // Show only the 3 nearest cafés
-      const nearest = ranked.slice(0, 3);
-      const nearestSet = new Set(nearest.map((r) => r.marker));
-
-      markersRef.current.forEach(({ marker }) => {
-        if (nearestSet.has(marker)) {
-          if (!marker._map) marker.addTo(mapRef.current);
-        } else {
-          marker.remove();
-        }
+    if (matches.length === 1) {
+      mapRef.current.flyTo({
+        center: [parseFloat(matches[0].Longitude), parseFloat(matches[0].Latitude)],
+        zoom: 15,
+        speed: 1.4,
       });
-
-      flyToMatches(nearest.map((r) => r.data));
-    });
-
-    return () => { cancelled = true; };
+    } else if (matches.length > 1) {
+      const bounds = new mlRef.current.LngLatBounds();
+      matches.forEach((d) =>
+        bounds.extend([parseFloat(d.Longitude), parseFloat(d.Latitude)])
+      );
+      mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 14, speed: 1.4 });
+    }
   }, [filterQuery]);
 
   const resetView = () => {
