@@ -14,7 +14,7 @@ async function sha256(str) {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
-const LAUNCH_DATE = new Date("2026-09-12T18:00:00-04:00");
+const LAUNCH_DATE = new Date("2026-09-17T18:00:00-04:00");
 const STORAGE_KEY = "wb_preview_unlocked";
 
 // Known valid routes — anything else bypasses the wall and shows 404.gg
