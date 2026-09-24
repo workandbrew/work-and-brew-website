@@ -13,6 +13,9 @@ import ScoutPortal from "./pages/ScoutPortal";
 import ComingSoon from "./pages/ComingSoon";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import ScoutSignup from "./pages/ScoutSignup";
+import SmsPrivacy from "./pages/SmsPrivacy";
+import SmsTerms from "./pages/SmsTerms";
 import "./index.css";
 
 // fades each page in on navigation + scrolls back to top + fires GA page_view
@@ -42,6 +45,9 @@ function AppRoutes() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="/scout-signup" element={<ScoutSignup />} />
+        <Route path="/sms-privacy" element={<SmsPrivacy />} />
+        <Route path="/sms-terms" element={<SmsTerms />} />
         {/* Hidden scout portal — not linked anywhere in the UI */}
         <Route path="/ops/:key" element={<ScoutPortal />} />
         <Route path="*" element={<NotFound />} />
