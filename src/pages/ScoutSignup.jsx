@@ -59,23 +59,39 @@ export default function ScoutSignup() {
                 onChange={(e) => { setPhone(e.target.value); setError(""); }}
               />
 
-              <label style={{ display: "flex", gap: 10, alignItems: "flex-start", color: "rgba(224,217,207,0.85)", fontSize: 12.5, lineHeight: 1.5, textAlign: "left" }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start", width: "100%", textAlign: "left", marginTop: 2 }}>
                 <input
                   type="checkbox"
+                  id="scout-consent"
                   checked={consent}
                   onChange={(e) => { setConsent(e.target.checked); setError(""); }}
-                  style={{ width: 18, height: 18, minWidth: 18, margin: "3px 0 0", padding: 0, flexShrink: 0 }}
+                  style={{
+                    appearance: "auto",
+                    WebkitAppearance: "auto",
+                    width: 18,
+                    height: 18,
+                    minWidth: 18,
+                    maxWidth: 18,
+                    flex: "0 0 18px",
+                    margin: "2px 0 0",
+                    padding: 0,
+                    border: "none",
+                    background: "none",
+                    boxSizing: "border-box",
+                    accentColor: "#E0D9CF",
+                    cursor: "pointer",
+                  }}
                 />
-                <span>
+                <label htmlFor="scout-consent" style={{ flex: 1, color: "rgba(224,217,207,0.85)", fontSize: 12.5, lineHeight: 1.5, cursor: "pointer" }}>
                   I agree to receive recurring automated text message reminders from Work &amp; Brew
                   at the phone number I provide. Message frequency varies. Msg &amp; data rates may
                   apply. Reply STOP to opt out, HELP for help.
-                </span>
-              </label>
+                </label>
+              </div>
 
-              {error && <p style={{ color: "#ff8a70", fontSize: 12.5, margin: 0 }}>{error}</p>}
+              {error && <p style={{ color: "#ff8a70", fontSize: 12.5, margin: 0, textAlign: "center" }}>{error}</p>}
 
-              <button type="submit">Sign Me Up</button>
+              <button type="submit" style={{ alignSelf: "center", width: "100%" }}>Sign Me Up</button>
 
               <p style={{ fontSize: 11.5, color: "rgba(224,217,207,0.5)", textAlign: "center", margin: "4px 0 0", lineHeight: 1.5 }}>
                 By signing up you agree to our{" "}
