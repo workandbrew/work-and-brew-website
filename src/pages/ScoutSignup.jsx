@@ -64,7 +64,7 @@ export default function ScoutSignup() {
                   type="checkbox"
                   checked={consent}
                   onChange={(e) => { setConsent(e.target.checked); setError(""); }}
-                  style={{ marginTop: 3, flex: "0 0 auto" }}
+                  style={{ width: 18, height: 18, minWidth: 18, margin: "3px 0 0", padding: 0, flexShrink: 0 }}
                 />
                 <span>
                   I agree to receive recurring automated text message reminders from Work &amp; Brew
