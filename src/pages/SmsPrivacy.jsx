@@ -40,12 +40,13 @@ export default function SmsPrivacy() {
             <h2>Sharing of Information</h2>
             <p>
               <strong>
-                Work &amp; Brew does not sell, rent, or share your mobile phone number or SMS opt-in
-                information with any third parties or affiliates for their marketing or promotional
-                purposes.
+                We do not sell or share your SMS opt-in data or personal information with third parties
+                for marketing purposes.
               </strong>{" "}
-              Phone numbers are shared only with our SMS delivery provider (Twilio) strictly to send the
-              messages you requested.
+              Work &amp; Brew does not sell, rent, or share your mobile phone number or SMS opt-in
+              information with any third parties or affiliates for their marketing or promotional
+              purposes. Phone numbers are shared only with our SMS delivery provider (Twilio) strictly
+              to send the messages you requested.
             </p>
           </section>
 
