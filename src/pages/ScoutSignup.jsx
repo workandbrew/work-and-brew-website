@@ -58,9 +58,13 @@ export default function ScoutSignup() {
                 value={name}
                 onChange={(e) => { setName(e.target.value); setError(""); }}
               />
+
+              <p style={{ color: "rgba(224,217,207,0.6)", fontSize: 12, margin: "6px 0 -4px", textAlign: "left" }}>
+                Want text reminders? Enter your mobile number and check the consent box below (optional):
+              </p>
               <input
                 type="tel"
-                placeholder="Mobile phone number (optional)"
+                placeholder="Mobile number to receive text reminders"
                 value={phone}
                 onChange={(e) => { setPhone(e.target.value); setError(""); }}
               />
@@ -91,8 +95,8 @@ export default function ScoutSignup() {
                 <label htmlFor="scout-consent" style={{ flex: 1, color: "rgba(224,217,207,0.85)", fontSize: 12.5, lineHeight: 1.5, cursor: "pointer" }}>
                   <strong>(Optional)</strong> Yes, text me reminders about my scouting assignments,
                   deadlines, and receipts. I agree to receive recurring automated SMS from Work &amp;
-                  Brew at the number above. Message frequency varies. Msg &amp; data rates may apply.
-                  Reply STOP to opt out, HELP for help.
+                  Brew at the mobile number I entered above. Message frequency varies. Msg &amp; data
+                  rates may apply. Reply STOP to opt out, HELP for help.
                 </label>
               </div>
 
