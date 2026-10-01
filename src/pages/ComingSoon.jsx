@@ -18,7 +18,7 @@ const LAUNCH_DATE = new Date("2026-10-02T18:00:00-04:00");
 const STORAGE_KEY = "wb_preview_unlocked";
 
 // Known valid routes — anything else bypasses the wall and shows 404.gg
-const VALID_PATHS = ["/", "/about", "/for-owners", "/login", "/signup", "/dashboard", "/settings"];
+const VALID_PATHS = ["/", "/about", "/for-owners", "/login", "/signup", "/dashboard", "/settings", "/event"];
 
 // Color palette — Work & Brew brand
 const C = {
