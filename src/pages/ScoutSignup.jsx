@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import SiteFooter from "../components/SiteFooter";
+import { supabase } from "../lib/supabaseClient";
+import { SMS_CONSENT_TEXT, toE164 } from "../lib/scoutSignup";
 import "./PageShared.css";
 
 export default function ScoutSignup() {
@@ -9,9 +11,10 @@ export default function ScoutSignup() {
   const [phone, setPhone] = useState("");
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     // SMS consent is intentionally OPTIONAL — only name is required to join the roster.
     if (!name.trim()) {
@@ -22,13 +25,29 @@ export default function ScoutSignup() {
       setError("Add your mobile number to receive texts, or uncheck the box to join without them.");
       return;
     }
+    const e164 = consent ? toE164(phone) : null;
+    if (consent && !e164) {
+      setError("That mobile number doesn't look right — try a 10-digit US number like (929) 555-0123.");
+      return;
+    }
     setError("");
+    setSubmitting(true);
+    // Lands in signup_requests as "pending" until Den approves it. The phone number is only
+    // kept when they opt into texts; the consent timestamp is set by the database.
+    const { error: dbError } = await supabase.from("signup_requests").insert({
+      name: name.trim().slice(0, 100),
+      phone: e164,
+      sms_consent: consent,
+      consent_text: consent ? SMS_CONSENT_TEXT : null,
+      source: "scout-signup",
+      user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 300) : null,
+    });
+    setSubmitting(false);
+    if (dbError) {
+      setError("Something went wrong saving your sign-up. Please try again, or email support@workandbrew.app.");
+      return;
+    }
     setDone(true);
-    const subject = encodeURIComponent(`Scout roster sign-up: ${name}`);
-    const body = encodeURIComponent(
-      `Name: ${name}\nPhone: ${phone || "(not provided)"}\nSMS reminders opt-in: ${consent ? "YES" : "No"}\nDate: ${new Date().toString()}`
-    );
-    window.location.href = `mailto:support@workandbrew.app?subject=${subject}&body=${body}`;
   };
 
   return (
@@ -42,8 +61,8 @@ export default function ScoutSignup() {
           {done ? (
             <p style={{ color: "#E0D9CF", textAlign: "center", lineHeight: 1.6 }}>
               {consent
-                ? "✅ You're on the Work & Brew scouting roster and signed up for text reminders. If your email opened, hit send to confirm. Reply STOP to any text to opt out."
-                : "✅ You're on the Work & Brew scouting roster. You chose not to receive text reminders — that's totally fine. If your email opened, hit send to confirm."}
+                ? "✅ Thanks! Your sign-up for the Work & Brew scouting roster and text reminders is in — we'll confirm once you're added. Reply STOP to any text to opt out."
+                : "✅ Thanks! Your sign-up for the Work & Brew scouting roster is in — we'll confirm once you're added. You chose not to receive text reminders, and that's totally fine."}
             </p>
           ) : (
             <form className="auth-form" onSubmit={handleSubmit}>
@@ -93,10 +112,7 @@ export default function ScoutSignup() {
                   }}
                 />
                 <label htmlFor="scout-consent" style={{ flex: 1, color: "rgba(224,217,207,0.85)", fontSize: 12.5, lineHeight: 1.5, cursor: "pointer" }}>
-                  <strong>(Optional)</strong> Yes, text me reminders about my scouting assignments,
-                  deadlines, and receipts. I agree to receive recurring automated SMS from Work &amp;
-                  Brew at the mobile number I entered above. Message frequency varies. Msg &amp; data
-                  rates may apply. Reply STOP to opt out, HELP for help.
+                  <strong>(Optional)</strong> {SMS_CONSENT_TEXT}
                 </label>
               </div>
 
@@ -107,7 +123,9 @@ export default function ScoutSignup() {
 
               {error && <p style={{ color: "#ff8a70", fontSize: 12.5, margin: 0, textAlign: "center" }}>{error}</p>}
 
-              <button type="submit" style={{ alignSelf: "center", width: "100%" }}>Join the Roster</button>
+              <button type="submit" disabled={submitting} style={{ alignSelf: "center", width: "100%" }}>
+                {submitting ? "Saving…" : "Join the Roster"}
+              </button>
 
               <p style={{ fontSize: 11.5, color: "rgba(224,217,207,0.5)", textAlign: "center", margin: "4px 0 0", lineHeight: 1.5 }}>
                 If you opt into texts, you agree to our{" "}
