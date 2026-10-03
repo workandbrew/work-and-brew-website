@@ -151,7 +151,7 @@ export function db() {
 
 export async function loadScouts() {
   const { data, error } = await db()
-    .from("scouts")
+    .from("sms_contacts")
     .select("id, name, phone, role, chapters, sms_opt_in, active, opted_out_at")
     .eq("active", true)
     .order("name");

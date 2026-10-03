@@ -48,8 +48,8 @@ export default async function handler(req, res) {
       };
       // Someone re-signing up with a number already on the team updates their row instead.
       const write = request.phone
-        ? db().from("scouts").upsert(row, { onConflict: "phone" })
-        : db().from("scouts").insert(row);
+        ? db().from("sms_contacts").upsert(row, { onConflict: "phone" })
+        : db().from("sms_contacts").insert(row);
       const { data, error } = await write.select("id, name, chapters, sms_opt_in").single();
       if (error) throw new Error(error.message);
       scout = data;

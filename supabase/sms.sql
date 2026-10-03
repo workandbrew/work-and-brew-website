@@ -2,11 +2,11 @@
 -- Run once in the Supabase SQL editor (Database → SQL editor → New query), after schema.sql.
 --
 --   signup_requests  new opt-ins from /scout-signup, waiting for Den's approval ("pending requests")
---   scouts           approved team members — the single source of truth the send endpoint texts
+--   sms_contacts     approved team members — the single source of truth the send endpoint texts
 --   sms_messages     log of every text actually sent (who, what, Twilio SID, status)
 --
 -- Only the website's anonymous visitors can INSERT a signup request. Everything else (reading
--- requests, the scouts roster, the send log) is server-only: the /api functions use the
+-- requests, the sms_contacts roster, the send log) is server-only: the /api functions use the
 -- service-role key, which bypasses RLS. No browser can read phone numbers.
 
 -- ---------------------------------------------------------------------------------------------
@@ -49,9 +49,9 @@ create trigger signup_requests_stamp_consent
   for each row execute function public.stamp_signup_consent();
 
 -- ---------------------------------------------------------------------------------------------
--- scouts
+-- sms_contacts (named so it never collides with any other "scouts" table)
 -- ---------------------------------------------------------------------------------------------
-create table if not exists public.scouts (
+create table if not exists public.sms_contacts (
   id uuid default gen_random_uuid() primary key,
   name text not null,
   phone text unique check (phone is null or phone ~ '^\+[1-9][0-9]{7,14}$'),
@@ -67,7 +67,7 @@ create table if not exists public.scouts (
   created_at timestamptz not null default now()
 );
 
-alter table public.scouts enable row level security;
+alter table public.sms_contacts enable row level security;
 -- (no policies on purpose: server-only)
 
 -- ---------------------------------------------------------------------------------------------
@@ -75,7 +75,7 @@ alter table public.scouts enable row level security;
 -- ---------------------------------------------------------------------------------------------
 create table if not exists public.sms_messages (
   id uuid default gen_random_uuid() primary key,
-  scout_id uuid references public.scouts on delete set null,
+  scout_id uuid references public.sms_contacts on delete set null,
   to_phone text not null,
   body text not null,
   twilio_sid text,

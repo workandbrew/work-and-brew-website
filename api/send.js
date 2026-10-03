@@ -61,7 +61,7 @@ export default async function handler(req, res) {
         status: r.ok ? r.status || "queued" : "failed", error: r.ok ? null : r.error, sent_by: sentBy,
       });
       if (r.code === TWILIO_OPTED_OUT) {
-        await db().from("scouts").update({ opted_out_at: new Date().toISOString() }).eq("id", s.id);
+        await db().from("sms_contacts").update({ opted_out_at: new Date().toISOString() }).eq("id", s.id);
       }
     } catch { /* the log is best-effort; never block a send on it */ }
   }

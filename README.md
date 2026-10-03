@@ -131,7 +131,7 @@ Texts the café-scout team through one protected endpoint. Roster + consent live
 
 - **Database:** run `supabase/sms.sql` once in the Supabase SQL editor. It creates:
   - `signup_requests`: opt-ins from `/scout-signup`, waiting for approval. Browsers can only insert.
-  - `scouts`: the approved team. Only the server can read it.
+  - `sms_contacts`: the approved team. Only the server can read it.
   - `sms_messages`: the send log.
 - **Endpoints** (each one needs `Authorization: Bearer $SMS_API_KEY`):
   - `POST /api/send` with `{ to, message, dryRun? }`. `to` can be a name, a chapter (`Bronx`, `Manhattan`, `Manhattan-UWS`, ...), `all`, a scout id, or a list of these. `dryRun: true` previews without sending. Only active, opted-in scouts can be texted, and "Reply STOP to opt out." is always added.
