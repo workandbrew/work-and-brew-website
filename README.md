@@ -124,3 +124,19 @@ npm run build
 ---
 
 © 2026 Work & Brew NYC. All rights reserved.
+
+## Scout SMS (Twilio)
+
+Texts the café-scout team through one protected endpoint. Roster + consent live in Supabase.
+
+- **Database:** run `supabase/sms.sql` once in the Supabase SQL editor. It creates:
+  - `signup_requests`: opt-ins from `/scout-signup`, waiting for approval. Browsers can only insert.
+  - `sms_contacts`: the approved team. Only the server can read it.
+  - `sms_messages`: the send log.
+- **Endpoints** (each one needs `Authorization: Bearer $SMS_API_KEY`):
+  - `POST /api/send` with `{ to, message, dryRun? }`. `to` can be a name, a chapter (`Bronx`, `Manhattan`, `Manhattan-UWS`, ...), `all`, a scout id, or a list of these. `dryRun: true` previews without sending. Only active, opted-in scouts can be texted, and "Reply STOP to opt out." is always added.
+  - `GET /api/scouts` returns the roster with no full phone numbers.
+  - `GET /api/signups` lists pending requests.
+  - `POST /api/signups` with `{ id, action: "approve" | "reject", chapters?, role? }` approves or rejects one.
+- **Env (Vercel, server-only):** `SMS_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and the `TWILIO_*` values. See `.env.example`.
+- **Approval:** Gwen only drafts, using `dryRun`. Den approves each draft before anything is sent.
