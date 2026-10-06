@@ -84,41 +84,14 @@ export default function ComingSoon({ children }) {
     setSubError("");
     setSubLoading(true);
 
-    // Brevo (Sendinblue) — add contact to the launch list
-    const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY;
-    const BREVO_LIST_ID = import.meta.env.VITE_BREVO_LIST_ID
-      ? parseInt(import.meta.env.VITE_BREVO_LIST_ID, 10)
-      : null;
-
-    if (!BREVO_API_KEY || !BREVO_LIST_ID) {
-      // Fallback if Brevo isn't wired up yet — just show success
-      setSubmitted(true);
-      setSubLoading(false);
-      return;
-    }
-
     try {
-      const res = await fetch("https://api.brevo.com/v3/contacts", {
+      const res = await fetch("/api/subscribe", {
         method: "POST",
-        headers: {
-          "api-key": BREVO_API_KEY,
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          listIds: [BREVO_LIST_ID],
-          updateEnabled: true, // re-add if they unsubscribed
-          attributes: { SOURCE: "coming_soon_wall" },
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
-      if (!res.ok && res.status !== 204) {
-        const body = await res.json().catch(() => ({}));
-        // 400 with "Contact already exist" is fine — they're already on the list
-        if (body?.code !== "duplicate_parameter") {
-          throw new Error(body?.message || "Something went wrong.");
-        }
-      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Something went wrong.");
       setSubmitted(true);
     } catch (err) {
       setSubError(err.message || "Couldn't sign you up. Try again.");
