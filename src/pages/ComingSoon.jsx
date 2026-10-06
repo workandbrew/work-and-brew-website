@@ -270,7 +270,12 @@ export default function ComingSoon({ children }) {
                 cursor: subLoading ? "not-allowed" : "pointer",
                 opacity: subLoading ? 0.7 : 1,
                 letterSpacing: "0.04em",
+                transition: "background 0.15s, color 0.15s",
               }}
+            onMouseOver={(e) => { if (!subLoading) { e.currentTarget.style.background = "#E0D9CF"; e.currentTarget.style.color = C.darkBrown; }}}
+            onMouseOut={(e) => { e.currentTarget.style.background = C.brownLight; e.currentTarget.style.color = C.darkBrown; }}
+            onMouseDown={(e) => { e.currentTarget.style.background = "#f4efe6"; }}
+            onMouseUp={(e) => { e.currentTarget.style.background = "#E0D9CF"; }}
             >
               {subLoading ? "Adding you…" : "Sign Up for Early Access →"}
             </button>

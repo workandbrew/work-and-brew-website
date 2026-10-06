@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { createClient } from "@supabase/supabase-js";
-
-// ── Supabase (read-only public client) ────────────────────────────────────────
-const SUPABASE_URL      = "https://occdbhckswnhzkubfyge.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jY2RiaGNrc3duaHprdWJmeWdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTIyMTMsImV4cCI6MjA5OTkyODIxM30.t8jbngCkE-UHrKpqoTUa82vnp8orbB5qCYnZ_nOIx6w";
-const supabase          = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+import Papa from "papaparse";
 
 // ── Borough palette (matches scout-map.html) ──────────────────────────────────
 const BORO_COLORS = {
@@ -32,39 +27,15 @@ const API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
 const INITIAL_CENTER = [-73.97539, 40.7646];
 const INITIAL_ZOOM   = 11;
 
-// Prefetch from Supabase before any component mounts
+// Prefetch CSV before any component mounts
 let cachedMarkerData = null;
 let _prefetchPromise = null;
 function prefetchMarkers() {
   if (cachedMarkerData || _prefetchPromise) return;
-  _prefetchPromise = supabase
-    .from("map_cafes")
-    .select("*")
-    .order("borough", { ascending: true })
-    .order("name",    { ascending: true })
-    .then(({ data, error }) => {
-      if (error) { console.error("Supabase map_cafes error:", error.message); return; }
-      // Normalise to match the shape the rest of the component expects
-      cachedMarkerData = (data || []).map((r) => ({
-        Name:              r.name,
-        Address:           r.address,
-        Zipcode:           r.zipcode,
-        County:            r.borough,
-        Latitude:          String(r.latitude),
-        Longitude:         String(r.longitude),
-        Description:       r.description || "",
-        Highlight:         r.highlight ? "TRUE" : "FALSE",
-        WiFi:              r.wifi    ? "YES" : "NO",
-        Secured:           r.secured ? "YES" : "NO",
-        Outlets:           r.outlets ? "YES" : "NO",
-        HotFood:           r.hot_food ? "YES" : "NO",
-        Restroom:          r.restroom ? "YES" : "NO",
-        Seats:             r.seats || "",
-        TimeRestriction:   r.time_restriction ? "TRUE" : "FALSE",
-        RestrictionAmount: r.restriction_amount || "",
-        ScoutName:         r.scout_name || "",
-        _id:               r.id,
-      }));
+  _prefetchPromise = fetch("/markers.csv")
+    .then((res) => res.text())
+    .then((csvText) => {
+      cachedMarkerData = Papa.parse(csvText, { header: true, skipEmptyLines: true }).data;
     })
     .catch(() => {});
 }
@@ -208,10 +179,14 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
           if (cachedMarkerData) {
             plotMarkers(cachedMarkerData);
           } else {
-            // Supabase fetch still in-flight — wait for it then plot
-            (_prefetchPromise || Promise.resolve()).then(() => {
-              if (cachedMarkerData) plotMarkers(cachedMarkerData);
-            });
+            fetch("/markers.csv")
+              .then((res) => res.text())
+              .then((csvText) => {
+                const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true }).data;
+                cachedMarkerData = parsed;
+                plotMarkers(parsed);
+              })
+              .catch((err) => console.error("Error loading markers.csv:", err));
           }
         }
       });

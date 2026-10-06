@@ -4,7 +4,56 @@ import Navbar from "../components/Navbar";
 import SiteFooter from "../components/SiteFooter";
 import "./PageShared.css";
 
+const SECURITY_CODE = "032025";
+
+function SecurityGate({ onUnlock }) {
+  const [code, setCode]     = useState("");
+  const [error, setError]   = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (code.trim() === SECURITY_CODE) {
+      onUnlock();
+    } else {
+      setError("Incorrect code. Reach out to the Work & Brew team if you need access.");
+      setCode("");
+    }
+  };
+
+  return (
+    <div className="page-shell">
+      <Navbar />
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="auth-badge">Team Access Only</div>
+          <h1 style={{ textAlign: "center" }}>Security Code Required</h1>
+          <p style={{ color: "rgba(224,217,207,0.65)", fontSize: 13.5, textAlign: "center", lineHeight: 1.6, margin: "0 0 8px" }}>
+            This page is for Work &amp; Brew team members only. Please enter the
+            security code you received from the team to continue.
+          </p>
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <input
+              type="password"
+              placeholder="Enter security code"
+              value={code}
+              onChange={(e) => { setCode(e.target.value); setError(""); }}
+              autoComplete="off"
+              style={{ textAlign: "center", letterSpacing: "0.2em" }}
+            />
+            {error && (
+              <p style={{ color: "#ff8a70", fontSize: 12.5, margin: 0, textAlign: "center" }}>{error}</p>
+            )}
+            <button type="submit" style={{ width: "100%" }}>Confirm →</button>
+          </form>
+        </div>
+      </div>
+      <SiteFooter />
+    </div>
+  );
+}
+
 export default function ScoutSignup() {
+  const [unlocked, setUnlocked] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [consent, setConsent] = useState(false);
@@ -30,6 +79,8 @@ export default function ScoutSignup() {
     );
     window.location.href = `mailto:support@workandbrew.app?subject=${subject}&body=${body}`;
   };
+
+  if (!unlocked) return <SecurityGate onUnlock={() => setUnlocked(true)} />;
 
   return (
     <div className="page-shell">

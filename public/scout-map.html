@@ -2037,51 +2037,6 @@ function updateAssign(id, val) {
   saveState();
 }
 
-// Push a newly-completed cafe to the public website's map_cafes table
-async function pushToPublicMap(cafe) {
-  if (!cafe || !_sbUser) return;
-  try {
-    const scouts = state.persons || [];
-    const scoutName = (cafe.assignedTo != null && scouts[cafe.assignedTo])
-      ? scouts[cafe.assignedTo].name
-      : (_sbUser.email || '');
-
-    const row = {
-      name:               cafe.name || '',
-      address:            cafe.address || '',
-      zipcode:            (cafe.address || '').match(/\b\d{5}\b/)?.[0] || '',
-      borough:            cafe.borough || '',
-      latitude:           cafe.lat  || null,
-      longitude:          cafe.lng  || null,
-      description:        cafe.notes || '',
-      highlight:          false,
-      wifi:               false,
-      secured:            false,
-      outlets:            false,
-      hot_food:           false,
-      restroom:           false,
-      seats:              '',
-      time_restriction:   false,
-      restriction_amount: '',
-      scout_name:         scoutName,
-    };
-
-    // Use name+borough as a natural unique key — upsert on those
-    const { error } = await sb.from('map_cafes').upsert(row, {
-      onConflict: 'name,borough',
-      ignoreDuplicates: false,
-    });
-
-    if (error) {
-      console.warn('map_cafes upsert error:', error.message);
-    } else {
-      console.log('✅ Public map updated for:', cafe.name);
-    }
-  } catch (e) {
-    console.warn('pushToPublicMap failed:', e.message);
-  }
-}
-
 function updateStatus(id, val) {
   const cafe = state.cafes.find(c => c.id === id);
   if (!cafe) return;
@@ -2091,8 +2046,6 @@ function updateStatus(id, val) {
     showToast('✅ ' + cafe.name + ' marked as completed!');
     map.closePopup();
     applyFilters();
-    // Auto-push to public map_cafes table
-    pushToPublicMap(cafe);
   } else if (val === 'Temporarily Unavailable') {
     showToast('⚠️ ' + cafe.name + ' marked temporarily unavailable');
     applyFilters();
