@@ -231,6 +231,113 @@
   letter-spacing: 0.04em;
 }
 
+/* ── Event Calendar ─────────────────────────────────────────────────────── */
+.event-cal {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(224, 217, 207, 0.14);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.event-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 0.5px solid rgba(224, 217, 207, 0.1);
+}
+
+.event-cal-title {
+  font-family: 'Instrument Serif', serif;
+  color: #E0D9CF;
+  font-size: 1.15rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.event-cal-nav {
+  background: transparent;
+  border: 0.5px solid rgba(224, 217, 207, 0.22);
+  color: #E0D9CF;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.3rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  padding: 0;
+}
+.event-cal-nav:hover:not(:disabled) {
+  background: rgba(224, 217, 207, 0.1);
+}
+.event-cal-nav:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.event-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.event-cal-dayname {
+  text-align: center;
+  padding: 10px 4px;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(224, 217, 207, 0.35);
+  border-bottom: 0.5px solid rgba(224, 217, 207, 0.07);
+}
+
+.event-cal-cell {
+  min-height: 64px;
+  padding: 8px 8px 6px;
+  border: 0.5px solid rgba(224, 217, 207, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.event-cal-pad {
+  background: transparent;
+}
+
+.event-cal-num {
+  font-size: 0.8rem;
+  color: rgba(224, 217, 207, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+
+.event-cal-today {
+  background: rgba(224, 217, 207, 0.05);
+}
+.event-cal-today .event-cal-num {
+  color: #E0D9CF;
+  font-weight: 700;
+}
+
+.event-cal-marked {
+  background: rgba(224, 217, 207, 0.1);
+  border-color: rgba(224, 217, 207, 0.18);
+}
+.event-cal-marked .event-cal-num {
+  color: #E0D9CF;
+  font-weight: 700;
+}
+
+.event-cal-evtlbl {
+  font-size: 0.6rem;
+  color: #D4BFA0;
+  line-height: 1.35;
+  font-style: italic;
+}
+
 /* Mobile */
 @media (max-width: 600px) {
   .event-page {
@@ -241,5 +348,15 @@
   }
   .event-section--dates {
     padding: 28px 16px;
+  }
+  .event-cal-cell {
+    min-height: 46px;
+    padding: 5px 4px;
+  }
+  .event-cal-header {
+    padding: 14px 16px;
+  }
+  .event-cal-evtlbl {
+    font-size: 0.54rem;
   }
 }

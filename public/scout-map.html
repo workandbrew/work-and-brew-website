@@ -1140,6 +1140,23 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
       <button type="submit" id="sb-login-btn" style="padding:12px;border-radius:10px;border:none;background:#a0522d;color:#f4efe6;font-size:0.9rem;font-weight:700;cursor:pointer;transition:opacity 0.15s;">Sign In ☕</button>
     </form>
   </div>
+  <!-- Loading state shown after login while Supabase syncs -->
+  <div id="sb-loading-state" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;">
+    <svg width="48" height="48" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="18" width="30" height="26" rx="4" fill="#a0522d"/>
+      <path d="M36 24 Q46 24 46 31 Q46 38 36 38" stroke="#a0522d" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M14 13 Q16 8 14 4" stroke="#f4efe6" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
+      <path d="M21 11 Q23 6 21 2" stroke="#f4efe6" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
+      <path d="M28 13 Q30 8 28 4" stroke="#f4efe6" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
+    </svg>
+    <div style="text-align:center;">
+      <div style="color:#f4efe6;font-size:1rem;font-weight:700;margin-bottom:6px;">Loading updates…</div>
+      <div style="color:rgba(244,239,230,0.5);font-size:0.8rem;">Syncing latest cafe data from the team</div>
+    </div>
+    <div style="width:180px;height:4px;background:rgba(244,239,230,0.1);border-radius:999px;overflow:hidden;">
+      <div id="sb-loading-bar" style="height:100%;width:0%;background:#a0522d;border-radius:999px;transition:width 0.4s ease;"></div>
+    </div>
+  </div>
 </div>
 
 <!-- CHANGE PASSWORD MODAL -->
@@ -1458,19 +1475,52 @@ function debouncedSync() {
 async function sbOnAuthSuccess(user) {
   _sbUser = user;
   adminUnlocked = true; // scouts authenticated via Supabase — no need for extra password
-  const overlay = document.getElementById('sb-login-overlay');
-  if (overlay) overlay.style.display = 'none';
+
+  // Switch overlay to loading state while we fetch Supabase data
+  const loginForm = document.querySelector('#sb-login-overlay > div');
+  const loadingState = document.getElementById('sb-loading-state');
+  const loadingBar = document.getElementById('sb-loading-bar');
+  if (loginForm) loginForm.style.display = 'none';
+  if (loadingState) loadingState.style.display = 'flex';
+
+  // Animate the progress bar to give visual feedback
+  let barPct = 0;
+  const barInterval = setInterval(() => {
+    barPct = Math.min(barPct + (barPct < 60 ? 8 : barPct < 85 ? 3 : 1), 90);
+    if (loadingBar) loadingBar.style.width = barPct + '%';
+  }, 200);
+
+  // Initialize map behind the overlay
+  if (!_sbInitialized) {
+    _sbInitialized = true;
+    init();
+  }
+
+  // Show scout toolbar buttons
   const cpBtn = document.getElementById('btn-changepw');
   if (cpBtn) cpBtn.style.display = 'inline-block';
   const syncBtn = document.getElementById('btn-sync-cloud');
   if (syncBtn) syncBtn.style.display = 'inline-block';
   const exportBtn = document.getElementById('btn-export-sql');
   if (exportBtn) exportBtn.style.display = 'inline-block';
-  if (!_sbInitialized) {
-    _sbInitialized = true;
-    init();
-  }
+
+  // Fetch latest data from Supabase
   await loadFromSupabase();
+
+  // Complete the bar then fade out the overlay
+  clearInterval(barInterval);
+  if (loadingBar) loadingBar.style.width = '100%';
+  await new Promise(r => setTimeout(r, 350));
+
+  const overlay = document.getElementById('sb-login-overlay');
+  if (overlay) {
+    overlay.style.transition = 'opacity 0.5s ease';
+    overlay.style.opacity = '0';
+    await new Promise(r => setTimeout(r, 500));
+    overlay.style.display = 'none';
+    overlay.style.opacity = '';
+    overlay.style.transition = '';
+  }
 }
 
 async function submitChangePassword() {
