@@ -8,12 +8,12 @@
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  background-color: #0F1A2E; /* chocolate page bg */
+  background-color: #180A02; /* chocolate page bg */
 }
 
 /* Card container */
 .auth-card {
-  background-color: #1C2E52;
+  background-color: #2C1A0E;
   border: 1px solid #372414;
   border-left: 4px solid #372414;
   border-radius: 16px;
@@ -28,7 +28,7 @@
 
 /* "JOIN THE LIST" badge */
 .auth-badge {
-  background-color: #1C2E52;
+  background-color: #2C1A0E;
   border: 1.5px solid #372414;
   color: #E0D9CF;
   font-size: 11px;
@@ -61,7 +61,7 @@
 /* Input fields */
 .auth-form input {
   width: 100%;
-  background-color: rgba(15, 26, 46, 0.5);
+  background-color: rgba(26, 12, 4, 0.5);
   border: 1px solid #372414;
   border-radius: 8px;
   color: #E0D9CF;
@@ -85,7 +85,7 @@
 /* Submit button */
 .auth-form button {
   width: 100%;
-  background: #1C2E52;
+  background: #2C1A0E;
   color: #E0D9CF;
   font-weight: 700;
   font-size: 14px;
@@ -134,7 +134,7 @@
 /* Page Shell */
 .page-shell {
   min-height: 100vh;
-  background: #0F1A2E;
+  background: #180A02;
   color: #E0D9CF;
   padding-top: 80px; /* offset for fixed navbar */
 }
@@ -157,7 +157,7 @@
 
 .page-badge {
   display: inline-block;
-  background: #1C2E52;
+  background: #2C1A0E;
   border: 1.5px solid #372414;
   color: #E0D9CF;
   font-size: 0.9rem;
@@ -192,7 +192,7 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #2E5482;
+  color: #5C3D2E;
   margin: 2rem 0 1rem;
 }
 
@@ -288,14 +288,14 @@
 /* Left panel */
 .ed-featured {
   flex: 1;
-  background: #1C2E52;
+  background: #2C1A0E;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 7rem 3rem 4rem;
   position: relative;
-  border-right: 1px solid #1C2E52;
+  border-right: 1px solid #2C1A0E;
   font-family: "Inter", sans-serif;
 }
 
@@ -322,7 +322,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: #1C2E52;
+  background: #2C1A0E;
   border: 1.5px solid #372414;
   color: #E0D9CF;
   font-size: 0.78rem;
@@ -496,7 +496,7 @@
 
 .ed-featured-tag {
   display: inline-block;
-  background: #1C2E52;
+  background: #2C1A0E;
   color: #E0D9CF;
   font-size: 0.75rem;
   font-weight: 700;
@@ -585,7 +585,7 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  background: #1C2E52;
+  background: #2C1A0E;
   justify-content: space-between;
 }
 
@@ -605,7 +605,7 @@
   align-items: center;
   gap: 1rem;
   padding: 1.25rem 0.75rem;
-  background: rgba(28, 46, 82, 0.25);
+  background: rgba(44, 26, 14, 0.25);
   border: none;
   border-bottom: 1px solid rgba(224, 217, 207, 0.1);
   border-radius: 10px;
@@ -621,12 +621,12 @@
 }
 
 .ed-list-item:hover {
-  background: #1C2E52;
+  background: #2C1A0E;
   box-shadow: 0 0 20px rgba(224, 217, 207, 0.35);
 }
 
 .ed-list-item.is-active {
-  background: #1C2E52;
+  background: #2C1A0E;
   border-left: 2px solid #E0D9CF;
   padding-left: calc(0.75rem - 2px);
 }
@@ -637,7 +637,7 @@
   height: 48px;
   border-radius: 50%;
   border: 2px solid #372414;
-  background: #1C2E52;
+  background: #2C1A0E;
   color: #E0D9CF;
   font-family: "Playfair Display", serif;
   font-size: 1.1rem;
@@ -650,7 +650,7 @@
 
 .ed-list-item.is-active .ed-list-avatar {
   background: #E0D9CF;
-  color: #1C2E52;
+  color: #2C1A0E;
 }
 
 /* Info */
@@ -708,7 +708,7 @@
 /* Arrow */
 .ed-list-arrow {
   font-size: 0.85rem;
-  color: #2E5482;
+  color: #5C3D2E;
   transition: color 0.2s, transform 0.2s;
   flex-shrink: 0;
 }
@@ -1138,8 +1138,8 @@
 }
 
 .saved-cafe-card {
-  background: #1C2E52;
-  border: 1px solid #2E5482;
+  background: #2C1A0E;
+  border: 1px solid #5C3D2E;
   border-radius: 12px;
   padding: 1.25rem;
   display: flex;
@@ -1168,8 +1168,8 @@
 .saved-cafe-borough {
   font-size: 0.75rem;
   color: #E0D9CF;
-  background: #1C2E52;
-  border: 1px solid #2E5482;
+  background: #2C1A0E;
+  border: 1px solid #5C3D2E;
   border-radius: 20px;
   padding: 0.15rem 0.6rem;
   display: inline-block;
@@ -1194,7 +1194,7 @@
   padding-top: 0.75rem;
   background: transparent;
   border: none;
-  color: #2E5482;
+  color: #5C3D2E;
   font-size: 0.78rem;
   cursor: pointer;
   text-align: left;
@@ -1214,8 +1214,8 @@
 
 .empty-saved-cta {
   background: #E0D9CF;
-  color: #1C2E52;
-  border: solid 2px #2E5482;
+  color: #2C1A0E;
+  border: solid 2px #5C3D2E;
   padding: 0.6rem 1.25rem;
   border-radius: 10px;
   font-size: 0.9rem;
@@ -1225,11 +1225,11 @@
   outline: none;
   user-select: none;
   box-shadow:
-    inset 0px -6px 18px -6px rgba(15, 26, 46, 0),
+    inset 0px -6px 18px -6px rgba(26, 12, 4, 0),
     inset rgba(224, 217, 207, 0.8) -1px -1px 6px 0px,
-    inset 12px 0px 12px -6px rgba(15, 26, 46, 0),
-    inset -12px 0px 12px -6px rgba(15, 26, 46, 0),
-    rgba(46, 84, 130, 0.6) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(26, 12, 4, 0),
+    inset -12px 0px 12px -6px rgba(26, 12, 4, 0),
+    rgba(92, 61, 46, 0.6) -1px -1px 6px 0px,
     0 0 12px rgba(224, 217, 207, 0.18);
 }
 
@@ -1237,20 +1237,20 @@
   background: #E0D9CF;
   transform: translateY(-2px);
   box-shadow:
-    rgba(46, 84, 130, 0.45) -1px -1px 6px 0px,
-    0 6px 20px rgba(46, 84, 130, 0.18),
+    rgba(92, 61, 46, 0.45) -1px -1px 6px 0px,
+    0 6px 20px rgba(92, 61, 46, 0.18),
     0 0 18px rgba(224, 217, 207, 0.3),
-    inset 0px -2px 6px -1px rgba(15, 26, 46, 0.12);
+    inset 0px -2px 6px -1px rgba(26, 12, 4, 0.12);
 }
 
 .empty-saved-cta:active {
   transform: translateY(1px);
   box-shadow:
-    inset 0px -12px 12px -6px rgba(15, 26, 46, 1),
-    inset 0px 12px 12px -6px rgba(15, 26, 46, 1),
-    inset 12px 0px 12px -6px rgba(15, 26, 46, 1),
-    inset -12px 0px 12px -6px rgba(15, 26, 46, 1),
-    -1px -1px 6px 0px rgba(46, 84, 130, 0.8);
+    inset 0px -12px 12px -6px rgba(26, 12, 4, 1),
+    inset 0px 12px 12px -6px rgba(26, 12, 4, 1),
+    inset 12px 0px 12px -6px rgba(26, 12, 4, 1),
+    inset -12px 0px 12px -6px rgba(26, 12, 4, 1),
+    -1px -1px 6px 0px rgba(92, 61, 46, 0.8);
 }
 
 /* Dashboard — Saved Lists */
@@ -1275,8 +1275,8 @@
 }
 
 .dash-list {
-  background: #1C2E52;
-  border: 1px solid #2E5482;
+  background: #2C1A0E;
+  border: 1px solid #5C3D2E;
   border-radius: 14px;
   overflow: hidden;
   transition: border-color 0.2s;
@@ -1304,7 +1304,7 @@
   width: 52px;
   height: 52px;
   border-radius: 10px;
-  background: #1C2E52;
+  background: #2C1A0E;
   border: 1px dashed #372414;
   display: flex;
   flex-direction: column;
@@ -1383,7 +1383,7 @@
 .dash-perm-card {
   width: 100%;
   max-width: 460px;
-  background: #0F1A2E;
+  background: #180A02;
   border: 1px solid rgba(224, 217, 207, 0.35);
   border-radius: 20px;
   padding: 2.25rem 2rem;
@@ -1422,7 +1422,7 @@
 }
 
 .dash-perm-reassure {
-  color: #2E5482;
+  color: #5C3D2E;
   font-size: 0.8rem;
   font-style: italic;
   line-height: 1.55;
@@ -1449,11 +1449,11 @@
 
 .dash-perm-btn--primary {
   background: #E0D9CF;
-  color: #1C2E52;
-  border: 2px solid #2E5482;
+  color: #2C1A0E;
+  border: 2px solid #5C3D2E;
   box-shadow:
     inset rgba(224, 217, 207, 0.8) -1px -1px 6px 0px,
-    rgba(46, 84, 130, 0.6) -1px -1px 6px 0px,
+    rgba(92, 61, 46, 0.6) -1px -1px 6px 0px,
     0 0 14px rgba(224, 217, 207, 0.2);
 }
 
@@ -1461,32 +1461,32 @@
   background: #E0D9CF;
   transform: translateY(-2px);
   box-shadow:
-    rgba(46, 84, 130, 0.45) -1px -1px 6px 0px,
-    0 6px 20px rgba(46, 84, 130, 0.18),
+    rgba(92, 61, 46, 0.45) -1px -1px 6px 0px,
+    0 6px 20px rgba(92, 61, 46, 0.18),
     0 0 22px rgba(224, 217, 207, 0.32),
-    inset 0px -2px 6px -1px rgba(15, 26, 46, 0.12);
+    inset 0px -2px 6px -1px rgba(26, 12, 4, 0.12);
 }
 
 .dash-perm-btn--primary:active {
   transform: translateY(1px);
   box-shadow:
-    inset 0px -12px 12px -6px rgba(15, 26, 46, 1),
-    inset 0px 12px 12px -6px rgba(15, 26, 46, 1),
-    inset 12px 0px 12px -6px rgba(15, 26, 46, 1),
-    inset -12px 0px 12px -6px rgba(15, 26, 46, 1),
-    -1px -1px 6px 0px rgba(46, 84, 130, 0.8);
+    inset 0px -12px 12px -6px rgba(26, 12, 4, 1),
+    inset 0px 12px 12px -6px rgba(26, 12, 4, 1),
+    inset 12px 0px 12px -6px rgba(26, 12, 4, 1),
+    inset -12px 0px 12px -6px rgba(26, 12, 4, 1),
+    -1px -1px 6px 0px rgba(92, 61, 46, 0.8);
 }
 
 .dash-perm-btn--ghost {
   background: transparent;
-  color: #2E5482;
-  border: 1px solid #1C2E52;
+  color: #5C3D2E;
+  border: 1px solid #2C1A0E;
 }
 
 .dash-perm-btn--ghost:hover {
   background: rgba(224, 217, 207, 0.04);
   color: #E0D9CF;
-  border-color: #2E5482;
+  border-color: #5C3D2E;
 }
 
 /* ── Café row — column layout with personal note ───────────────────────────── */
@@ -1494,15 +1494,15 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: #0F1A2E;
-  border: 1px solid #1C2E52;
+  background: #180A02;
+  border: 1px solid #2C1A0E;
   border-radius: 10px;
   padding: 0.6rem 0.75rem 0;
   transition: border-color 0.2s;
 }
 
 .dash-cafe-row:focus-within {
-  border-color: #2E5482;
+  border-color: #5C3D2E;
 }
 
 .dash-cafe-top {
@@ -1535,7 +1535,7 @@
   box-sizing: border-box;
   background: transparent;
   border: none;
-  border-top: 1px solid #1C2E52;
+  border-top: 1px solid #2C1A0E;
   color: #E0D9CF;
   font-size: 0.78rem;
   font-family: inherit;
@@ -1547,17 +1547,17 @@
 }
 
 .dash-cafe-note::placeholder {
-  color: #2E5482;
+  color: #5C3D2E;
   font-style: italic;
 }
 
 .dash-cafe-note:focus {
-  border-color: #2E5482;
+  border-color: #5C3D2E;
 }
 
 /* Collapsed note row — preview text only */
 .dash-note-collapsed {
-  border-top: 1px solid #1C2E52;
+  border-top: 1px solid #2C1A0E;
   padding: 0.45rem 0 0.5rem;
 }
 
@@ -1609,8 +1609,8 @@
   margin-bottom: 0.4rem;
   padding: 0.32rem 0.9rem;
   background: #E0D9CF;
-  color: #1C2E52;
-  border: 1.5px solid #2E5482;
+  color: #2C1A0E;
+  border: 1.5px solid #5C3D2E;
   border-radius: 8px;
   font-size: 0.75rem;
   font-weight: 700;
@@ -1626,7 +1626,7 @@
   background: #E0D9CF;
   transform: translateY(-1px);
   box-shadow:
-    0 4px 14px rgba(46, 84, 130, 0.2),
+    0 4px 14px rgba(92, 61, 46, 0.2),
     0 0 18px rgba(224, 217, 207, 0.28);
 }
 
@@ -1646,7 +1646,7 @@
 .dash-list-delete {
   background: transparent;
   border: none;
-  color: #2E5482;
+  color: #5C3D2E;
   font-size: 0.75rem;
   cursor: pointer;
   text-align: left;
@@ -1665,7 +1665,7 @@
 
 .dash-new-list input {
   flex: 1;
-  background: #1C2E52;
+  background: #2C1A0E;
   border: 1px dashed #372414;
   border-radius: 10px;
   color: #E0D9CF;
@@ -1681,8 +1681,8 @@
 
 .dash-new-list button {
   background: #E0D9CF;
-  color: #1C2E52;
-  border: solid 2px #2E5482;
+  color: #2C1A0E;
+  border: solid 2px #5C3D2E;
   border-radius: 10px;
   padding: 0 1.1rem;
   cursor: pointer;
@@ -1690,11 +1690,11 @@
   outline: none;
   user-select: none;
   box-shadow:
-    inset 0px -6px 18px -6px rgba(15, 26, 46, 0),
+    inset 0px -6px 18px -6px rgba(26, 12, 4, 0),
     inset rgba(224, 217, 207, 0.8) -1px -1px 6px 0px,
-    inset 12px 0px 12px -6px rgba(15, 26, 46, 0),
-    inset -12px 0px 12px -6px rgba(15, 26, 46, 0),
-    rgba(46, 84, 130, 0.6) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(26, 12, 4, 0),
+    inset -12px 0px 12px -6px rgba(26, 12, 4, 0),
+    rgba(92, 61, 46, 0.6) -1px -1px 6px 0px,
     0 0 12px rgba(224, 217, 207, 0.18);
 }
 
@@ -1702,26 +1702,26 @@
   background: #E0D9CF;
   transform: translateY(-2px);
   box-shadow:
-    rgba(46, 84, 130, 0.45) -1px -1px 6px 0px,
-    0 6px 20px rgba(46, 84, 130, 0.18),
+    rgba(92, 61, 46, 0.45) -1px -1px 6px 0px,
+    0 6px 20px rgba(92, 61, 46, 0.18),
     0 0 18px rgba(224, 217, 207, 0.3),
-    inset 0px -2px 6px -1px rgba(15, 26, 46, 0.12);
+    inset 0px -2px 6px -1px rgba(26, 12, 4, 0.12);
 }
 
 .dash-new-list button:active {
   transform: translateY(1px);
   box-shadow:
-    inset 0px -12px 12px -6px rgba(15, 26, 46, 1),
-    inset 0px 12px 12px -6px rgba(15, 26, 46, 1),
-    inset 12px 0px 12px -6px rgba(15, 26, 46, 1),
-    inset -12px 0px 12px -6px rgba(15, 26, 46, 1),
-    -1px -1px 6px 0px rgba(46, 84, 130, 0.8);
+    inset 0px -12px 12px -6px rgba(26, 12, 4, 1),
+    inset 0px 12px 12px -6px rgba(26, 12, 4, 1),
+    inset 12px 0px 12px -6px rgba(26, 12, 4, 1),
+    inset -12px 0px 12px -6px rgba(26, 12, 4, 1),
+    -1px -1px 6px 0px rgba(92, 61, 46, 0.8);
 }
 
 .dash-map {
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid #2E5482;
+  border: 1px solid #5C3D2E;
   height: 640px; /* fixed height so the map always fills the whole box */
 }
 
@@ -1730,7 +1730,7 @@
 }
 
 .settings-placeholder {
-  background: #1C2E52;
+  background: #2C1A0E;
   border: 1px dashed #372414;
   border-radius: 12px;
   padding: 1.25rem;
@@ -1897,7 +1897,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 14px;
-  border: 1.5px solid #1C2E52;
+  border: 1.5px solid #2C1A0E;
   border-radius: 999px;
   cursor: pointer;
   transition: border-color 0.3s, box-shadow 0.3s, color 0.3s, transform 0.15s, background 0.3s;
@@ -1956,7 +1956,7 @@
 }
 
 .owner-form-success p {
-  color: #1C2E52;
+  color: #2C1A0E;
   font-size: 1.15rem;
   font-weight: 600;
   line-height: 1.6;
@@ -1966,8 +1966,8 @@
 
 .owner-form-success button {
   background: #E0D9CF;
-  color: #1C2E52;
-  border: solid 2px #2E5482;
+  color: #2C1A0E;
+  border: solid 2px #5C3D2E;
   font-size: 0.85rem;
   padding: 0.5rem 1.25rem;
   border-radius: 8px;
@@ -1976,11 +1976,11 @@
   outline: none;
   user-select: none;
   box-shadow:
-    inset 0px -6px 18px -6px rgba(15, 26, 46, 0),
+    inset 0px -6px 18px -6px rgba(26, 12, 4, 0),
     inset rgba(224, 217, 207, 0.5) -1px -1px 6px 0px,
-    inset 12px 0px 12px -6px rgba(15, 26, 46, 0),
-    inset -12px 0px 12px -6px rgba(15, 26, 46, 0),
-    rgba(46, 84, 130, 0.35) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(26, 12, 4, 0),
+    inset -12px 0px 12px -6px rgba(26, 12, 4, 0),
+    rgba(92, 61, 46, 0.35) -1px -1px 6px 0px,
     0 0 10px rgba(224, 217, 207, 0.14);
 }
 
@@ -1988,20 +1988,20 @@
   background: #E0D9CF;
   transform: translateY(-2px);
   box-shadow:
-    rgba(46, 84, 130, 0.3) -1px -1px 6px 0px,
-    0 5px 14px rgba(46, 84, 130, 0.12),
+    rgba(92, 61, 46, 0.3) -1px -1px 6px 0px,
+    0 5px 14px rgba(92, 61, 46, 0.12),
     0 0 14px rgba(224, 217, 207, 0.2),
-    inset 0px -2px 5px -1px rgba(15, 26, 46, 0.1);
+    inset 0px -2px 5px -1px rgba(26, 12, 4, 0.1);
 }
 
 .owner-form-success button:active {
   transform: translateY(1px);
   box-shadow:
-    inset 0px -12px 12px -6px rgba(15, 26, 46, 1),
-    inset 0px 12px 12px -6px rgba(15, 26, 46, 1),
-    inset 12px 0px 12px -6px rgba(15, 26, 46, 1),
-    inset -12px 0px 12px -6px rgba(15, 26, 46, 1),
-    -1px -1px 6px 0px rgba(46, 84, 130, 0.5);
+    inset 0px -12px 12px -6px rgba(26, 12, 4, 1),
+    inset 0px 12px 12px -6px rgba(26, 12, 4, 1),
+    inset 12px 0px 12px -6px rgba(26, 12, 4, 1),
+    inset -12px 0px 12px -6px rgba(26, 12, 4, 1),
+    -1px -1px 6px 0px rgba(92, 61, 46, 0.5);
 }
 
 @media (max-width: 860px) {
@@ -2151,7 +2151,7 @@
   .ed-featured {
     padding: 5rem 2rem 2.5rem;
     border-right: none;
-    border-bottom: 1px solid #1C2E52;
+    border-bottom: 1px solid #2C1A0E;
   }
   .ed-featured-top {
     top: 1.5rem;
@@ -2405,7 +2405,7 @@
   font-weight: 400;
   letter-spacing: 0.02em;
   text-transform: none;
-  color: #2E5482;
+  color: #5C3D2E;
   font-style: italic;
 }
 
@@ -2436,7 +2436,7 @@
 .auth-divider::after {
   content: "";
   flex: 1;
-  border-top: 1px solid #2E5482;
+  border-top: 1px solid #5C3D2E;
 }
 
 .auth-social {
@@ -2449,8 +2449,8 @@
 .auth-social button {
   width: 100%;
   background: #E0D9CF;
-  color: #1C2E52;
-  border: solid 2px #2E5482;
+  color: #2C1A0E;
+  border: solid 2px #5C3D2E;
   border-radius: 10px;
   padding: 12px;
   font-weight: 600;
@@ -2460,11 +2460,11 @@
   outline: none;
   user-select: none;
   box-shadow:
-    inset 0px -6px 18px -6px rgba(15, 26, 46, 0),
+    inset 0px -6px 18px -6px rgba(26, 12, 4, 0),
     inset rgba(224, 217, 207, 0.8) -1px -1px 6px 0px,
-    inset 12px 0px 12px -6px rgba(15, 26, 46, 0),
-    inset -12px 0px 12px -6px rgba(15, 26, 46, 0),
-    rgba(46, 84, 130, 0.6) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(26, 12, 4, 0),
+    inset -12px 0px 12px -6px rgba(26, 12, 4, 0),
+    rgba(92, 61, 46, 0.6) -1px -1px 6px 0px,
     0 0 12px rgba(224, 217, 207, 0.18);
 }
 
@@ -2472,20 +2472,20 @@
   background: #E0D9CF;
   transform: translateY(-2px);
   box-shadow:
-    rgba(46, 84, 130, 0.45) -1px -1px 6px 0px,
-    0 6px 20px rgba(46, 84, 130, 0.18),
+    rgba(92, 61, 46, 0.45) -1px -1px 6px 0px,
+    0 6px 20px rgba(92, 61, 46, 0.18),
     0 0 18px rgba(224, 217, 207, 0.3),
-    inset 0px -2px 6px -1px rgba(15, 26, 46, 0.12);
+    inset 0px -2px 6px -1px rgba(26, 12, 4, 0.12);
 }
 
 .auth-social button:active {
   transform: translateY(1px);
   box-shadow:
-    inset 0px -12px 12px -6px rgba(15, 26, 46, 1),
-    inset 0px 12px 12px -6px rgba(15, 26, 46, 1),
-    inset 12px 0px 12px -6px rgba(15, 26, 46, 1),
-    inset -12px 0px 12px -6px rgba(15, 26, 46, 1),
-    -1px -1px 6px 0px rgba(46, 84, 130, 0.8);
+    inset 0px -12px 12px -6px rgba(26, 12, 4, 1),
+    inset 0px 12px 12px -6px rgba(26, 12, 4, 1),
+    inset 12px 0px 12px -6px rgba(26, 12, 4, 1),
+    inset -12px 0px 12px -6px rgba(26, 12, 4, 1),
+    -1px -1px 6px 0px rgba(92, 61, 46, 0.8);
 }
 
 .auth-switch {
@@ -2505,8 +2505,8 @@
 
 /* Settings page */
 .settings-card {
-  background: #1C2E52;
-  border: 1px solid #2E5482;
+  background: #2C1A0E;
+  border: 1px solid #5C3D2E;
   border-radius: 16px;
   padding: 1.5rem;
   display: flex;
@@ -2516,8 +2516,8 @@
 }
 
 .settings-card input {
-  background: #1C2E52;
-  border: 1px solid #2E5482;
+  background: #2C1A0E;
+  border: 1px solid #5C3D2E;
   border-radius: 8px;
   color: #E0D9CF;
   font-family: 'Inter', sans-serif;
@@ -2533,11 +2533,11 @@
 
 .settings-card button {
   background: #E0D9CF;
-  color: #1C2E52;
+  color: #2C1A0E;
   font-weight: 700;
   font-size: 14px;
   padding: 12px 1.5rem;
-  border: solid 2px #2E5482;
+  border: solid 2px #5C3D2E;
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
@@ -2545,11 +2545,11 @@
   user-select: none;
   width: fit-content;
   box-shadow:
-    inset 0px -6px 18px -6px rgba(15, 26, 46, 0),
+    inset 0px -6px 18px -6px rgba(26, 12, 4, 0),
     inset rgba(224, 217, 207, 0.8) -1px -1px 6px 0px,
-    inset 12px 0px 12px -6px rgba(15, 26, 46, 0),
-    inset -12px 0px 12px -6px rgba(15, 26, 46, 0),
-    rgba(46, 84, 130, 0.6) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(26, 12, 4, 0),
+    inset -12px 0px 12px -6px rgba(26, 12, 4, 0),
+    rgba(92, 61, 46, 0.6) -1px -1px 6px 0px,
     0 0 12px rgba(224, 217, 207, 0.18);
 }
 
@@ -2557,27 +2557,27 @@
   background: #E0D9CF;
   transform: translateY(-2px);
   box-shadow:
-    rgba(46, 84, 130, 0.45) -1px -1px 6px 0px,
-    0 6px 20px rgba(46, 84, 130, 0.18),
+    rgba(92, 61, 46, 0.45) -1px -1px 6px 0px,
+    0 6px 20px rgba(92, 61, 46, 0.18),
     0 0 18px rgba(224, 217, 207, 0.3),
-    inset 0px -2px 6px -1px rgba(15, 26, 46, 0.12);
+    inset 0px -2px 6px -1px rgba(26, 12, 4, 0.12);
 }
 
 .settings-card button:active {
   transform: translateY(1px);
   box-shadow:
-    inset 0px -12px 12px -6px rgba(15, 26, 46, 1),
-    inset 0px 12px 12px -6px rgba(15, 26, 46, 1),
-    inset 12px 0px 12px -6px rgba(15, 26, 46, 1),
-    inset -12px 0px 12px -6px rgba(15, 26, 46, 1),
-    -1px -1px 6px 0px rgba(46, 84, 130, 0.8);
+    inset 0px -12px 12px -6px rgba(26, 12, 4, 1),
+    inset 0px 12px 12px -6px rgba(26, 12, 4, 1),
+    inset 12px 0px 12px -6px rgba(26, 12, 4, 1),
+    inset -12px 0px 12px -6px rgba(26, 12, 4, 1),
+    -1px -1px 6px 0px rgba(92, 61, 46, 0.8);
 }
 
 .settings-logout {
   margin-top: 2rem;
   background: #E0D9CF;
-  color: #1C2E52;
-  border: solid 2px #2E5482;
+  color: #2C1A0E;
+  border: solid 2px #5C3D2E;
   padding: 0.6rem 1.25rem;
   border-radius: 10px;
   font-size: 0.9rem;
@@ -2586,11 +2586,11 @@
   outline: none;
   user-select: none;
   box-shadow:
-    inset 0px -6px 18px -6px rgba(15, 26, 46, 0),
+    inset 0px -6px 18px -6px rgba(26, 12, 4, 0),
     inset rgba(224, 217, 207, 0.8) -1px -1px 6px 0px,
-    inset 12px 0px 12px -6px rgba(15, 26, 46, 0),
-    inset -12px 0px 12px -6px rgba(15, 26, 46, 0),
-    rgba(46, 84, 130, 0.6) -1px -1px 6px 0px,
+    inset 12px 0px 12px -6px rgba(26, 12, 4, 0),
+    inset -12px 0px 12px -6px rgba(26, 12, 4, 0),
+    rgba(92, 61, 46, 0.6) -1px -1px 6px 0px,
     0 0 12px rgba(224, 217, 207, 0.18);
 }
 
@@ -2622,7 +2622,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #1C2E52;
+  background: #2C1A0E;
   border: 2px solid #372414;
   display: flex;
   align-items: center;
@@ -2631,7 +2631,7 @@
   position: relative;
   z-index: 2;
   transition: transform 0.22s, border-color 0.22s, box-shadow 0.22s;
-  color: #2E5482;
+  color: #5C3D2E;
   box-shadow: none;
 }
 
@@ -2714,7 +2714,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: #1C2E52;
+  background: #2C1A0E;
   border: 1.5px solid #372414;
   color: #E0D9CF;
   font-size: 0.78rem;
@@ -2774,7 +2774,7 @@
   align-items: center;
   justify-content: center;
   transition: transform 0.22s, filter 0.22s, color 0.22s;
-  color: #2E5482;
+  color: #5C3D2E;
   position: relative;
   z-index: 2;
 }
@@ -2893,7 +2893,7 @@
    LEGAL PAGES v2 — Hero + Sidebar Layout
 ════════════════════════════════════════════════════════════ */
 .legal-hero {
-  background: linear-gradient(135deg, #1C2E52 0%, #0F1A2E 60%, #372414 100%);
+  background: linear-gradient(135deg, #2C1A0E 0%, #180A02 60%, #372414 100%);
   border-bottom: 2px solid #372414;
   padding: 7rem 2rem 3rem;
   text-align: center;
@@ -2954,7 +2954,7 @@
   flex-shrink: 0;
   position: sticky;
   top: 100px;
-  background: rgba(28, 46, 82, 0.4);
+  background: rgba(44, 26, 14, 0.4);
   border: 1px solid rgba(55, 36, 20, 0.3);
   border-radius: 12px;
   padding: 1.25rem;
@@ -3121,7 +3121,7 @@
 }
 
 .legal-card {
-  background: rgba(28, 46, 82, 0.3);
+  background: rgba(44, 26, 14, 0.3);
   border: 1px solid rgba(55, 36, 20, 0.25);
   border-radius: 10px;
   padding: 1.25rem 1.4rem;
@@ -3147,7 +3147,7 @@
 }
 
 .legal-provider-card {
-  background: rgba(28, 46, 82, 0.35);
+  background: rgba(44, 26, 14, 0.35);
   border: 1px solid rgba(55, 36, 20, 0.25);
   border-radius: 10px;
   padding: 1rem 1.1rem;
@@ -3193,7 +3193,7 @@
 }
 
 .legal-right-item {
-  background: rgba(28, 46, 82, 0.3);
+  background: rgba(44, 26, 14, 0.3);
   border: 1px solid rgba(55, 36, 20, 0.25);
   border-radius: 10px;
   padding: 1rem 1.1rem;
@@ -3217,7 +3217,7 @@
   display: flex;
   align-items: center;
   gap: 1.25rem;
-  background: rgba(28, 46, 82, 0.4);
+  background: rgba(44, 26, 14, 0.4);
   border: 1px solid rgba(55, 36, 20, 0.35);
   border-radius: 12px;
   padding: 1.5rem;

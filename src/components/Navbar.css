@@ -76,7 +76,7 @@
 
 .navbar-login,
 .navbar-cta {
-  background: #1C2E52;
+  background: #2C1A0E;
   color: #E0D9CF;
   border: 1.5px solid #372414;
   padding: 0.45rem 1.3rem;
@@ -110,7 +110,7 @@
   height: 38px;
   border-radius: 50%;
   background: #E0D9CF;
-  color: #1C2E52;
+  color: #2C1A0E;
   border: 2px solid #372414;
   font-weight: 700;
   font-size: 0.95rem;
@@ -177,7 +177,7 @@
   top: 100%;
   left: 0;
   right: 0;
-  background: #1C2E52;
+  background: #2C1A0E;
   border-bottom: 1px solid #372414;
   padding: 0.5rem 1.5rem 1.5rem;
   z-index: 999;
@@ -192,7 +192,7 @@
   color: #E0D9CF;
   text-decoration: none;
   font-family: 'AppleGaramond', Georgia, serif;
-  border-bottom: 1px solid #1C2E52;
+  border-bottom: 1px solid #2C1A0E;
 }
 
 .navbar-mobile-menu a:hover {
@@ -208,7 +208,7 @@
 .navbar-mobile-auth button {
   flex: 1;
   padding: 0.7rem 1rem;
-  background: #1C2E52;
+  background: #2C1A0E;
   color: #E0D9CF;
   border: 1.5px solid #372414;
   border-radius: 999px;
