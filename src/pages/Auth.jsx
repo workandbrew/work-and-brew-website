@@ -1,196 +1,114 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import SiteFooter from "../components/SiteFooter";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import "./PageShared.css";
 
-export default function Auth({ mode = "login" }) {
-  const [email,         setEmail]         = useState("");
-  const [username,      setUsername]      = useState("");
-  const [preferredName, setPreferredName] = useState("");
-  const [password,      setPassword]      = useState("");
-  const [confirmPw,     setConfirmPw]     = useState("");
-  const [error,         setError]         = useState("");
-  const [submitting,    setSubmitting]    = useState(false);
-  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+export default function Auth() {
+  const [email,      setEmail]      = useState("");
+  const [password,   setPassword]   = useState("");
+  const [error,      setError]      = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [resetSent,  setResetSent]  = useState(false);
 
-  const { signIn, signUp } = useAuth();
-  const navigate = useNavigate();
-  const isLogin = mode === "login";
+  const { signIn } = useAuth();
+  const navigate   = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
-    if (!isLogin && password !== confirmPw) {
-      setError("Passwords don't match.");
-      return;
-    }
-
     setSubmitting(true);
-    let result;
-    if (isLogin) {
-      result = await signIn(email, password);
-    } else {
-      result = await signUp(email, password, username, preferredName);
-    }
+    const result = await signIn(email, password);
     setSubmitting(false);
-
     if (result?.error) {
-      setError(result.error.message);
+      setError("Invalid email or password.");
       return;
     }
-
-    // Supabase returns session:null when email confirmation is required
-    if (result?.needsConfirmation) {
-      setAwaitingConfirm(true);
-      return;
-    }
-
     navigate("/");
   };
 
-  const handleSocial = async (provider) => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: provider.toLowerCase(),
-      options: { redirectTo: `${window.location.origin}/` },
+  const handleForgotPassword = async () => {
+    if (!email) { setError("Enter your email above first."); return; }
+    setError("");
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
     });
-    if (error) setError(`${provider} sign-in failed: ${error.message}`);
+    if (error) { setError(error.message); return; }
+    setResetSent(true);
   };
 
   return (
     <div className="page-shell">
       <Navbar />
       <div className="page-content page-content--centered">
-        <h1 className="page-title auth-hero">Welcome to the Work & Brew community!</h1>
+        <h1 className="page-title auth-hero">Welcome back ☕</h1>
         <p className="auth-hero-sub">
-          Whether you're a native, visiting or just joining us, we welcome you! No lies, payment or catch ever, 100% made for New Yorkers by New Yorkers
+          This area is for the Work &amp; Brew team only. Access is by invitation.
         </p>
 
         <div className="auth-card">
-          <div className="page-badge">{isLogin ? "Login Page" : "Join the community!"}</div>
+          <div className="page-badge">Team Login</div>
 
-          {awaitingConfirm ? (
+          {resetSent ? (
             <div style={{ textAlign: "center", padding: "1rem 0" }}>
-              <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>☕</p>
-              <p style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Check your email!</p>
+              <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📬</p>
+              <p style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Check your email</p>
               <p style={{ fontSize: "0.9rem", color: "rgba(224,217,207,0.75)", lineHeight: 1.6 }}>
-                We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account, then come back and log in.
+                A password reset link was sent to <strong>{email}</strong>.
               </p>
               <button
                 type="button"
                 style={{ marginTop: "1.25rem" }}
-                onClick={() => { setAwaitingConfirm(false); navigate("/login"); }}
+                onClick={() => setResetSent(false)}
               >
-                Go to Login
+                Back to login
               </button>
             </div>
           ) : (
-          <>
+            <>
+              {error && (
+                <p style={{ color: "#c0392b", fontSize: "0.85rem", marginBottom: "10px", textAlign: "center" }}>
+                  {error}
+                </p>
+              )}
 
-          {error && (
-            <p style={{ color: "#c0392b", fontSize: "0.85rem", marginBottom: "10px", textAlign: "center" }}>
-              {error}
-            </p>
-          )}
-
-          <form className="auth-form" onSubmit={handleSubmit}>
-            <span className="auth-field-label">Email:</span>
-            <input
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-
-            {!isLogin && (
-              <>
-                <span className="auth-field-label">Username:</span>
+              <form className="auth-form" onSubmit={handleSubmit}>
+                <span className="auth-field-label">Email</span>
                 <input
-                  type="text"
-                  placeholder="e.g. brewlover_nyc"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
+                  autoComplete="email"
                 />
-                <span className="auth-field-label">
-                  What should we call you?
-                  <span className="auth-field-hint"> (your preferred name)</span>
-                </span>
-                <input
-                  type="text"
-                  placeholder="e.g. Deni, Alex, CJ…"
-                  value={preferredName}
-                  onChange={(e) => setPreferredName(e.target.value)}
-                />
-              </>
-            )}
 
-            <span className="auth-field-label">Password:</span>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            {!isLogin && (
-              <>
-                <span className="auth-field-label">Confirm Password:</span>
+                <span className="auth-field-label">Password</span>
                 <input
                   type="password"
                   placeholder="••••••••"
-                  value={confirmPw}
-                  onChange={(e) => setConfirmPw(e.target.value)}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoComplete="current-password"
                 />
-              </>
-            )}
 
-            <button type="submit" disabled={submitting}>
-              {submitting ? "Please wait…" : isLogin ? "Log In ☕" : "Create Account ☕"}
-            </button>
+                <button type="submit" disabled={submitting}>
+                  {submitting ? "Signing in…" : "Log In ☕"}
+                </button>
 
-            {isLogin && (
-              <a
-                className="auth-forgot"
-                href="#forgot"
-                onClick={async (e) => {
-                  e.preventDefault();
-                  if (!email) { setError("Enter your email above first."); return; }
-                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                    redirectTo: `${window.location.origin}/login`,
-                  });
-                  if (error) setError(error.message);
-                  else alert("Password reset email sent! Check your inbox ☕");
-                }}
-              >
-                Forgot password?
-              </a>
-            )}
-          </form>
-
-          <div className="auth-divider">
-            <span>or continue with</span>
-          </div>
-
-          <div className="auth-social">
-            <button type="button" onClick={() => handleSocial("Google")}>
-              {isLogin ? "Log in with Google" : "Sign up with Google"}
-            </button>
-          </div>
-
-          <p className="auth-switch">
-            {isLogin ? "New user? " : "Already have an account? "}
-            <Link to={isLogin ? "/signup" : "/login"}>
-              {isLogin ? "Sign up with your email" : "Log in"}
-            </Link>
-          </p>
-
-          </> )}
+                <a
+                  className="auth-forgot"
+                  href="#forgot"
+                  onClick={(e) => { e.preventDefault(); handleForgotPassword(); }}
+                >
+                  Forgot password?
+                </a>
+              </form>
+            </>
+          )}
         </div>
       </div>
       <SiteFooter />

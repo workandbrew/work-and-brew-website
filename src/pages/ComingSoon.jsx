@@ -1,23 +1,20 @@
 import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 const LAUNCH_DATE = new Date("2026-10-10T12:00:00-04:00");
 
-// Known valid routes — anything else bypasses the wall and shows 404.
-// /signup and /login are intentionally excluded so they always bypass and stay accessible.
-const VALID_PATHS = ["/", "/about", "/for-owners", "/dashboard", "/settings", "/event"];
+// Routes that bypass the wall entirely (ops portal, legal pages, login)
+const BYPASS_PATHS = ["/login", "/privacy", "/terms", "/sms-privacy", "/sms-terms"];
 
-// Color palette — Work & Brew brand
 const C = {
-  darkBlue:      "#0F1A2E",
-  midBlue:       "#1C2E52",
-  deepBlue:      "#0F1A2E",
-  brown:         "#1C2E52",
-  brownLight:    "#2E5482",
-  brownAccent:   "#E0D9CF",
+  darkBrown:     "#180A02",
+  midBrown:      "#2C1A0E",
+  medBrown:      "#5C3D2E",
   eggshell:      "#E0D9CF",
-  eggshellDim:   "rgba(224, 217, 207,0.55)",
-  eggshellFaint: "rgba(224, 217, 207,0.18)",
-  white:         "#ffffff",
+  eggshellDim:   "rgba(224,217,207,0.55)",
+  eggshellFaint: "rgba(224,217,207,0.12)",
+  brown:         "#a0522d",
+  brownLight:    "#c8844a",
 };
 
 function getTimeLeft() {
@@ -31,43 +28,108 @@ function getTimeLeft() {
   };
 }
 
-// Coffee mug SVG icon
 function CoffeeMugIcon() {
   return (
     <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Mug body */}
-      <rect x="6" y="18" width="30" height="26" rx="4" fill={C.brownAccent}/>
-      {/* Handle */}
-      <path d="M36 24 Q46 24 46 31 Q46 38 36 38" stroke={C.brownAccent} strokeWidth="3.5" fill="none" strokeLinecap="round"/>
-      {/* Steam wisps */}
-      <path d="M14 13 Q16 8 14 4" stroke={C.eggshell} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.7"/>
-      <path d="M21 11 Q23 6 21 2" stroke={C.eggshell} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.7"/>
-      <path d="M28 13 Q30 8 28 4" stroke={C.eggshell} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.7"/>
-      {/* Coffee surface highlight */}
-      <ellipse cx="21" cy="21" rx="12" ry="3" fill={C.brown} opacity="0.5"/>
+      <rect x="6" y="18" width="30" height="26" rx="4" fill={C.brownLight}/>
+      <path d="M36 24 Q46 24 46 31 Q46 38 36 38" stroke={C.brownLight} strokeWidth="3.5" fill="none" strokeLinecap="round"/>
+      <path d="M14 13 Q16 8 14 4" stroke={C.eggshell} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.8"/>
+      <path d="M21 11 Q23 6 21 2" stroke={C.eggshell} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.8"/>
+      <path d="M28 13 Q30 8 28 4" stroke={C.eggshell} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.8"/>
+      <ellipse cx="21" cy="21" rx="12" ry="3" fill={C.medBrown} opacity="0.5"/>
     </svg>
   );
 }
 
 export default function ComingSoon({ children }) {
-  const [time, setTime] = useState(getTimeLeft());
+  const [time,        setTime]        = useState(getTimeLeft());
+  const [authed,      setAuthed]      = useState(null); // null = checking
+  const [email,       setEmail]       = useState("");
+  const [submitted,   setSubmitted]   = useState(false);
+  const [subError,    setSubError]    = useState("");
+  const [subLoading,  setSubLoading]  = useState(false);
 
+  // Check for existing Supabase session so team members bypass the wall
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setAuthed(!!data?.session);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthed(!!session);
+    });
+    return () => listener?.subscription?.unsubscribe();
+  }, []);
+
+  // Tick countdown
   useEffect(() => {
     const t = setInterval(() => setTime(getTimeLeft()), 1000);
     return () => clearInterval(t);
   }, []);
 
   const path = window.location.pathname;
-  const isOpsPath = path.startsWith('/ops/');
-  const isKnownPublicPath = VALID_PATHS.includes(path);
-  if (isOpsPath || !isKnownPublicPath) return children;
+  const isBypass = BYPASS_PATHS.includes(path) || path.startsWith("/ops/");
 
+  // Still checking auth — render nothing briefly to avoid flash
+  if (authed === null && !isBypass) return null;
+
+  // Team member is logged in, or it's a bypass route — show the real site
+  if (authed || isBypass) return children;
+
+  // Everyone else sees the coming soon wall
   const pad = (n) => String(n).padStart(2, "0");
+
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    if (!email) return;
+    setSubError("");
+    setSubLoading(true);
+
+    // Brevo (Sendinblue) — add contact to the launch list
+    const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY;
+    const BREVO_LIST_ID = import.meta.env.VITE_BREVO_LIST_ID
+      ? parseInt(import.meta.env.VITE_BREVO_LIST_ID, 10)
+      : null;
+
+    if (!BREVO_API_KEY || !BREVO_LIST_ID) {
+      // Fallback if Brevo isn't wired up yet — just show success
+      setSubmitted(true);
+      setSubLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("https://api.brevo.com/v3/contacts", {
+        method: "POST",
+        headers: {
+          "api-key": BREVO_API_KEY,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          listIds: [BREVO_LIST_ID],
+          updateEnabled: true, // re-add if they unsubscribed
+          attributes: { SOURCE: "coming_soon_wall" },
+        }),
+      });
+      if (!res.ok && res.status !== 204) {
+        const body = await res.json().catch(() => ({}));
+        // 400 with "Contact already exist" is fine — they're already on the list
+        if (body?.code !== "duplicate_parameter") {
+          throw new Error(body?.message || "Something went wrong.");
+        }
+      }
+      setSubmitted(true);
+    } catch (err) {
+      setSubError(err.message || "Couldn't sign you up. Try again.");
+    }
+    setSubLoading(false);
+  };
 
   return (
     <div style={{
       minHeight: "100vh",
-      background: `linear-gradient(145deg, ${C.deepBlue} 0%, ${C.darkBlue} 40%, ${C.midBlue} 100%)`,
+      background: `linear-gradient(145deg, ${C.darkBrown} 0%, ${C.midBrown} 50%, ${C.medBrown} 100%)`,
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
@@ -78,32 +140,28 @@ export default function ComingSoon({ children }) {
       overflow: "hidden",
     }}>
 
-      {/* Subtle background glow — brown/warm tone */}
       <div style={{
         position: "absolute", top: "15%", left: "50%", transform: "translateX(-50%)",
         width: "700px", height: "500px",
-        background: `radial-gradient(ellipse, rgba(224, 217, 207, 0.10) 0%, transparent 70%)`,
+        background: `radial-gradient(ellipse, rgba(200,132,74,0.08) 0%, transparent 70%)`,
         pointerEvents: "none",
       }} />
 
-      {/* Coffee mug icon */}
       <div style={{ marginBottom: "28px", opacity: 0.95 }}>
         <CoffeeMugIcon />
       </div>
 
-      {/* Launch label */}
-        <p style={{
-          color: C.brownAccent,
-          fontSize: "0.78rem",
-          fontWeight: 700,
-          letterSpacing: "0.18em",
-          textTransform: "uppercase",
-          marginBottom: "12px",
-        }}>
-          Launching October 10, 2026 at 12:00 PM EST
-        </p>
+      <p style={{
+        color: C.brownLight,
+        fontSize: "0.78rem",
+        fontWeight: 700,
+        letterSpacing: "0.18em",
+        textTransform: "uppercase",
+        marginBottom: "12px",
+      }}>
+        Launching October 10, 2026 at 12:00 PM EST
+      </p>
 
-      {/* Main title */}
       <h1 style={{
         color: C.eggshell,
         fontSize: "clamp(2.2rem, 6vw, 3.8rem)",
@@ -116,7 +174,6 @@ export default function ComingSoon({ children }) {
         Work & Brew
       </h1>
 
-      {/* Subtitle */}
       <p style={{
         color: C.eggshellDim,
         fontSize: "1rem",
@@ -125,17 +182,11 @@ export default function ComingSoon({ children }) {
         maxWidth: "420px",
         lineHeight: 1.65,
       }}>
-        A tool designed and backed up by real new yorkers for new yorkers for productivity with the help of caffeine and cafes — backed up by real research.
+        A tool designed and backed up by real New Yorkers, for New Yorkers — for productivity with the help of caffeine and cafes. Backed up by real research.
       </p>
 
       {/* Countdown */}
-      <div style={{
-        display: "flex",
-        gap: "16px",
-        marginBottom: "52px",
-        flexWrap: "wrap",
-        justifyContent: "center",
-      }}>
+      <div style={{ display: "flex", gap: "16px", marginBottom: "52px", flexWrap: "wrap", justifyContent: "center" }}>
         {[
           { label: "Days",    value: time.days },
           { label: "Hours",   value: pad(time.hours) },
@@ -145,7 +196,7 @@ export default function ComingSoon({ children }) {
           <div key={label} style={{ textAlign: "center" }}>
             <div style={{
               background: C.eggshellFaint,
-              border: `1px solid rgba(46, 84, 130, 0.30)`,
+              border: `1px solid rgba(160,82,45,0.25)`,
               borderRadius: "12px",
               padding: "14px 18px",
               minWidth: "64px",
@@ -158,9 +209,9 @@ export default function ComingSoon({ children }) {
                 fontVariantNumeric: "tabular-nums",
                 display: "block",
               }}>{value}</span>
-            </div> 
+            </div>
             <span style={{
-              color: "rgba(224, 217, 207, 0.35)",
+              color: "rgba(224,217,207,0.35)",
               fontSize: "0.65rem",
               fontWeight: 600,
               letterSpacing: "0.1em",
@@ -170,59 +221,78 @@ export default function ComingSoon({ children }) {
         ))}
       </div>
 
-      {/* Sign up CTA */}
-      <div style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "14px",
-        width: "100%",
-        maxWidth: "320px",
-      }}>
-        <p style={{
-          color: "rgba(224, 217, 207, 0.4)",
-          fontSize: "0.78rem",
-          margin: "0 0 2px",
-          letterSpacing: "0.06em",
-          textAlign: "center",
-        }}>
-          Be the first to know when we launch
+      {/* Email sign-up */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", width: "100%", maxWidth: "340px" }}>
+        <p style={{ color: "rgba(224,217,207,0.45)", fontSize: "0.78rem", margin: "0 0 2px", letterSpacing: "0.06em", textAlign: "center" }}>
+          Be the first to know — website launch &amp; app updates
         </p>
-        <button
-          onClick={() => window.location.href = "/signup"}
-          style={{
-            width: "100%",
-            padding: "14px",
-            borderRadius: "10px",
-            border: "none",
-            background: C.brownAccent,
-            color: C.darkBlue,
-            fontSize: "0.92rem",
-            fontWeight: 700,
-            cursor: "pointer",
-            transition: "opacity 0.15s",
-            letterSpacing: "0.04em",
-          }}
-          onMouseOver={(e) => e.target.style.opacity = "0.82"}
-          onMouseOut={(e) => e.target.style.opacity = "1"}
-        >
-          Sign Up for Early Access →
-        </button>
+
+        {submitted ? (
+          <div style={{ textAlign: "center", padding: "12px 0" }}>
+            <p style={{ color: C.eggshell, fontWeight: 700, fontSize: "1rem", marginBottom: "4px" }}>You're on the list ☕</p>
+            <p style={{ color: C.eggshellDim, fontSize: "0.82rem" }}>We'll reach out when we go live.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSignUp} style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+            <input
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: "10px",
+                border: `1.5px solid rgba(160,82,45,0.35)`,
+                background: "rgba(224,217,207,0.07)",
+                color: C.eggshell,
+                fontSize: "0.9rem",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            {subError && (
+              <p style={{ color: "#ff8a70", fontSize: "0.78rem", margin: 0 }}>{subError}</p>
+            )}
+            <button
+              type="submit"
+              disabled={subLoading}
+              style={{
+                width: "100%",
+                padding: "13px",
+                borderRadius: "10px",
+                border: "none",
+                background: C.brownLight,
+                color: C.darkBrown,
+                fontSize: "0.92rem",
+                fontWeight: 700,
+                cursor: subLoading ? "not-allowed" : "pointer",
+                opacity: subLoading ? 0.7 : 1,
+                letterSpacing: "0.04em",
+              }}
+            >
+              {subLoading ? "Adding you…" : "Sign Up for Early Access →"}
+            </button>
+          </form>
+        )}
+
         <button
           onClick={() => window.location.href = "/login"}
           style={{
             background: "transparent",
             border: "none",
-            color: "rgba(224, 217, 207, 0.3)",
+            color: "rgba(224,217,207,0.28)",
             fontSize: "0.78rem",
             cursor: "pointer",
             letterSpacing: "0.04em",
             padding: "4px",
+            marginTop: "4px",
           }}
-          onMouseOver={(e) => e.target.style.color = "rgba(224,217,207,0.55)"}
-          onMouseOut={(e) => e.target.style.color = "rgba(224,217,207,0.3)"}
+          onMouseOver={(e) => e.target.style.color = "rgba(224,217,207,0.5)"}
+          onMouseOut={(e) => e.target.style.color = "rgba(224,217,207,0.28)"}
         >
-          Already have an account? Log in
+          Team member? Log in
         </button>
       </div>
     </div>
