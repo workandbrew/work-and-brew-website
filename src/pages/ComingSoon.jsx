@@ -1,24 +1,10 @@
 import { useState, useEffect } from "react";
 
-// SHA-256 hash of the preview password — the real password never lives in the bundle.
-// Generate a new hash any time you rotate the password:
-//   echo -n "yourpassword" | sha256sum
-const PREVIEW_HASH = "d15bc2f56495be079a8f8ef8c24aa097bb664053a4b2f4222cf519b8ce883526";
+const LAUNCH_DATE = new Date("2026-10-10T12:00:00-04:00");
 
-async function sha256(str) {
-  const buf = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(str)
-  );
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-const LAUNCH_DATE = new Date("2026-10-02T18:00:00-04:00");
-const STORAGE_KEY = "wb_preview_unlocked";
-
-// Known valid routes — anything else bypasses the wall and shows 404.gg
-const VALID_PATHS = ["/", "/about", "/for-owners", "/login", "/signup", "/dashboard", "/settings", "/event"];
+// Known valid routes — anything else bypasses the wall and shows 404.
+// /signup and /login are intentionally excluded so they always bypass and stay accessible.
+const VALID_PATHS = ["/", "/about", "/for-owners", "/dashboard", "/settings", "/event"];
 
 // Color palette — Work & Brew brand
 const C = {
@@ -64,34 +50,17 @@ function CoffeeMugIcon() {
 }
 
 export default function ComingSoon({ children }) {
-  const [unlocked, setUnlocked] = useState(
-    () => localStorage.getItem(STORAGE_KEY) === "true"
-  );
-  const [password, setPassword] = useState("");
-  const [error,    setError]    = useState("");
-  const [time,     setTime]     = useState(getTimeLeft());
+  const [time, setTime] = useState(getTimeLeft());
 
   useEffect(() => {
     const t = setInterval(() => setTime(getTimeLeft()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const inputHash = await sha256(password);
-    if (inputHash === PREVIEW_HASH) {
-      localStorage.setItem(STORAGE_KEY, "true");
-      setUnlocked(true);
-    } else {
-      setError("Wrong password. Try again.");
-      setPassword("");
-    }
-  };
-
   const path = window.location.pathname;
   const isOpsPath = path.startsWith('/ops/');
   const isKnownPublicPath = VALID_PATHS.includes(path);
-  if (unlocked || isOpsPath || !isKnownPublicPath) return children;
+  if (isOpsPath || !isKnownPublicPath) return children;
 
   const pad = (n) => String(n).padStart(2, "0");
 
@@ -131,7 +100,7 @@ export default function ComingSoon({ children }) {
           textTransform: "uppercase",
           marginBottom: "12px",
         }}>
-          Launching October 2, 2026 at 6:00 PM EST
+          Launching October 10, 2026 at 12:00 PM EST
         </p>
 
       {/* Main title */}
@@ -201,63 +170,61 @@ export default function ComingSoon({ children }) {
         ))}
       </div>
 
-      {/* Password form */}
-      <form onSubmit={handleSubmit} style={{
+      {/* Sign up CTA */}
+      <div style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: "10px",
+        gap: "14px",
         width: "100%",
         maxWidth: "320px",
       }}>
         <p style={{
-          color: "rgba(224, 217, 207, 0.35)",
-          fontSize: "0.75rem",
-          margin: "0 0 4px",
-          letterSpacing: "0.05em",
+          color: "rgba(224, 217, 207, 0.4)",
+          fontSize: "0.78rem",
+          margin: "0 0 2px",
+          letterSpacing: "0.06em",
+          textAlign: "center",
         }}>
-          Team preview access
+          Be the first to know when we launch
         </p>
-        <input
-          type="password"
-          placeholder="Enter preview password"
-          value={password}
-          onChange={(e) => { setPassword(e.target.value); setError(""); }}
+        <button
+          onClick={() => window.location.href = "/signup"}
           style={{
             width: "100%",
-            padding: "12px 16px",
+            padding: "14px",
             borderRadius: "10px",
-            border: `1.5px solid rgba(46, 84, 130, 0.35)`,
-            background: "rgba(224, 217, 207, 0.06)",
-            color: C.eggshell,
-            fontSize: "0.9rem",
-            outline: "none",
-            boxSizing: "border-box",
-            textAlign: "center",
-            letterSpacing: "0.1em",
+            border: "none",
+            background: C.brownAccent,
+            color: C.darkBlue,
+            fontSize: "0.92rem",
+            fontWeight: 700,
+            cursor: "pointer",
+            transition: "opacity 0.15s",
+            letterSpacing: "0.04em",
           }}
-        />
-        {error && (
-          <p style={{ color: "#ff8a70", fontSize: "0.78rem", margin: 0 }}>{error}</p>
-        )}
-        <button type="submit" style={{
-          width: "100%",
-          padding: "12px",
-          borderRadius: "10px",
-          border: "none",
-          background: C.brownAccent,
-          color: C.darkBlue,
-          fontSize: "0.9rem",
-          fontWeight: 700,
-          cursor: "pointer",
-          transition: "opacity 0.15s",
-        }}
           onMouseOver={(e) => e.target.style.opacity = "0.82"}
           onMouseOut={(e) => e.target.style.opacity = "1"}
         >
-          Preview Site →
+          Sign Up for Early Access →
         </button>
-      </form>
+        <button
+          onClick={() => window.location.href = "/login"}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "rgba(224, 217, 207, 0.3)",
+            fontSize: "0.78rem",
+            cursor: "pointer",
+            letterSpacing: "0.04em",
+            padding: "4px",
+          }}
+          onMouseOver={(e) => e.target.style.color = "rgba(224,217,207,0.55)"}
+          onMouseOut={(e) => e.target.style.color = "rgba(224,217,207,0.3)"}
+        >
+          Already have an account? Log in
+        </button>
+      </div>
     </div>
   );
 }
