@@ -13,12 +13,18 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Valid email required." });
   }
 
-  const apiKey  = process.env.BREVO_API_KEY;
-  const listId  = parseInt(process.env.BREVO_LIST_ID, 10);
+  const apiKey     = process.env.BREVO_API_KEY;
+  const listIdRaw  = process.env.BREVO_LIST_ID;
+  const listId     = listIdRaw ? parseInt(listIdRaw.trim(), 10) : NaN;
 
-  if (!apiKey || !listId) {
-    console.error("Brevo env vars missing");
+  if (!apiKey) {
+    console.error("Brevo env vars missing: BREVO_API_KEY not set");
     return res.status(500).json({ error: "Server configuration error." });
+  }
+  if (!listIdRaw || isNaN(listId)) {
+    console.error("Brevo env vars missing: BREVO_LIST_ID not set or not a number, value:", listIdRaw);
+    // Proceed without adding to a list — Brevo will still create the contact
+    // This is a graceful fallback so signups aren't lost if list ID is misconfigured
   }
 
   try {
@@ -31,7 +37,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         email,
-        listIds: [listId],
+        ...(listId && !isNaN(listId) ? { listIds: [listId] } : {}),
         updateEnabled: true,
         attributes: { SOURCE: "coming_soon_wall" },
       }),
