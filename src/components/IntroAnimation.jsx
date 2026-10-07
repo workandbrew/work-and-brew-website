@@ -88,8 +88,8 @@ export default function IntroAnimation({ onDone }) {
     const ctx    = canvas.getContext("2d");
 
     // ── Timings ────────────────────────────────────────────────────────────────
-    const T_FILL  = 5500;  // ms — liquid rises (slower)
-    const T_CITY  = 2500;  // ms — city + lights appear
+    const T_FILL  = 3200;  // ms — liquid rises
+    const T_CITY  = 1600;  // ms — city + lights appear
     const T_TITLE = 3000;  // ms — Work & Brew holds
     const T_TOTAL = T_FILL + T_CITY + T_TITLE;
 
@@ -262,26 +262,26 @@ export default function IntroAnimation({ onDone }) {
           ctx.globalAlpha = titleAlpha;
           ctx.textAlign   = "center";
 
-          const titleSize = Math.round(W * 0.055);
-          const titleY    = H * 0.38;
+          const titleSize = Math.round(W * 0.078);
+          const titleY    = H * 0.40;
 
           // Glow behind title
-          ctx.shadowColor = "rgba(200,132,74,0.5)";
-          ctx.shadowBlur  = 32;
+          ctx.shadowColor = "rgba(200,132,74,0.55)";
+          ctx.shadowBlur  = 36;
 
           ctx.font      = `800 ${titleSize}px 'Yeseva One', Georgia, serif`;
           ctx.fillStyle = "#E0D9CF";
           ctx.fillText("Work & Brew", W / 2, titleY);
 
-          // Founded tagline
-          const tagAlpha = Math.min(Math.max((titleElapsed - 300) / 500, 0), 1);
+          // Founded tagline — closer to the title
+          const tagAlpha = Math.min(Math.max((titleElapsed - 200) / 400, 0), 1);
           if (tagAlpha > 0) {
             ctx.globalAlpha = titleAlpha * tagAlpha;
             ctx.shadowBlur  = 8;
             ctx.shadowColor = "rgba(0,0,0,0.4)";
-            ctx.font        = `600 ${Math.round(W * 0.014)}px Inter, sans-serif`;
-            ctx.fillStyle   = "rgba(224,217,207,0.55)";
-            ctx.fillText("NEW YORK CITY · EST. MARCH 2025", W / 2, titleY + titleSize + 18);
+            ctx.font        = `600 ${Math.round(W * 0.019)}px Inter, sans-serif`;
+            ctx.fillStyle   = "rgba(224,217,207,0.6)";
+            ctx.fillText("NEW YORK CITY · EST. MARCH 2025", W / 2, titleY + titleSize * 0.55);
           }
 
           ctx.restore();

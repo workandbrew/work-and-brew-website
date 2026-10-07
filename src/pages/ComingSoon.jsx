@@ -49,9 +49,9 @@ export default function ComingSoon({ children }) {
   const [submitted,   setSubmitted]   = useState(false);
   const [subError,    setSubError]    = useState("");
   const [subLoading,  setSubLoading]  = useState(false);
-  const [introDone,   setIntroDone]   = useState(
-    () => !!sessionStorage.getItem("wb_intro_seen")
-  );
+  const [introDone,   setIntroDone]   = useState(() => {
+    try { return !!sessionStorage.getItem("wb_intro_seen"); } catch { return false; }
+  });
 
   // Check for existing Supabase session so team members bypass the wall
   useEffect(() => {
@@ -83,7 +83,7 @@ export default function ComingSoon({ children }) {
   if (!introDone) {
     return (
       <IntroAnimation onDone={() => {
-        sessionStorage.setItem("wb_intro_seen", "1");
+        try { sessionStorage.setItem("wb_intro_seen", "1"); } catch { /* blocked by privacy settings */ }
         setIntroDone(true);
       }} />
     );
