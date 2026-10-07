@@ -70,10 +70,11 @@ function createBoroMarkerEl(borough) {
 }
 
 export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, cafes }) {
-  const mapContainer = useRef(null);
-  const mapRef       = useRef(null);
-  const mlRef        = useRef(null);
-  const markersRef   = useRef([]);
+  const mapContainer    = useRef(null);
+  const mapRef          = useRef(null);
+  const mlRef           = useRef(null);
+  const markersRef      = useRef([]);
+  const visibleMarkersRef = useRef(new Set()); // tracks which markers are currently on the map
   const [mapLoaded, setMapLoaded] = useState(false);
   const [activeBoro, setActiveBoro] = useState("All");
   const [stats, setStats] = useState({});
@@ -88,6 +89,7 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
 
     markersRef.current.forEach(({ marker }) => marker.remove());
     markersRef.current = [];
+    visibleMarkersRef.current = new Set();
 
     // Compute stats
     const counts = {};
@@ -112,13 +114,15 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
       const borough = row.County?.trim() || "";
       const el = createBoroMarkerEl(borough);
 
+      const markerIdx = markersRef.current.length; // index before push
       const marker = new maplibregl.Marker({ element: el, anchor: "center" })
         .setLngLat([lon, lat])
         .addTo(mapRef.current);
+      visibleMarkersRef.current.add(markerIdx);
 
       const photo = CAFE_PHOTOS[row.Name];
       const boroColor = BORO_COLORS[borough] || "#9E9E9E";
-      const popup = new maplibregl.Popup({ offset: 16, maxWidth: "240px" }).setHTML(`
+      const popup = new maplibregl.Popup({ offset: 16, maxWidth: "240px", focusAfterOpen: false }).setHTML(`
         <div style="font-family:'Inter',sans-serif;border-radius:12px;overflow:hidden;min-width:200px;">
           ${photo
             ? `<img src="${photo}" alt="${row.Name}" style="width:100%;height:130px;object-fit:cover;display:block;" />`
@@ -242,16 +246,22 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
 
     const matches = [];
 
-    markersRef.current.forEach(({ marker, data }) => {
+    markersRef.current.forEach(({ marker, data }, idx) => {
       const boroMatch = !boro || data.County?.trim() === boro;
       const textMatch = !q || [data.Name, data.Address, data.County, data.Zipcode]
         .filter(Boolean).join(" ").toLowerCase().includes(q);
 
       if (boroMatch && textMatch) {
-        if (!marker._map) marker.addTo(mapRef.current);
+        if (!visibleMarkersRef.current.has(idx)) {
+          marker.addTo(mapRef.current);
+          visibleMarkersRef.current.add(idx);
+        }
         matches.push(data);
       } else {
-        marker.remove();
+        if (visibleMarkersRef.current.has(idx)) {
+          marker.remove();
+          visibleMarkersRef.current.delete(idx);
+        }
       }
     });
 

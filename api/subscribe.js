@@ -37,18 +37,20 @@ export default async function handler(req, res) {
       }),
     });
 
-    // 204 = success, 400 with duplicate_parameter = already on list (still fine)
-    if (brevoRes.status === 204 || brevoRes.status === 201) {
+    // Any 2xx from Brevo = success (201 = created, 204 = updated, 200 = some edge cases)
+    if (brevoRes.status >= 200 && brevoRes.status < 300) {
       return res.status(200).json({ ok: true });
     }
 
     const body = await brevoRes.json().catch(() => ({}));
-    if (body?.code === "duplicate_parameter") {
+
+    // Brevo returns 400 with these codes when the contact already exists in the list
+    if (body?.code === "duplicate_parameter" || body?.code === "contact_already_in_list") {
       return res.status(200).json({ ok: true }); // already subscribed — treat as success
     }
 
-    console.error("Brevo error:", body);
-    return res.status(500).json({ error: body?.message || "Could not subscribe." });
+    console.error("Brevo error:", brevoRes.status, body);
+    return res.status(500).json({ error: body?.message || "Could not subscribe. Please try again." });
   } catch (err) {
     console.error("Subscribe error:", err);
     return res.status(500).json({ error: "Something went wrong. Try again." });

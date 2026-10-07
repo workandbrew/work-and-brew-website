@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
+import IntroAnimation from "../components/IntroAnimation";
 
 const LAUNCH_DATE = new Date("2026-10-10T12:00:00-04:00");
 
@@ -48,6 +49,9 @@ export default function ComingSoon({ children }) {
   const [submitted,   setSubmitted]   = useState(false);
   const [subError,    setSubError]    = useState("");
   const [subLoading,  setSubLoading]  = useState(false);
+  const [introDone,   setIntroDone]   = useState(
+    () => !!sessionStorage.getItem("wb_intro_seen")
+  );
 
   // Check for existing Supabase session so team members bypass the wall
   useEffect(() => {
@@ -74,6 +78,16 @@ export default function ComingSoon({ children }) {
 
   // Team member is logged in, or it's a bypass route — show the real site
   if (authed || isBypass) return children;
+
+  // Show intro animation on first visit this session
+  if (!introDone) {
+    return (
+      <IntroAnimation onDone={() => {
+        sessionStorage.setItem("wb_intro_seen", "1");
+        setIntroDone(true);
+      }} />
+    );
+  }
 
   // Everyone else sees the coming soon wall
   const pad = (n) => String(n).padStart(2, "0");
