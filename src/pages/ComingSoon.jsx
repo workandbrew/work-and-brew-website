@@ -4,18 +4,19 @@ import IntroAnimation from "../components/IntroAnimation";
 
 const LAUNCH_DATE = new Date("2026-10-10T12:00:00-04:00");
 
-// Routes that bypass the wall entirely (ops portal, legal pages, login)
 const BYPASS_PATHS = ["/login", "/privacy", "/terms", "/sms-privacy", "/sms-terms"];
 
+/* ── Palette ────────────────────────────────────────────────── */
 const C = {
-  darkBrown:     "#180A02",
-  midBrown:      "#2C1A0E",
-  medBrown:      "#5C3D2E",
-  eggshell:      "#E0D9CF",
-  eggshellDim:   "rgba(224,217,207,0.55)",
-  eggshellFaint: "rgba(224,217,207,0.12)",
-  brown:         "#a0522d",
-  brownLight:    "#c8844a",
+  bg:           "#F2ECE3",   // warm off-white / eggshell
+  bgCard:       "#EDE5D8",   // slightly deeper cream for cards / boxes
+  border:       "#D4C4A8",   // warm beige border
+  darkBrown:    "#1C0A02",   // near-black brown — primary text
+  midBrown:     "#3D1F0D",   // secondary text
+  mutedBrown:   "#7A4C2E",   // muted / caption text
+  orange:       "#C85A1E",   // burnt autumn orange — primary accent
+  orangeLight:  "#E07840",   // hover / lighter orange
+  orangeFaint:  "rgba(200,90,30,0.12)", // subtle tint
 };
 
 function getTimeLeft() {
@@ -31,40 +32,34 @@ function getTimeLeft() {
 
 function CoffeeMugIcon() {
   return (
-    <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="6" y="18" width="30" height="26" rx="4" fill={C.brownLight}/>
-      <path d="M36 24 Q46 24 46 31 Q46 38 36 38" stroke={C.brownLight} strokeWidth="3.5" fill="none" strokeLinecap="round"/>
-      <path d="M14 13 Q16 8 14 4" stroke={C.eggshell} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.8"/>
-      <path d="M21 11 Q23 6 21 2" stroke={C.eggshell} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.8"/>
-      <path d="M28 13 Q30 8 28 4" stroke={C.eggshell} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.8"/>
-      <ellipse cx="21" cy="21" rx="12" ry="3" fill={C.medBrown} opacity="0.5"/>
+    <svg width="48" height="48" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="18" width="30" height="26" rx="4" fill={C.orange}/>
+      <path d="M36 24 Q46 24 46 31 Q46 38 36 38" stroke={C.orange} strokeWidth="3.5" fill="none" strokeLinecap="round"/>
+      <path d="M14 13 Q16 8 14 4" stroke={C.midBrown} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5"/>
+      <path d="M21 11 Q23 6 21 2" stroke={C.midBrown} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5"/>
+      <path d="M28 13 Q30 8 28 4" stroke={C.midBrown} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5"/>
+      <ellipse cx="21" cy="21" rx="12" ry="3" fill={C.midBrown} opacity="0.25"/>
     </svg>
   );
 }
 
 export default function ComingSoon({ children }) {
-  const [time,        setTime]        = useState(getTimeLeft());
-  const [authed,      setAuthed]      = useState(null); // null = checking
-  const [email,       setEmail]       = useState("");
-  const [submitted,   setSubmitted]   = useState(false);
-  const [subError,    setSubError]    = useState("");
-  const [subLoading,  setSubLoading]  = useState(false);
-  const [introDone,   setIntroDone]   = useState(() => {
+  const [time,       setTime]       = useState(getTimeLeft());
+  const [authed,     setAuthed]     = useState(null);
+  const [email,      setEmail]      = useState("");
+  const [submitted,  setSubmitted]  = useState(false);
+  const [subError,   setSubError]   = useState("");
+  const [subLoading, setSubLoading] = useState(false);
+  const [introDone,  setIntroDone]  = useState(() => {
     try { return !!sessionStorage.getItem("wb_intro_seen"); } catch { return false; }
   });
 
-  // Check for existing Supabase session so team members bypass the wall
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setAuthed(!!data?.session);
-    });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuthed(!!session);
-    });
+    supabase.auth.getSession().then(({ data }) => setAuthed(!!data?.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => setAuthed(!!session));
     return () => listener?.subscription?.unsubscribe();
   }, []);
 
-  // Tick countdown
   useEffect(() => {
     const t = setInterval(() => setTime(getTimeLeft()), 1000);
     return () => clearInterval(t);
@@ -73,23 +68,9 @@ export default function ComingSoon({ children }) {
   const path = window.location.pathname;
   const isBypass = BYPASS_PATHS.includes(path) || path.startsWith("/ops/");
 
-  // Still checking auth — render nothing briefly to avoid flash
   if (authed === null && !isBypass) return null;
-
-  // Team member is logged in, or it's a bypass route — show the real site
   if (authed || isBypass) return children;
 
-  // Show intro animation on first visit this session
-  if (!introDone) {
-    return (
-      <IntroAnimation onDone={() => {
-        try { sessionStorage.setItem("wb_intro_seen", "1"); } catch { /* blocked by privacy settings */ }
-        setIntroDone(true);
-      }} />
-    );
-  }
-
-  // Everyone else sees the coming soon wall
   const pad = (n) => String(n).padStart(2, "0");
 
   const handleSignUp = async (e) => {
@@ -97,9 +78,8 @@ export default function ComingSoon({ children }) {
     if (!email) return;
     setSubError("");
     setSubLoading(true);
-
     try {
-      const res = await fetch("/api/subscribe", {
+      const res  = await fetch("/api/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -113,67 +93,78 @@ export default function ComingSoon({ children }) {
     setSubLoading(false);
   };
 
-  return (
+  /* ── Wall page (always rendered so the fade-out reveals it) ── */
+  const wallPage = (
     <div style={{
       minHeight: "100vh",
-      background: `linear-gradient(145deg, ${C.darkBrown} 0%, ${C.midBrown} 50%, ${C.medBrown} 100%)`,
+      background: C.bg,
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
       fontFamily: "'Inter', sans-serif",
-      padding: "24px",
+      padding: "32px 24px",
       position: "relative",
       overflow: "hidden",
     }}>
-
+      {/* Subtle background texture ring */}
       <div style={{
-        position: "absolute", top: "15%", left: "50%", transform: "translateX(-50%)",
-        width: "700px", height: "500px",
-        background: `radial-gradient(ellipse, rgba(200,132,74,0.08) 0%, transparent 70%)`,
+        position: "absolute",
+        top: "5%", left: "50%", transform: "translateX(-50%)",
+        width: "min(700px, 90vw)", height: "500px",
+        background: `radial-gradient(ellipse, ${C.orangeFaint} 0%, transparent 70%)`,
         pointerEvents: "none",
       }} />
 
-      <div style={{ marginBottom: "28px", opacity: 0.95 }}>
+      {/* Mug */}
+      <div style={{ marginBottom: "20px", opacity: 0.9 }}>
         <CoffeeMugIcon />
       </div>
 
+      {/* Eyebrow */}
       <p style={{
-        color: C.brownLight,
-        fontSize: "0.78rem",
+        color: C.orange,
+        fontSize: "0.72rem",
         fontWeight: 700,
-        letterSpacing: "0.18em",
+        letterSpacing: "0.2em",
         textTransform: "uppercase",
-        marginBottom: "12px",
+        marginBottom: "10px",
       }}>
-        Launching October 10, 2026 at 12:00 PM EST
+        Launching October 10, 2026 · 12 PM EST
       </p>
 
+      {/* Title */}
       <h1 style={{
-        color: C.eggshell,
-        fontSize: "clamp(2.2rem, 6vw, 3.8rem)",
-        fontWeight: 800,
+        fontFamily: "'Playfair Display', Georgia, serif",
+        color: C.darkBrown,
+        fontSize: "clamp(2.6rem, 7vw, 5rem)",
+        fontWeight: 900,
         textAlign: "center",
-        margin: "0 0 14px",
-        lineHeight: 1.1,
-        letterSpacing: "-0.02em",
+        margin: "0 0 10px",
+        lineHeight: 1.05,
+        letterSpacing: "-0.01em",
       }}>
         Work & Brew
       </h1>
 
+      {/* Tagline */}
       <p style={{
-        color: C.eggshellDim,
-        fontSize: "1rem",
+        color: C.mutedBrown,
+        fontSize: "clamp(0.85rem, 2vw, 1rem)",
         textAlign: "center",
-        marginBottom: "44px",
-        maxWidth: "420px",
+        marginBottom: "40px",
+        maxWidth: "400px",
         lineHeight: 1.65,
       }}>
-        A tool designed and backed up by real New Yorkers, for New Yorkers — for productivity with the help of caffeine and cafes. Backed up by real research.
+        A tool designed and backed by real New Yorkers, for New Yorkers —
+        for productivity with the help of caffeine and cafés.
       </p>
 
       {/* Countdown */}
-      <div style={{ display: "flex", gap: "16px", marginBottom: "52px", flexWrap: "wrap", justifyContent: "center" }}>
+      <div style={{
+        display: "flex", gap: "12px", marginBottom: "48px",
+        flexWrap: "wrap", justifyContent: "center",
+      }}>
         {[
           { label: "Days",    value: time.days },
           { label: "Hours",   value: pad(time.hours) },
@@ -182,42 +173,61 @@ export default function ComingSoon({ children }) {
         ].map(({ label, value }) => (
           <div key={label} style={{ textAlign: "center" }}>
             <div style={{
-              background: C.eggshellFaint,
-              border: `1px solid rgba(160,82,45,0.25)`,
+              background: C.bgCard,
+              border: `1.5px solid ${C.border}`,
               borderRadius: "12px",
-              padding: "14px 18px",
-              minWidth: "64px",
-              marginBottom: "8px",
+              padding: "14px 20px",
+              minWidth: "68px",
+              marginBottom: "6px",
+              boxShadow: "0 2px 8px rgba(60,20,5,0.07)",
             }}>
               <span style={{
-                color: C.eggshell,
-                fontSize: "1.8rem",
-                fontWeight: 700,
+                color: C.darkBrown,
+                fontSize: "1.9rem",
+                fontWeight: 800,
                 fontVariantNumeric: "tabular-nums",
                 display: "block",
+                fontFamily: "'Playfair Display', Georgia, serif",
               }}>{value}</span>
             </div>
             <span style={{
-              color: "rgba(224,217,207,0.35)",
-              fontSize: "0.65rem",
-              fontWeight: 600,
-              letterSpacing: "0.1em",
+              color: C.mutedBrown,
+              fontSize: "0.62rem",
+              fontWeight: 700,
+              letterSpacing: "0.12em",
               textTransform: "uppercase",
             }}>{label}</span>
           </div>
         ))}
       </div>
 
+      {/* Divider */}
+      <div style={{
+        width: "40px", height: "2px",
+        background: C.orange, borderRadius: "2px",
+        marginBottom: "28px", opacity: 0.7,
+      }} />
+
       {/* Email sign-up */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", width: "100%", maxWidth: "340px" }}>
-        <p style={{ color: "rgba(224,217,207,0.45)", fontSize: "0.78rem", margin: "0 0 2px", letterSpacing: "0.06em", textAlign: "center" }}>
-          Be the first to know — website launch &amp; app updates
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        gap: "8px", width: "100%", maxWidth: "340px",
+      }}>
+        <p style={{
+          color: C.mutedBrown, fontSize: "0.76rem",
+          margin: "0 0 4px", letterSpacing: "0.04em", textAlign: "center",
+        }}>
+          Be first to know — website launch &amp; app updates
         </p>
 
         {submitted ? (
-          <div style={{ textAlign: "center", padding: "12px 0" }}>
-            <p style={{ color: C.eggshell, fontWeight: 700, fontSize: "1rem", marginBottom: "4px" }}>You're on the list ☕</p>
-            <p style={{ color: C.eggshellDim, fontSize: "0.82rem" }}>We'll reach out when we go live.</p>
+          <div style={{ textAlign: "center", padding: "14px 0" }}>
+            <p style={{ color: C.darkBrown, fontWeight: 800, fontSize: "1rem", marginBottom: "4px" }}>
+              You're on the list ☕
+            </p>
+            <p style={{ color: C.mutedBrown, fontSize: "0.82rem" }}>
+              We'll reach out when we go live.
+            </p>
           </div>
         ) : (
           <form onSubmit={handleSignUp} style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
@@ -231,16 +241,17 @@ export default function ComingSoon({ children }) {
                 width: "100%",
                 padding: "12px 14px",
                 borderRadius: "10px",
-                border: `1.5px solid rgba(160,82,45,0.35)`,
-                background: "rgba(224,217,207,0.07)",
-                color: C.eggshell,
+                border: `1.5px solid ${C.border}`,
+                background: "#fff",
+                color: C.darkBrown,
                 fontSize: "0.9rem",
                 outline: "none",
                 boxSizing: "border-box",
+                fontFamily: "inherit",
               }}
             />
             {subError && (
-              <p style={{ color: "#ff8a70", fontSize: "0.78rem", margin: 0 }}>{subError}</p>
+              <p style={{ color: "#C0392B", fontSize: "0.78rem", margin: 0 }}>{subError}</p>
             )}
             <button
               type="submit"
@@ -250,19 +261,18 @@ export default function ComingSoon({ children }) {
                 padding: "13px",
                 borderRadius: "10px",
                 border: "none",
-                background: C.brownLight,
-                color: C.darkBrown,
+                background: C.orange,
+                color: "#fff",
                 fontSize: "0.92rem",
                 fontWeight: 700,
                 cursor: subLoading ? "not-allowed" : "pointer",
                 opacity: subLoading ? 0.7 : 1,
                 letterSpacing: "0.04em",
-                transition: "background 0.15s, color 0.15s",
+                fontFamily: "inherit",
+                transition: "background 0.15s",
               }}
-            onMouseOver={(e) => { if (!subLoading) { e.currentTarget.style.background = "#E0D9CF"; e.currentTarget.style.color = C.darkBrown; }}}
-            onMouseOut={(e) => { e.currentTarget.style.background = C.brownLight; e.currentTarget.style.color = C.darkBrown; }}
-            onMouseDown={(e) => { e.currentTarget.style.background = "#f4efe6"; }}
-            onMouseUp={(e) => { e.currentTarget.style.background = "#E0D9CF"; }}
+              onMouseOver={(e) => { if (!subLoading) e.currentTarget.style.background = C.orangeLight; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = C.orange; }}
             >
               {subLoading ? "Adding you…" : "Sign Up for Early Access →"}
             </button>
@@ -274,19 +284,36 @@ export default function ComingSoon({ children }) {
           style={{
             background: "transparent",
             border: "none",
-            color: "rgba(224,217,207,0.28)",
-            fontSize: "0.78rem",
+            color: C.border,
+            fontSize: "0.75rem",
             cursor: "pointer",
             letterSpacing: "0.04em",
             padding: "4px",
-            marginTop: "4px",
+            marginTop: "6px",
+            fontFamily: "inherit",
+            transition: "color 0.15s",
           }}
-          onMouseOver={(e) => e.target.style.color = "rgba(224,217,207,0.5)"}
-          onMouseOut={(e) => e.target.style.color = "rgba(224,217,207,0.28)"}
+          onMouseOver={(e) => e.target.style.color = C.mutedBrown}
+          onMouseOut={(e) => e.target.style.color = C.border}
         >
           Team member? Log in
         </button>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {/* Landing page always present so the animation fades to reveal it */}
+      {wallPage}
+
+      {/* Intro animation sits on top; fades out to show page underneath */}
+      {!introDone && (
+        <IntroAnimation onDone={() => {
+          try { sessionStorage.setItem("wb_intro_seen", "1"); } catch { /* privacy mode */ }
+          setIntroDone(true);
+        }} />
+      )}
+    </>
   );
 }
