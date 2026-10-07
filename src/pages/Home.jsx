@@ -43,6 +43,8 @@ export default function Home() {
   const [selectedCafe, setSelectedCafe] = useState(null);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("");
+  const [userCoords, setUserCoords] = useState(null);
+  const [nearMeLoading, setNearMeLoading] = useState(false);
   const { user } = useAuth();
   const { saveCafe, removeCafe, isSaved } = useSavedCafes(user?.username);
   const navigate = useNavigate();
@@ -65,6 +67,23 @@ export default function Home() {
     setSearch("");
     setActiveFilter("");
   };
+
+  const handleNearMe = () => {
+    if (!navigator.geolocation) return;
+    setNearMeLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setNearMeLoading(false);
+      },
+      () => {
+        setNearMeLoading(false);
+      },
+      { timeout: 8000 }
+    );
+  };
+
+  const clearNearMe = () => setUserCoords(null);
 
   // Safely extracts scout name across any column alias
   const getScoutName = (cafe) => {
@@ -126,6 +145,29 @@ export default function Home() {
               )}
               <button type="submit">Find Cafés ☕</button>
             </form>
+
+            {/* Near Me button */}
+            <div className="near-me-row">
+              {!userCoords ? (
+                <button
+                  className="near-me-btn"
+                  onClick={handleNearMe}
+                  disabled={nearMeLoading}
+                >
+                  {nearMeLoading ? (
+                    <span className="near-me-spinner" />
+                  ) : (
+                    <span className="near-me-icon">📍</span>
+                  )}
+                  {nearMeLoading ? "Finding your location…" : "Sort by Nearest Café"}
+                </button>
+              ) : (
+                <button className="near-me-btn near-me-active" onClick={clearNearMe}>
+                  <span className="near-me-icon">✕</span>
+                  Clear — Sorted by Distance
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Map */}
@@ -134,6 +176,7 @@ export default function Home() {
               onMarkerClick={setSelectedCafe}
               filterQuery={activeFilter}
               panelOpen={!!selectedCafe}
+              userCoords={userCoords}
             />
           </div>
         </div>

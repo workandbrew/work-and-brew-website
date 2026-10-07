@@ -69,15 +69,25 @@ function createBoroMarkerEl(borough) {
   return el;
 }
 
-export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, cafes }) {
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, cafes, userCoords }) {
   const mapContainer    = useRef(null);
   const mapRef          = useRef(null);
   const mlRef           = useRef(null);
   const markersRef      = useRef([]);
   const visibleMarkersRef = useRef(new Set()); // tracks which markers are currently on the map
+  const userMarkerRef   = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [activeBoro, setActiveBoro] = useState("All");
   const [stats, setStats] = useState({});
+  const [nearestCafes, setNearestCafes] = useState([]);
 
   const extractScoutName = (row) =>
     row.ScoutName || row.Scout || row["Scout Name"] || row["Scouted By"] ||
@@ -277,6 +287,43 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
     }
   }, [filterQuery, activeBoro]);
 
+  // Handle "Near Me" — fly to user location, add marker, show nearest cafes list
+  useEffect(() => {
+    if (!mapLoaded || !mlRef.current) return;
+    const maplibregl = mlRef.current;
+
+    // Remove old user marker
+    if (userMarkerRef.current) {
+      userMarkerRef.current.remove();
+      userMarkerRef.current = null;
+    }
+    setNearestCafes([]);
+
+    if (!userCoords) return;
+
+    // Add "you are here" dot
+    const el = document.createElement("div");
+    el.style.cssText = `
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #E0D9CF;
+      border: 3px solid #2C1A0E;
+      box-shadow: 0 0 0 3px rgba(224,217,207,0.4), 0 2px 10px rgba(0,0,0,0.5);
+    `;
+    userMarkerRef.current = new maplibregl.Marker({ element: el, anchor: "center" })
+      .setLngLat([userCoords.lng, userCoords.lat])
+      .addTo(mapRef.current);
+
+    mapRef.current.flyTo({ center: [userCoords.lng, userCoords.lat], zoom: 13.5, speed: 1.6 });
+
+    // Compute distances for all markers
+    const withDist = markersRef.current.map(({ data }) => ({
+      ...data,
+      _distKm: haversineKm(userCoords.lat, userCoords.lng, parseFloat(data.Latitude), parseFloat(data.Longitude)),
+    })).filter((d) => !isNaN(d._distKm)).sort((a, b) => a._distKm - b._distKm);
+
+    setNearestCafes(withDist.slice(0, 5));
+  }, [userCoords, mapLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const resetView = () => {
     if (!mapRef.current || !mlRef.current) return;
     setActiveBoro("All");
@@ -404,6 +451,44 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
         />
         <span className="map-reset-text">Reset</span>
       </button>
+
+      {/* ── Nearest cafes list — appears when Near Me is active ── */}
+      {nearestCafes.length > 0 && (
+        <div style={{
+          position: "absolute", bottom: 24, right: 14, zIndex: 10,
+          background: "rgba(24,10,2,0.95)", backdropFilter: "blur(12px)",
+          border: "1px solid rgba(224,217,207,0.18)", borderRadius: 12,
+          padding: "12px 14px", width: 230,
+          boxShadow: "0 6px 24px rgba(0,0,0,0.55)",
+        }}>
+          <p style={{ margin: "0 0 8px", fontSize: "0.68rem", fontWeight: 800, color: "#c8844a", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            📍 Nearest Cafés
+          </p>
+          {nearestCafes.map((cafe, i) => {
+            const km = cafe._distKm;
+            const dist = km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+            return (
+              <button
+                key={i}
+                onClick={() => onMarkerClick?.(cafe)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  width: "100%", background: "transparent", border: "none",
+                  borderTop: i > 0 ? "1px solid rgba(224,217,207,0.1)" : "none",
+                  padding: "7px 0", cursor: "pointer", textAlign: "left", gap: 8,
+                }}
+              >
+                <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#E0D9CF", lineHeight: 1.3, flex: 1 }}>
+                  {cafe.Name}
+                </span>
+                <span style={{ fontSize: "0.68rem", color: "#c8844a", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
+                  {dist}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

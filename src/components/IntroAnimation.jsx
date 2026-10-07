@@ -114,57 +114,61 @@ export default function IntroAnimation({ onDone }) {
 
         const fillRaw = Math.min(elapsed / T_FILL, 1);
         const fillT   = ease(fillRaw);
-        const liqY    = H * (1 - fillT);
-
-        // ── Background: warm espresso night sky (constant through all phases)
-        const bg = ctx.createLinearGradient(0, 0, 0, H);
-        bg.addColorStop(0,   "#080301");
-        bg.addColorStop(0.5, "#130801");
-        bg.addColorStop(1,   "#1e0e03");
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, W, H);
+        // liqY goes from H (bottom) down to -H*0.15 (slightly past top) so the
+        // wave surface completely exits the top edge before the fill phase ends.
+        const liqY = H - fillT * (H * 1.15);
 
         if (fillRaw < 1) {
           // ─── PHASE 1: FILL ───────────────────────────────────────────────
-          // Liquid body
+          // Solid espresso background fills entire screen — no dark "sky" above
+          ctx.fillStyle = "#180A02";
+          ctx.fillRect(0, 0, W, H);
+
+          // Liquid body — richer brown rising from bottom
           const lg = ctx.createLinearGradient(0, liqY, 0, H);
-          lg.addColorStop(0,   "#4a2410");
-          lg.addColorStop(0.3, "#2C1005");
-          lg.addColorStop(1,   "#180A02");
+          lg.addColorStop(0,   "#5a2e14");
+          lg.addColorStop(0.25, "#3a1808");
+          lg.addColorStop(1,   "#200d03");
           ctx.fillStyle = lg;
-          ctx.fillRect(0, liqY + 16, W, H - liqY);
+          ctx.fillRect(0, Math.max(liqY + 14, 0), W, H);
 
-          // Wave surface
-          ctx.beginPath();
-          ctx.moveTo(0, liqY + 16);
-          for (let x = 0; x <= W; x += 3) {
-            const y = liqY + Math.sin(x * 0.018 + w1) * 7 + Math.sin(x * 0.031 + w2) * 4 + 10;
-            ctx.lineTo(x, y);
-          }
-          ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
-          ctx.fillStyle = "#2C1005";
-          ctx.fill();
+          // Wave surface (only draw if crest is on screen)
+          if (liqY > -20) {
+            ctx.beginPath();
+            ctx.moveTo(0, Math.max(liqY + 14, 0));
+            for (let x = 0; x <= W; x += 3) {
+              const y = liqY + Math.sin(x * 0.018 + w1) * 7 + Math.sin(x * 0.031 + w2) * 4 + 10;
+              ctx.lineTo(x, y);
+            }
+            ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+            ctx.fillStyle = "#3a1808";
+            ctx.fill();
 
-          // Foam crest
-          ctx.beginPath();
-          for (let x = 0; x <= W; x += 3) {
-            const y = liqY + Math.sin(x * 0.018 + w1) * 7 + Math.sin(x * 0.031 + w2) * 4 + 7;
-            x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            // Foam crest
+            ctx.beginPath();
+            for (let x = 0; x <= W; x += 3) {
+              const y = liqY + Math.sin(x * 0.018 + w1) * 7 + Math.sin(x * 0.031 + w2) * 4 + 7;
+              x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = "rgba(200,130,60,0.18)";
+            ctx.lineWidth   = 2;
+            ctx.stroke();
           }
-          ctx.strokeStyle = "rgba(210,150,80,0.2)";
-          ctx.lineWidth   = 2;
-          ctx.stroke();
 
         } else {
           // ─── PHASE 2 + 3: CITY + TITLE ──────────────────────────────────
+          // Background stays espresso-dark the whole time
+          ctx.fillStyle = "#180A02";
+          ctx.fillRect(0, 0, W, H);
+
           const cityElapsed = elapsed - T_FILL;
           const cityP = Math.min(cityElapsed / T_CITY, 1);
           const cityA = easeOut(cityP);
 
-          // Warm horizon glow (stays brown-ish)
-          const glow = ctx.createLinearGradient(0, H * 0.55, 0, H);
+          // Subtle warm horizon blush at ground level
+          const glow = ctx.createLinearGradient(0, H * 0.65, 0, H);
           glow.addColorStop(0, "rgba(0,0,0,0)");
-          glow.addColorStop(1, `rgba(80,30,5,${0.55 * cityA})`);
+          glow.addColorStop(1, `rgba(60,22,4,${0.5 * cityA})`);
           ctx.fillStyle = glow;
           ctx.fillRect(0, 0, W, H);
 
@@ -202,35 +206,36 @@ export default function IntroAnimation({ onDone }) {
 
           // Title fades in after city is fully revealed
           const titleElapsed = cityElapsed - T_CITY;
-          const titleA = cityP >= 1 ? easeOut(Math.min(titleElapsed / 500, 1)) : 0;
+          const titleA = cityP >= 1 ? easeOut(Math.min(titleElapsed / 450, 1)) : 0;
 
           if (titleA > 0) {
-            ctx.save();
-            ctx.globalAlpha = titleA;
-            ctx.textAlign   = "center";
-
             const tSize = Math.round(Math.min(W * 0.082, 96));
             const tY    = H * 0.40;
 
-            // Glow
-            ctx.shadowColor = "rgba(200,120,50,0.6)";
-            ctx.shadowBlur  = 40;
-
-            // Main title
-            ctx.font      = `800 ${tSize}px 'Yeseva One', Georgia, serif`;
-            ctx.fillStyle = "#E8E0D4";
+            // ── Main title — subtle glow only, no hard shadow spread
+            ctx.save();
+            ctx.globalAlpha = titleA;
+            ctx.textAlign   = "center";
+            ctx.shadowColor = "rgba(180,100,40,0.35)";
+            ctx.shadowBlur  = 10;
+            ctx.font        = `800 ${tSize}px 'Yeseva One', Georgia, serif`;
+            ctx.fillStyle   = "#E8E0D4";
             ctx.fillText("Work & Brew", W / 2, tY);
+            ctx.restore();
 
-            // Tagline — tight under title
-            const tagA = Math.min(Math.max((titleElapsed - 250) / 350, 0), 1);
+            // ── Tagline fades in clearly after title is mostly visible (600ms gap)
+            const tagA = Math.min(Math.max((titleElapsed - 600) / 400, 0), 1);
             if (tagA > 0) {
+              ctx.save();
               ctx.globalAlpha = titleA * tagA;
-              ctx.shadowBlur  = 6;
+              ctx.textAlign   = "center";
+              ctx.shadowColor = "rgba(180,100,40,0.2)";
+              ctx.shadowBlur  = 5;
               ctx.font        = `500 ${Math.round(Math.min(W * 0.020, 22))}px Inter, sans-serif`;
               ctx.fillStyle   = "rgba(220,210,195,0.65)";
               ctx.fillText("NEW YORK CITY · EST. MARCH 2025", W / 2, tY + tSize * 0.42 + 4);
+              ctx.restore();
             }
-            ctx.restore();
           }
         }
 

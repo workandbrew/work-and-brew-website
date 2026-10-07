@@ -233,6 +233,67 @@
   background: transparent !important;
 }
 
+/* ── Near Me row ── */
+.near-me-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.near-me-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #2C1A0E;
+  color: #E0D9CF;
+  border: 1.5px solid rgba(224,217,207,0.3);
+  border-radius: 30px;
+  padding: 7px 18px;
+  font-family: 'Inter', 'BacasimeAntique', Georgia, serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+}
+
+.near-me-btn:hover:not(:disabled) {
+  background: #3d2614;
+  border-color: rgba(224,217,207,0.6);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+}
+
+.near-me-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.near-me-btn.near-me-active {
+  border-color: #c8844a;
+  color: #c8844a;
+}
+
+.near-me-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+@keyframes nearMeSpin {
+  to { transform: rotate(360deg); }
+}
+
+.near-me-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(224,217,207,0.25);
+  border-top-color: #E0D9CF;
+  border-radius: 50%;
+  animation: nearMeSpin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
 /* Layout */
 .home-content {
   display: flex;
