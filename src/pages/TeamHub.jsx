@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import "./PageShared.css";
 import "./TeamHub.css";
+import { DailyBars, HBars, DeliveryMeter, Sparkline, NotConnected } from "./TeamHubCharts";
 
 // Private Team Hub for department heads: send texts to the team, see every text sent, see the roster.
 // Access is checked on the server (/api/hub) against the hub_admins table — this page only shows
@@ -204,7 +205,7 @@ function Tools() {
 // Desktop-only top row. Real numbers where we have them; the rest are placeholders until connected.
 function Stats({ data }) {
   const tiles = [
-    ["Texts sent · 30 days", data.stats?.sent30 ?? 0],
+    ["Texts sent · 30 days", data.stats?.sent30 ?? 0, null, (data.daily || []).map((d) => d.sent)],
     ["Team members", data.team.length],
     ["Getting texts", data.team.filter((p) => p.canText).length],
     ["Website visitors", null, "Google Analytics"],
@@ -213,14 +214,52 @@ function Stats({ data }) {
   ];
   return (
     <div className="hub-stats">
-      {tiles.map(([label, value, source]) => (
+      {tiles.map(([label, value, source, spark]) => (
         <div key={label} className={`hub-card hub-stat ${value === null ? "soon" : ""}`}>
           <div className="hub-stat-label">{label}</div>
           <div className="hub-stat-value">{value === null ? "—" : value}</div>
           {source && <span className="hub-pill">Not connected · {source}</span>}
+          {spark && <Sparkline values={spark} />}
         </div>
       ))}
     </div>
+  );
+}
+
+// Desktop-only charts. Texting numbers are real; outside sources show an empty frame until connected.
+function Analytics({ data }) {
+  const daily = data.daily || [];
+  const bySender = new Map();
+  for (const b of data.log) bySender.set(fromLabel(b.from), (bySender.get(fromLabel(b.from)) || 0) + b.sent);
+  const senders = [...bySender].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+  const byChapter = data.chapters
+    .map((c) => ({ label: c, value: data.team.filter((p) => p.chapters.includes(c)).length }))
+    .sort((a, b) => b.value - a.value);
+  return (
+    <section className="hub-analytics hub-desk" aria-label="Analytics">
+      <div className="hub-card ha-wide">
+        <div className="ha-head"><h2 className="hub-h2">Texts sent</h2><span className="hub-hint">Per day · last 30 days</span></div>
+        <DailyBars daily={daily} />
+      </div>
+      <div className="hub-card">
+        <div className="ha-head"><h2 className="hub-h2">Delivery</h2><span className="hub-hint">Last 30 days</span></div>
+        <DeliveryMeter sent={data.stats?.sent30 ?? 0} failed={data.stats?.failed30 ?? 0} />
+        <div className="ha-sub">Who's sending</div>
+        <HBars rows={senders} unit="Texts sent" />
+      </div>
+      <div className="hub-card">
+        <div className="ha-head"><h2 className="hub-h2">Team by chapter</h2><span className="hub-hint">People per chapter</span></div>
+        <HBars rows={byChapter} unit="People" />
+      </div>
+      <div className="hub-card">
+        <div className="ha-head"><h2 className="hub-h2">Website visitors</h2><span className="hub-pill">Not connected</span></div>
+        <NotConnected source="Google Analytics" what="daily visitors and top pages" />
+      </div>
+      <div className="hub-card">
+        <div className="ha-head"><h2 className="hub-h2">Growth</h2><span className="hub-pill">Not connected</span></div>
+        <NotConnected source="Brevo & Instagram" what="email sign-ups and followers" />
+      </div>
+    </section>
   );
 }
 
@@ -267,6 +306,7 @@ export default function TeamHub() {
           ))}
         </div>
         <Stats data={data} />
+        <Analytics data={data} />
         {/* Phone: one tab at a time. Desktop (≥1024px): every panel at once, tabs hidden. */}
         <div className="hub-grid">
           <div className={`hub-panel hub-a ${tab === "texts" ? "on" : ""}`}><Compose data={data} onSent={load} /></div>

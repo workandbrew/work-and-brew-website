@@ -47,11 +47,25 @@ async function recentLog() {
       error: r.error || null,
     });
   }
-  return [...batches.values()].slice(0, 60).map((b) => ({
+  const log = [...batches.values()].slice(0, 60).map((b) => ({
     ...b,
     sent: b.recipients.filter((x) => x.ok).length,
     failed: b.recipients.filter((x) => !x.ok).length,
   }));
+  return { log, daily: dailyCounts(rows || []) };
+}
+
+// Texts per day (New York time) for the last 30 days, oldest first — feeds the Team Hub chart.
+const nyDay = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+function dailyCounts(rows, days = 30) {
+  const out = new Map();
+  for (let i = days - 1; i >= 0; i--) out.set(nyDay(Date.now() - i * 864e5), { date: "", sent: 0, failed: 0 });
+  for (const [k, v] of out) v.date = k;
+  for (const r of rows) {
+    const day = out.get(nyDay(r.created_at));
+    if (day) day[r.status === "failed" ? "failed" : "sent"]++;
+  }
+  return [...out.values()];
 }
 
 export default async function handler(req, res) {
@@ -66,12 +80,12 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const [scouts, log] = await Promise.all([loadScouts(), recentLog()]);
+      const [scouts, { log, daily }] = await Promise.all([loadScouts(), recentLog()]);
       const team = scouts.map((s) => ({ ...publicScout(s), optedOut: !!s.opted_out_at, optedIn: !!s.sms_opt_in }));
       const chapters = [...new Set(team.flatMap((s) => s.chapters))].sort();
-      const monthAgo = Date.now() - 30 * 864e5;
-      const sent30 = log.filter((b) => new Date(b.at).getTime() >= monthAgo).reduce((n, b) => n + b.sent, 0);
-      return res.status(200).json({ ok: true, me, team, chapters, log, stats: { sent30 } });
+      const sent30 = daily.reduce((n, d) => n + d.sent, 0);
+      const failed30 = daily.reduce((n, d) => n + d.failed, 0);
+      return res.status(200).json({ ok: true, me, team, chapters, log, daily, stats: { sent30, failed30 } });
     }
 
     const { action, to, message } = readBody(req);

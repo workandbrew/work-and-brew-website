@@ -186,7 +186,65 @@
   .hub-card.hub-tool.soon { opacity: 1; background: transparent; border: 1.5px dashed #BFAE97; box-shadow: none; }
   .hub-card.hub-tool.soon .hub-hint { color: rgba(44, 26, 14, 0.55); }
   .hub-log-item:last-child, .hub-person:last-child { margin-bottom: 0; }
+
+  /* stat numbers: same sans as the rest (a serif big number reads as decoration) */
+  .hub .hub-stat-value { font-family: Inter, system-ui, sans-serif; font-weight: 600; font-variant-numeric: normal; letter-spacing: -0.02em; }
+  .hub-stat .hc-spark { width: 100%; height: 30px; margin-top: auto; }
+
+  /* analytics */
+  .hub-analytics {
+    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; margin: 16px 0 4px;
+  }
+  .hub-analytics > .hub-card { margin: 0; grid-column: span 4; display: flex; flex-direction: column; }
+  .hub-analytics > .ha-wide { grid-column: span 8; }
+  .ha-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .ha-head .hub-h2 { margin: 0; font-size: 1.25rem; }
+  .ha-sub { margin: 18px 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(44, 26, 14, 0.6); }
 }
+
+/* ---- charts (desktop only in practice; styles are harmless elsewhere) ---- */
+.hc { position: relative; }
+.hc-plot { position: relative; }
+.hc-plot svg { width: 100%; height: auto; display: block; overflow: visible; }
+.hc-plot rect:focus { outline: none; }
+.hc-plot rect:focus-visible { outline: 2px solid #2C1A0E; outline-offset: -2px; }
+.hc-tick { font-size: 11px; fill: rgba(44, 26, 14, 0.55); font-variant-numeric: tabular-nums; }
+.hc-val { font-size: 12px; font-weight: 700; fill: #2C1A0E; }
+.hc-tip {
+  position: absolute; top: 2px; transform: translate(-50%, 0); pointer-events: none; white-space: nowrap;
+  background: #2C1A0E; color: #FFFDF9; border-radius: 8px; padding: 7px 10px; font-size: 12px;
+  display: flex; gap: 8px; align-items: baseline; box-shadow: 0 4px 14px rgba(44, 26, 14, 0.25);
+}
+.hc-tip strong { font-size: 13px; }
+.hc-tip span { opacity: 0.75; }
+.hc-tip .hc-tip-bad { color: #FFB4A3; opacity: 1; }
+.hc-table { margin-top: 8px; font-size: 12px; color: rgba(44, 26, 14, 0.7); }
+.hc-table summary { cursor: pointer; }
+.hc-table table { margin-top: 6px; border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.hc-table th, .hc-table td { text-align: left; padding: 3px 6px; border-bottom: 1px solid #EDE3D6; }
+.hc-table div, .hc-table { max-height: 220px; overflow: auto; }
+.hc-empty { color: rgba(44, 26, 14, 0.55); font-size: 13px; margin: 6px 0; }
+
+.hc-hbars { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.hc-hbars li { display: grid; grid-template-columns: minmax(80px, 38%) 1fr auto; align-items: center; gap: 10px; outline: none; }
+.hc-hbars li:focus-visible { outline: 2px solid #2C1A0E; outline-offset: 2px; border-radius: 4px; }
+.hc-hlabel { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hc-htrack { height: 14px; display: block; }
+.hc-hbar { display: block; height: 14px; min-width: 2px; background: #2C1A0E; border-radius: 0 4px 4px 0; transition: opacity 0.15s; }
+.hc-hval { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+
+.hc-meter-top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.hc-meter-value { font-size: 2.4rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1; }
+.hc-meter-sub { font-size: 13px; color: rgba(44, 26, 14, 0.62); }
+.hc-meter-track { height: 10px; border-radius: 999px; overflow: hidden; }
+.hc-meter-fill { height: 100%; border-radius: 999px; }
+.hc-meter-note { margin: 8px 0 0; font-size: 12px; color: #B4442A; }
+
+.hc-nc { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+.hc-nc svg { width: 100%; height: 90px; }
+.hc-nc p { margin: 0; font-size: 13px; color: rgba(44, 26, 14, 0.62); }
+.hc-nc strong { color: #2C1A0E; }
+
 
 @media (max-width: 600px) {
   .hub.page-content { padding-left: 16px; padding-right: 16px; }
