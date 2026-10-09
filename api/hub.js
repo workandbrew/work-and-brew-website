@@ -69,7 +69,9 @@ export default async function handler(req, res) {
       const [scouts, log] = await Promise.all([loadScouts(), recentLog()]);
       const team = scouts.map((s) => ({ ...publicScout(s), optedOut: !!s.opted_out_at, optedIn: !!s.sms_opt_in }));
       const chapters = [...new Set(team.flatMap((s) => s.chapters))].sort();
-      return res.status(200).json({ ok: true, me, team, chapters, log });
+      const monthAgo = Date.now() - 30 * 864e5;
+      const sent30 = log.filter((b) => new Date(b.at).getTime() >= monthAgo).reduce((n, b) => n + b.sent, 0);
+      return res.status(200).json({ ok: true, me, team, chapters, log, stats: { sent30 } });
     }
 
     const { action, to, message } = readBody(req);

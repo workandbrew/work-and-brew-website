@@ -201,6 +201,28 @@ function Tools() {
   );
 }
 
+// Desktop-only top row. Real numbers where we have them; the rest are placeholders until connected.
+function Stats({ data }) {
+  const tiles = [
+    ["Texts sent · 30 days", data.stats?.sent30 ?? 0],
+    ["Team members", data.team.length],
+    ["Getting texts", data.team.filter((p) => p.canText).length],
+    ["Website visitors", null, "Google Analytics"],
+    ["Email sign-ups", null, "Brevo"],
+    ["Social followers", null, "Instagram"],
+  ];
+  return (
+    <div className="hub-stats">
+      {tiles.map(([label, value, source]) => (
+        <div key={label} className={`hub-card hub-stat ${value === null ? "soon" : ""}`}>
+          <div className="hub-stat-value">{value === null ? "—" : value}</div>
+          <div className="hub-hint">{label}{source ? ` · connect ${source}` : ""}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function TeamHub() {
   const { user } = useAuth();
   const [tab, setTab] = useState("texts");
@@ -243,15 +265,23 @@ export default function TeamHub() {
               onClick={() => setTab(k)}>{label}</button>
           ))}
         </div>
-        {tab === "texts" && (
-          <>
-            <Compose data={data} onSent={load} />
-            <div className="page-section-label">Sent texts</div>
+        <Stats data={data} />
+        {/* Phone: one tab at a time. Desktop (≥1024px): every panel at once, tabs hidden. */}
+        <div className="hub-grid">
+          <div className={`hub-panel hub-a ${tab === "texts" ? "on" : ""}`}><Compose data={data} onSent={load} /></div>
+          <div className={`hub-panel hub-b ${tab === "texts" ? "on" : ""}`}>
+            <div className="page-section-label hub-panel-label">Sent texts</div>
             <Log log={data.log} />
-          </>
-        )}
-        {tab === "team" && <Team team={data.team} />}
-        {tab === "tools" && <Tools />}
+          </div>
+          <div className={`hub-panel hub-c ${tab === "team" ? "on" : ""}`}>
+            <div className="page-section-label hub-panel-label hub-desk">Team</div>
+            <Team team={data.team} />
+          </div>
+          <div className={`hub-panel hub-d ${tab === "tools" ? "on" : ""}`}>
+            <div className="page-section-label hub-panel-label hub-desk">Tools</div>
+            <Tools />
+          </div>
+        </div>
       </>
     );
   }

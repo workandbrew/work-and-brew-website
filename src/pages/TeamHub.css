@@ -77,6 +77,39 @@
 .hub-tool.soon { opacity: 0.55; }
 .hub-tool-icon { font-size: 1.6rem; }
 
+/* panels: phone shows the active tab only */
+.hub-panel { display: none; }
+.hub-panel.on { display: block; }
+.hub-panel-label { margin-top: 1.5rem; }
+.hub-desk { display: none; }
+.hub-stats { display: none; }
+
+/* desktop: everything at once */
+@media (min-width: 1024px) {
+  .hub.page-content { max-width: 1240px; }
+  .hub-tabs { display: none; }
+  .hub-desk { display: block; }
+  .hub-stats {
+    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; margin-bottom: 6px;
+  }
+  .hub-stat { margin: 0; }
+  .hub-stat-value { font-family: Georgia, 'Times New Roman', serif; font-size: 2rem; font-weight: 700; }
+  .hub-stat.soon .hub-stat-value { opacity: 0.4; }
+  .hub-grid {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 24px;
+    grid-template-areas: "a b" "d c"; align-items: start;
+  }
+  .hub-panel { display: block; }
+  .hub-a { grid-area: a; margin-top: 1.5rem; }
+  .hub-b { grid-area: b; }
+  .hub-c { grid-area: c; }
+  .hub-d { grid-area: d; }
+  .hub-b .hub-log { max-height: 560px; overflow-y: auto; padding-right: 4px; }
+  .hub-c .hub-team { max-height: 520px; overflow-y: auto; padding-right: 4px; }
+  .hub-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .hub-tools .hub-card { margin: 0; }
+}
+
 @media (max-width: 600px) {
   .hub.page-content { padding-left: 16px; padding-right: 16px; }
   .hub-card { padding: 14px; }
