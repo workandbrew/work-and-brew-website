@@ -108,6 +108,47 @@
   .hub-c .hub-team { max-height: 520px; overflow-y: auto; padding-right: 4px; }
   .hub-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .hub-tools .hub-card { margin: 0; }
+
+  /* --- bigger blocks that fill the space: each row stretches to its taller side --- */
+  .hub-grid { align-items: stretch; row-gap: 8px; }
+  .hub-panel { display: flex; flex-direction: column; }
+  .hub-a > .hub-card { flex: 1; margin-bottom: 0; }
+  /* Sent texts: as tall as "Send a text", scrolls inside */
+  .hub-b { position: relative; min-height: 420px; }
+  .hub-b .hub-log { position: absolute; top: calc(1.5rem + 2.4rem); bottom: 0; left: 0; right: 0;
+    max-height: none; overflow-y: auto; padding-right: 6px; }
+  /* Tools: tiles stretch to match the Team list beside them */
+  .hub-d .hub-tools { flex: 1; grid-auto-rows: 1fr; }
+  .hub-c .hub-team { max-height: 420px; }
+  .hub-card { padding: 24px 26px; border-radius: 18px; }
+  .hub-h2 { font-size: 1.6rem; }
+  .hub-text { font-size: 1.05rem; min-height: 140px; }
+  .hub-stat { padding: 26px; }
+  .hub-stat-value { font-size: 2.6rem; line-height: 1.1; }
+  .hub-tool-icon { font-size: 2.2rem; }
+  .hub-person-name { font-size: 1.05rem; }
+
+  /* --- eggshell blocks with dark brown text --- */
+  .hub-card { background: #F2ECE3; border-color: #E2D6C5; color: #2C1A0E; }
+  .hub-card .hub-h2, .hub-tool { color: #2C1A0E; }
+  .hub-card .hub-label, .hub-card .hub-hint, .hub-card .hub-log-top { color: rgba(44, 26, 14, 0.62); }
+  .hub-card .hub-people summary { color: rgba(44, 26, 14, 0.8); }
+  .hub-card .hub-chip { border-color: #B9A68F; color: #2C1A0E; }
+  .hub-card .hub-chip.on { background: #2C1A0E; border-color: #2C1A0E; color: #F2ECE3; }
+  .hub-card .hub-text { background: #FBF8F3; border-color: #CDBDA8; color: #2C1A0E; }
+  .hub-card .hub-btn { background: #2C1A0E; border-color: #2C1A0E; color: #F2ECE3; }
+  .hub-card .hub-btn.ghost { background: transparent; color: #2C1A0E; }
+  .hub-card .hub-preview { border-top-color: #CDBDA8; }
+  .hub-card .hub-bubble { background: #E6DCCB; color: #2C1A0E; }
+  .hub-card .hub-note, .hub-card .hub-status { color: #2F6B3A; }
+  .hub-card .hub-note.bad, .hub-card .hub-status.bad, .hub-card .hub-fail { color: #B4442A; }
+  .hub-card .hub-tag { border-color: #B9A68F; color: rgba(44, 26, 14, 0.7); }
+  .hub-card .hub-tag.ok { border-color: #2F6B3A; color: #2F6B3A; }
+  /* "coming soon" tiles: outlined, not faded */
+  .hub-card.hub-tool.soon { opacity: 1; background: transparent; border: 2px dashed rgba(242, 236, 227, 0.3); color: #F2ECE3; }
+  .hub-card.hub-tool.soon .hub-hint { color: rgba(242, 236, 227, 0.6); }
+  .hub .hub-panel-label { color: rgba(242, 236, 227, 0.7); }
+  .hub-log-item:last-child, .hub-person:last-child { margin-bottom: 0; }
 }
 
 @media (max-width: 600px) {
