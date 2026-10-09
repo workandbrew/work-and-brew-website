@@ -52,7 +52,17 @@ async function recentLog() {
     sent: b.recipients.filter((x) => x.ok).length,
     failed: b.recipients.filter((x) => !x.ok).length,
   }));
-  return { log, daily: dailyCounts(rows || []) };
+  const days = dailyCounts(rows || [], 60);
+  return { log, daily: days.slice(30), prevSent30: days.slice(0, 30).reduce((n, d) => n + d.sent, 0) };
+}
+
+// "Good morning" + "Friday, October 9" in New York time, for the hub's welcome banner.
+function welcome() {
+  const now = new Date();
+  const hour = Number(now.toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" }));
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const today = now.toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long", month: "long", day: "numeric" });
+  return { greeting, today };
 }
 
 // Texts per day (New York time) for the last 30 days, oldest first — feeds the Team Hub chart.
@@ -80,12 +90,12 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const [scouts, { log, daily }] = await Promise.all([loadScouts(), recentLog()]);
+      const [scouts, { log, daily, prevSent30 }] = await Promise.all([loadScouts(), recentLog()]);
       const team = scouts.map((s) => ({ ...publicScout(s), optedOut: !!s.opted_out_at, optedIn: !!s.sms_opt_in }));
       const chapters = [...new Set(team.flatMap((s) => s.chapters))].sort();
       const sent30 = daily.reduce((n, d) => n + d.sent, 0);
       const failed30 = daily.reduce((n, d) => n + d.failed, 0);
-      return res.status(200).json({ ok: true, me, team, chapters, log, daily, stats: { sent30, failed30 } });
+      return res.status(200).json({ ok: true, me, ...welcome(), team, chapters, log, daily, stats: { sent30, failed30, prevSent30 } });
     }
 
     const { action, to, message } = readBody(req);

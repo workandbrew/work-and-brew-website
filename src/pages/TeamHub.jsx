@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import "./PageShared.css";
 import "./TeamHub.css";
-import { DailyBars, HBars, DeliveryMeter, Sparkline, NotConnected } from "./TeamHubCharts";
+import { DailyBars, RankBars, DeliveryMeter, Sparkline, NotConnected, Delta } from "./TeamHubCharts";
 
 // Private Team Hub for department heads: send texts to the team, see every text sent, see the roster.
 // Access is checked on the server (/api/hub) against the hub_admins table — this page only shows
@@ -202,68 +202,83 @@ function Tools() {
   );
 }
 
-// Desktop-only top row. Real numbers where we have them; the rest are placeholders until connected.
+// Desktop-only KPI row. Real numbers where we have them; outside sources say "Not connected".
 function Stats({ data }) {
+  const st = data.stats || {};
+  const textable = data.team.filter((p) => p.canText).length;
   const tiles = [
-    ["Texts sent · 30 days", data.stats?.sent30 ?? 0, null, (data.daily || []).map((d) => d.sent)],
-    ["Team members", data.team.length],
-    ["Getting texts", data.team.filter((p) => p.canText).length],
-    ["Website visitors", null, "Google Analytics"],
-    ["Email sign-ups", null, "Brevo"],
-    ["Social followers", null, "Instagram"],
+    { label: "Texts sent", value: st.sent30 ?? 0, foot: <Delta now={st.sent30 ?? 0} before={st.prevSent30 ?? 0} />, spark: (data.daily || []).map((d) => d.sent) },
+    { label: "Team members", value: data.team.length, foot: <span className="hc-foot">across {data.chapters.length} chapters</span> },
+    { label: "Reachable by text", value: textable, foot: <span className="hc-foot">{data.team.length ? Math.round((textable / data.team.length) * 100) : 0}% of the team opted in</span> },
+    { label: "Website visitors", source: "Google Analytics" },
+    { label: "Email sign-ups", source: "Brevo" },
+    { label: "Social followers", source: "Instagram" },
   ];
   return (
     <div className="hub-stats">
-      {tiles.map(([label, value, source, spark]) => (
-        <div key={label} className={`hub-card hub-stat ${value === null ? "soon" : ""}`}>
-          <div className="hub-stat-label">{label}</div>
-          <div className="hub-stat-value">{value === null ? "—" : value}</div>
-          {source && <span className="hub-pill">Not connected · {source}</span>}
-          {spark && <Sparkline values={spark} />}
+      {tiles.map((t) => (
+        <div key={t.label} className={`hub-card hub-stat ${t.source ? "soon" : ""}`}>
+          <div className="hub-stat-label">{t.label}</div>
+          <div className="hub-stat-value">{t.source ? "—" : t.value.toLocaleString()}</div>
+          {t.source ? <span className="hub-pill">Connect {t.source}</span> : t.foot}
+          {t.spark && <Sparkline values={t.spark} />}
         </div>
       ))}
     </div>
   );
 }
 
-// Desktop-only charts. Texting numbers are real; outside sources show an empty frame until connected.
+// Desktop-only charts. Texting numbers are real; outside sources show an empty state until connected.
 function Analytics({ data }) {
   const daily = data.daily || [];
-  const bySender = new Map();
   const since = daily[0]?.date || ""; // same 30-day window as the chart and the meter
+  const bySender = new Map();
   for (const b of data.log) {
     if (b.at.slice(0, 10) < since) continue;
     bySender.set(fromLabel(b.from), (bySender.get(fromLabel(b.from)) || 0) + b.sent);
   }
-  const senders = [...bySender].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+  const senders = [...bySender].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 5);
   const byChapter = data.chapters
     .map((c) => ({ label: c, value: data.team.filter((p) => p.chapters.includes(c)).length }))
     .sort((a, b) => b.value - a.value);
+  const st = data.stats || {};
+  const avg = daily.length ? (daily.reduce((n, d) => n + d.sent, 0) / daily.length).toFixed(1) : "0";
   return (
-    <section className="hub-analytics hub-desk" aria-label="Analytics">
-      <div className="hub-card ha-wide">
-        <div className="ha-head"><h2 className="hub-h2">Texts sent</h2><span className="hub-hint">Per day · last 30 days</span></div>
-        <DailyBars daily={daily} />
-      </div>
-      <div className="hub-card">
-        <div className="ha-head"><h2 className="hub-h2">Delivery</h2><span className="hub-hint">Last 30 days</span></div>
-        <DeliveryMeter sent={data.stats?.sent30 ?? 0} failed={data.stats?.failed30 ?? 0} />
-        <div className="ha-sub">Who's sending</div>
-        <HBars rows={senders} unit="Texts sent" />
-      </div>
-      <div className="hub-card">
-        <div className="ha-head"><h2 className="hub-h2">Team by chapter</h2><span className="hub-hint">People per chapter</span></div>
-        <HBars rows={byChapter} unit="People" />
-      </div>
-      <div className="hub-card">
-        <div className="ha-head"><h2 className="hub-h2">Website visitors</h2><span className="hub-pill">Not connected</span></div>
-        <NotConnected source="Google Analytics" what="daily visitors and top pages" />
-      </div>
-      <div className="hub-card">
-        <div className="ha-head"><h2 className="hub-h2">Growth</h2><span className="hub-pill">Not connected</span></div>
-        <NotConnected source="Brevo & Instagram" what="email sign-ups and followers" />
-      </div>
-    </section>
+    <>
+      <h2 className="hub-section">Messaging analytics</h2>
+      <section className="hub-analytics hub-desk" aria-label="Messaging analytics">
+        <div className="hub-card ha-wide">
+          <div className="ha-head">
+            <div>
+              <h3 className="ha-title">Texts sent per day</h3>
+              <p className="ha-sub">Last 30 days · all senders</p>
+            </div>
+            <div className="ha-kpis">
+              <div><span className="ha-kpi">{(st.sent30 ?? 0).toLocaleString()}</span><span className="ha-kpi-label">Total</span></div>
+              <div><span className="ha-kpi">{avg}</span><span className="ha-kpi-label">Daily avg.</span></div>
+              <Delta now={st.sent30 ?? 0} before={st.prevSent30 ?? 0} label="vs. prior" />
+            </div>
+          </div>
+          <DailyBars daily={daily} />
+        </div>
+        <div className="hub-card">
+          <div className="ha-head"><div><h3 className="ha-title">Delivery rate</h3><p className="ha-sub">Last 30 days</p></div></div>
+          <DeliveryMeter sent={st.sent30 ?? 0} failed={st.failed30 ?? 0} />
+        </div>
+        <div className="hub-card">
+          <div className="ha-head"><div><h3 className="ha-title">Top senders</h3><p className="ha-sub">Texts sent · last 30 days</p></div></div>
+          <RankBars rows={senders} unit="Texts sent" avatars />
+        </div>
+        <div className="hub-card">
+          <div className="ha-head"><div><h3 className="ha-title">Team by chapter</h3><p className="ha-sub">People per NYC chapter</p></div></div>
+          <RankBars rows={byChapter} unit="People" />
+        </div>
+        <div className="hub-card ha-nc-card">
+          <div className="ha-head"><div><h3 className="ha-title">Growth</h3><p className="ha-sub">Website · email · social</p></div></div>
+          <NotConnected icon="📈" source="Google Analytics, Brevo & Instagram" what="visitors, email sign-ups and followers" setup="One-time setup · about 5 minutes each" />
+        </div>
+      </section>
+    </>
   );
 }
 
@@ -311,6 +326,7 @@ export default function TeamHub() {
         </div>
         <Stats data={data} />
         <Analytics data={data} />
+        <h2 className="hub-section">Messaging &amp; team</h2>
         {/* Phone: one tab at a time. Desktop (≥1024px): every panel at once, tabs hidden. */}
         <div className="hub-grid">
           <div className={`hub-panel hub-a ${tab === "texts" ? "on" : ""}`}><Compose data={data} onSent={load} /></div>
@@ -336,9 +352,16 @@ export default function TeamHub() {
       <Navbar />
       <div className="page-content hub">
         <header className="hub-hero">
-          <div className="page-badge">Team Hub</div>
-          <h1 className="page-title">{data?.me?.name ? `Hi, ${data.me.name.split(" ")[0]}` : "Team Hub"}</h1>
-          <p className="hub-hero-sub hub-desk">Texts, team and tools for Work &amp; Brew — all in one place.</p>
+          <div className="hub-hero-main">
+            <div className="page-badge">Work &amp; Brew · Team Hub</div>
+            <h1 className="page-title">
+              {data?.me?.name ? `${data.greeting || "Hi"}, ${data.me.name.split(" ")[0]}` : "Team Hub"}
+            </h1>
+            <p className="hub-hero-sub hub-desk">
+              {data?.me?.role ? `${data.me.role} · ` : ""}Here's how the team is doing.
+            </p>
+          </div>
+          {data?.today && <div className="hub-hero-date hub-desk">{data.today}</div>}
         </header>
         {body}
       </div>
