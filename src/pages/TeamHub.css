@@ -128,26 +128,63 @@
   .hub-tool-icon { font-size: 2.2rem; }
   .hub-person-name { font-size: 1.05rem; }
 
-  /* --- eggshell blocks with dark brown text --- */
-  .hub-card { background: #F2ECE3; border-color: #E2D6C5; color: #2C1A0E; }
-  .hub-card .hub-h2, .hub-tool { color: #2C1A0E; }
-  .hub-card .hub-label, .hub-card .hub-hint, .hub-card .hub-log-top { color: rgba(44, 26, 14, 0.62); }
+  /* --- Latte theme: latte page, cream-white blocks, dark brown; serif headings + Inter body --- */
+  .hub-shell { background: #EDE5D8; color: #2C1A0E; }
+  .hub.page-content { max-width: 1400px; padding-left: 40px; padding-right: 40px; }
+  .hub *:not(.hub-h2):not(.hub-stat-value):not(.page-title):not(.hub-tool-icon) { font-family: Inter, system-ui, -apple-system, sans-serif; }
+  .hub-h2, .hub-stat-value, .hub .page-title { font-family: 'Playfair Display', Georgia, serif; }
+
+  .hub-hero {
+    background: #2C1A0E; color: #F2ECE3; border-radius: 18px; padding: 30px 36px; margin-bottom: 20px;
+    background-image: radial-gradient(circle at 92% 20%, rgba(242, 236, 227, 0.10), transparent 45%);
+  }
+  .hub-hero .page-badge {
+    background: rgba(242, 236, 227, 0.12); border: 1px solid rgba(242, 236, 227, 0.25); color: #F2ECE3;
+    box-shadow: none; border-radius: 6px; font-size: 11px; padding: 5px 10px; margin-bottom: 14px;
+  }
+  .hub-hero .page-title { color: #F2ECE3; font-size: 2.6rem; font-weight: 700; margin: 0 0 6px; }
+  .hub-hero-sub { margin: 0; color: rgba(242, 236, 227, 0.75); font-size: 1rem; }
+
+  .hub-card {
+    background: #FFFDF9; border: 1px solid #E2D6C5; color: #2C1A0E; border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(44, 26, 14, 0.06);
+  }
+  .hub-stats { gap: 16px; margin-bottom: 4px; }
+  .hub-stat { padding: 20px 22px; border-top: 4px solid #2C1A0E; display: flex; flex-direction: column; gap: 6px; }
+  .hub-stat.soon { border-top-color: #CDBDA8; }
+  .hub-stat-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(44, 26, 14, 0.6); }
+  .hub-stat-value { font-size: 3rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; color: #2C1A0E; }
+  .hub-stat.soon .hub-stat-value { color: #CDBDA8; opacity: 1; }
+  .hub-pill {
+    align-self: flex-start; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 7px; border: 1px solid #CDBDA8; border-radius: 4px; color: rgba(44, 26, 14, 0.6);
+  }
+
+  .hub-h2 { font-size: 1.5rem; font-weight: 700; color: #2C1A0E; }
+  .hub .hub-panel-label { color: rgba(44, 26, 14, 0.6); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; }
+  .hub-card .hub-label, .hub-card .hub-log-top { color: rgba(44, 26, 14, 0.6); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  .hub-card .hub-hint { color: rgba(44, 26, 14, 0.62); }
   .hub-card .hub-people summary { color: rgba(44, 26, 14, 0.8); }
-  .hub-card .hub-chip { border-color: #B9A68F; color: #2C1A0E; }
-  .hub-card .hub-chip.on { background: #2C1A0E; border-color: #2C1A0E; color: #F2ECE3; }
-  .hub-card .hub-text { background: #FBF8F3; border-color: #CDBDA8; color: #2C1A0E; }
-  .hub-card .hub-btn { background: #2C1A0E; border-color: #2C1A0E; color: #F2ECE3; }
+  .hub-card .hub-chip { border-radius: 8px; border-color: #D5C6B2; color: #2C1A0E; font-weight: 500; min-height: 36px; }
+  .hub-card .hub-chip.on { background: #2C1A0E; border-color: #2C1A0E; color: #FFFDF9; }
+  .hub-card .hub-text { background: #FFFFFF; border-color: #D5C6B2; color: #2C1A0E; border-radius: 10px; font-size: 1rem; }
+  .hub-card .hub-btn { background: #2C1A0E; border-color: #2C1A0E; color: #FFFDF9; border-radius: 10px; font-weight: 700; }
   .hub-card .hub-btn.ghost { background: transparent; color: #2C1A0E; }
-  .hub-card .hub-preview { border-top-color: #CDBDA8; }
-  .hub-card .hub-bubble { background: #E6DCCB; color: #2C1A0E; }
-  .hub-card .hub-note, .hub-card .hub-status { color: #2F6B3A; }
+  .hub-card .hub-preview { border-top-color: #D5C6B2; }
+  .hub-card .hub-bubble { background: #F6F0E6; color: #2C1A0E; border-radius: 10px; border-left: 4px solid #2C1A0E; }
+  .hub-card .hub-note, .hub-card .hub-status { color: #2F6B3A; font-weight: 600; }
   .hub-card .hub-note.bad, .hub-card .hub-status.bad, .hub-card .hub-fail { color: #B4442A; }
-  .hub-card .hub-tag { border-color: #B9A68F; color: rgba(44, 26, 14, 0.7); }
-  .hub-card .hub-tag.ok { border-color: #2F6B3A; color: #2F6B3A; }
-  /* "coming soon" tiles: outlined, not faded */
-  .hub-card.hub-tool.soon { opacity: 1; background: transparent; border: 2px dashed rgba(242, 236, 227, 0.3); color: #F2ECE3; }
-  .hub-card.hub-tool.soon .hub-hint { color: rgba(242, 236, 227, 0.6); }
-  .hub .hub-panel-label { color: rgba(242, 236, 227, 0.7); }
+  .hub-card .hub-tag { border-radius: 4px; border-color: #D5C6B2; color: rgba(44, 26, 14, 0.7); font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+  .hub-card .hub-tag.ok { border-color: #2F6B3A; color: #2F6B3A; background: rgba(47, 107, 58, 0.06); }
+  .hub-person-name { font-weight: 700; }
+
+  /* tools: live tile in dark brown, coming-soon outlined */
+  .hub-d .hub-tools { grid-auto-rows: minmax(120px, 1fr); }
+  .hub-card.hub-tool { color: #2C1A0E; }
+  .hub-card.hub-tool:not(.soon) { background: #2C1A0E; border-color: #2C1A0E; color: #F2ECE3; }
+  .hub-card.hub-tool:not(.soon) .hub-hint { color: rgba(242, 236, 227, 0.7); }
+  .hub-card.hub-tool.soon { opacity: 1; background: transparent; border: 1.5px dashed #BFAE97; box-shadow: none; }
+  .hub-card.hub-tool.soon .hub-hint { color: rgba(44, 26, 14, 0.55); }
   .hub-log-item:last-child, .hub-person:last-child { margin-bottom: 0; }
 }
 

@@ -215,8 +215,9 @@ function Stats({ data }) {
     <div className="hub-stats">
       {tiles.map(([label, value, source]) => (
         <div key={label} className={`hub-card hub-stat ${value === null ? "soon" : ""}`}>
+          <div className="hub-stat-label">{label}</div>
           <div className="hub-stat-value">{value === null ? "—" : value}</div>
-          <div className="hub-hint">{label}{source ? ` · connect ${source}` : ""}</div>
+          {source && <span className="hub-pill">Not connected · {source}</span>}
         </div>
       ))}
     </div>
@@ -287,11 +288,14 @@ export default function TeamHub() {
   }
 
   return (
-    <div className="page-shell">
+    <div className="page-shell hub-shell">
       <Navbar />
       <div className="page-content hub">
-        <div className="page-badge">Team Hub</div>
-        <h1 className="page-title">{data?.me?.name ? `Hi, ${data.me.name.split(" ")[0]}` : "Team Hub"}</h1>
+        <header className="hub-hero">
+          <div className="page-badge">Team Hub</div>
+          <h1 className="page-title">{data?.me?.name ? `Hi, ${data.me.name.split(" ")[0]}` : "Team Hub"}</h1>
+          <p className="hub-hero-sub hub-desk">Texts, team and tools for Work &amp; Brew — all in one place.</p>
+        </header>
         {body}
       </div>
     </div>
