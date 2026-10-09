@@ -17,6 +17,7 @@ import ScoutSignup from "./pages/ScoutSignup";
 import SmsPrivacy from "./pages/SmsPrivacy";
 import SmsTerms from "./pages/SmsTerms";
 import Event from "./pages/Event";
+import TeamHub from "./pages/TeamHub";
 import "./index.css";
 
 // fades each page in on navigation + scrolls back to top + fires GA page_view
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="/sms-privacy" element={<SmsPrivacy />} />
         <Route path="/sms-terms" element={<SmsTerms />} />
         <Route path="/event" element={<Event />} />
+        <Route path="/team" element={<TeamHub />} />
         {/* Hidden scout portal — not linked anywhere in the UI */}
         <Route path="/ops/:key" element={<ScoutPortal />} />
         <Route path="*" element={<NotFound />} />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import SiteFooter from "../components/SiteFooter";
 import { useAuth } from "../context/AuthContext";
@@ -15,6 +15,9 @@ export default function Auth() {
 
   const { signIn } = useAuth();
   const navigate   = useNavigate();
+  const [params]   = useSearchParams();
+  // only same-site paths, e.g. /login?next=/team
+  const next = /^\/(?!\/)/.test(params.get("next") || "") ? params.get("next") : "/";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,7 +29,7 @@ export default function Auth() {
       setError("Invalid email or password.");
       return;
     }
-    navigate("/");
+    navigate(next);
   };
 
   const handleForgotPassword = async () => {

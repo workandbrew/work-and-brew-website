@@ -1,0 +1,84 @@
+/* Team Hub (/team) — phone-first, matches the site's chocolate + cream palette */
+.hub { padding-top: 2rem; }
+.hub .page-title { font-size: 2rem; }
+
+.hub-card {
+  background: #2C1A0E;
+  border: 1px solid #372414;
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+.hub-center { text-align: center; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.hub-h2 { font-family: Georgia, 'Times New Roman', serif; font-size: 1.3rem; margin: 0 0 12px; color: #E0D9CF; }
+.hub-label {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(224, 217, 207, 0.6); margin: 14px 0 8px;
+}
+.hub-hint { font-size: 0.8rem; color: rgba(224, 217, 207, 0.6); margin-top: 4px; }
+.hub-empty { color: rgba(224, 217, 207, 0.6); text-align: center; padding: 1rem 0; }
+
+.hub-tabs { display: flex; gap: 8px; margin-bottom: 16px; position: sticky; top: 72px; z-index: 5;
+  background: #180A02; padding: 6px 0; }
+.hub-tab {
+  flex: 1; padding: 10px 6px; border-radius: 999px; border: 1px solid #372414;
+  background: #2C1A0E; color: #E0D9CF; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+}
+.hub-tab.on { background: #E0D9CF; color: #180A02; border-color: #E0D9CF; }
+
+.hub-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.hub-chip {
+  padding: 8px 14px; border-radius: 999px; border: 1px solid #5C3D2E; background: transparent;
+  color: #E0D9CF; font-size: 0.88rem; cursor: pointer; min-height: 38px;
+}
+.hub-chip.on { background: #E0D9CF; color: #180A02; border-color: #E0D9CF; font-weight: 600; }
+.hub-chip:disabled { opacity: 0.35; cursor: default; }
+.hub-people { margin-top: 10px; }
+.hub-people summary { cursor: pointer; color: rgba(224, 217, 207, 0.8); font-size: 0.9rem; margin-bottom: 10px; }
+
+.hub-text {
+  width: 100%; box-sizing: border-box; border-radius: 12px; border: 1px solid #5C3D2E;
+  background: #180A02; color: #E0D9CF; padding: 12px; font: inherit; font-size: 1rem; resize: vertical;
+}
+
+.hub-btn {
+  display: inline-block; margin-top: 14px; padding: 12px 22px; border-radius: 999px; border: 1px solid #E0D9CF;
+  background: #E0D9CF; color: #180A02; font-weight: 700; font-size: 0.95rem; cursor: pointer; text-decoration: none;
+}
+.hub-btn.ghost { background: transparent; color: #E0D9CF; }
+.hub-btn:disabled { opacity: 0.4; cursor: default; }
+.hub-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.hub-preview { margin-top: 16px; padding-top: 4px; border-top: 1px dashed #5C3D2E; }
+.hub-names { margin: 0; line-height: 1.5; }
+.hub-bubble {
+  margin-top: 10px; padding: 12px 14px; border-radius: 16px 16px 16px 4px; background: #3A2516;
+  line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+}
+.hub-note { margin: 12px 0 0; color: #9FD8A8; font-weight: 600; }
+.hub-note.bad { color: #ff8a70; }
+
+.hub-log, .hub-team { list-style: none; padding: 0; margin: 0; }
+.hub-log-top { display: flex; justify-content: space-between; gap: 10px; font-size: 0.8rem; color: rgba(224, 217, 207, 0.7); }
+.hub-log-to { margin-top: 10px; font-size: 0.88rem; line-height: 1.45; }
+.hub-status { margin-top: 6px; font-size: 0.85rem; color: #9FD8A8; }
+.hub-status.bad { color: #ff8a70; }
+.hub-fail { margin-top: 6px; font-size: 0.82rem; color: #ff8a70; }
+.hub-fail summary { cursor: pointer; }
+
+.hub-person { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.hub-person-name { font-weight: 600; }
+.hub-person-right { text-align: right; flex-shrink: 0; }
+.hub-tag { font-size: 0.75rem; padding: 3px 10px; border-radius: 999px; border: 1px solid #5C3D2E; color: rgba(224, 217, 207, 0.7); }
+.hub-tag.ok { border-color: #4E7A55; color: #9FD8A8; }
+
+.hub-tools { display: grid; gap: 0; }
+.hub-tool { display: flex; align-items: center; gap: 14px; color: #E0D9CF; text-decoration: none; }
+.hub-tool.soon { opacity: 0.55; }
+.hub-tool-icon { font-size: 1.6rem; }
+
+@media (max-width: 600px) {
+  .hub.page-content { padding-left: 16px; padding-right: 16px; }
+  .hub-card { padding: 14px; }
+  .hub-tabs { top: 64px; }
+}
