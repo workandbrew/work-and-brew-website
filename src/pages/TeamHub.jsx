@@ -230,7 +230,11 @@ function Stats({ data }) {
 function Analytics({ data }) {
   const daily = data.daily || [];
   const bySender = new Map();
-  for (const b of data.log) bySender.set(fromLabel(b.from), (bySender.get(fromLabel(b.from)) || 0) + b.sent);
+  const since = daily[0]?.date || ""; // same 30-day window as the chart and the meter
+  for (const b of data.log) {
+    if (b.at.slice(0, 10) < since) continue;
+    bySender.set(fromLabel(b.from), (bySender.get(fromLabel(b.from)) || 0) + b.sent);
+  }
   const senders = [...bySender].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 6);
   const byChapter = data.chapters
     .map((c) => ({ label: c, value: data.team.filter((p) => p.chapters.includes(c)).length }))
