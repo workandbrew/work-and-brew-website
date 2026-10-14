@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./TeamHubCharts.css";
 
 // Dependency-free SVG/HTML charts for the Team Hub (desktop).
 // One series per chart in the brand's dark brown; hairline grid; hover + keyboard-focus tooltips;
@@ -117,7 +118,7 @@ export function DailyBars({ daily }) {
 }
 
 // Ranked list with progress-style bars (e.g. texts per sender, people per chapter).
-export function RankBars({ rows, unit, avatars = false }) {
+export function RankBars({ rows, unit, avatars = false, share = true, suffix = "" }) {
   const [hover, setHover] = useState(null);
   if (!rows.length) return <p className="hc-empty">Nothing to show yet.</p>;
   const max = Math.max(...rows.map((r) => r.value), 1);
@@ -133,7 +134,7 @@ export function RankBars({ rows, unit, avatars = false }) {
             <div className="hc-rank-body">
               <div className="hc-rank-top">
                 <span className="hc-rank-label">{r.label}</span>
-                <span className="hc-rank-val">{r.value}<span className="hc-rank-pct"> · {Math.round((r.value / (total || 1)) * 100)}%</span></span>
+                <span className="hc-rank-val">{r.value}<span className="hc-rank-pct">{share ? ` · ${Math.round((r.value / (total || 1)) * 100)}%` : suffix ? ` ${suffix}` : ""}</span></span>
               </div>
               <span className="hc-rank-track"><span className="hc-rank-bar" style={{ width: `${(r.value / max) * 100}%` }} /></span>
             </div>
@@ -151,8 +152,8 @@ export function DeliveryMeter({ sent, failed }) {
   const pct = total ? Math.round((sent / total) * 1000) / 10 : null;
   return (
     <div className="hc-meter">
-      <div className="hc-meter-value">{pct == null ? "—" : `${pct}%`}</div>
-      <div className="hc-meter-sub">{total ? "of texts reached the carrier" : "No texts in the last 30 days"}</div>
+      <div className="hc-meter-value">{total ? <>{sent}<span className="hc-meter-of"> of {total}</span></> : "—"}</div>
+      <div className="hc-meter-sub">{total ? "texts delivered" : "No texts in the last 30 days"}</div>
       <div className="hc-meter-track" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct ?? 0} aria-label="Delivery rate">
         <div className="hc-meter-fill" style={{ width: `${pct ?? 0}%` }} />
       </div>

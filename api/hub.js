@@ -4,14 +4,47 @@
 // (Den, David, Armando, Sayraliz). The browser sends its Supabase login token:
 //   Authorization: Bearer <supabase access token>
 //
-//   GET                                       → { me, team, chapters, log }
-//   POST { action: "preview", to, message }   → who would get it + the exact text (sends nothing)
-//   POST { action: "send",    to, message }   → sends, logged with the sender's name
+//   GET                                         → { me, team, chapters, groups, log, templates, signups, cafes, ... }
+//   POST { action: "preview", to, message }     → who would get it + the exact text (sends nothing)
+//   POST { action: "send",    to, message }     → sends, logged with the sender's name
+//   POST { action: "template-save", name, body } → saves a reusable message
+//   POST { action: "template-delete", id }       → removes one
 //
 // Sending goes through the same deliver() as Gwen, so the same rules apply: only active,
 // opted-in team members, STOP line always added, max 25 recipients per send.
 
-import { readBody, db, loadScouts, publicScout, deliver } from "./_lib/sms.js";
+import { readBody, db, loadScouts, publicScout, deliver, GROUP_LABELS, MAX_MESSAGE_CHARS } from "./_lib/sms.js";
+
+// Starter templates shown until the team saves its own (the sms_templates table may not exist yet).
+const DEFAULT_TEMPLATES = [
+  { id: "default-monday", name: "Monday assignments", body: "Hi {first name}! Your cafés for this week are up on the scout map. Due Friday. Thanks for all the great finds!" },
+  { id: "default-checkin", name: "Mid-week check-in", body: "Hi {first name}, quick check-in: how are your café visits going this week? Reply if you need help." },
+  { id: "default-friday", name: "Due today + shoutout", body: "Hi {first name}! Café visits are due today. Shoutout to everyone who logged visits this week!" },
+  { id: "default-welcome", name: "Welcome new scout", body: "Welcome to Work & Brew, {first name}! Your first café is on the scout map. We're glad you're here." },
+];
+
+// Optional tables: if one isn't set up yet, the hub still loads and shows an empty state.
+async function optional(query, fallback) {
+  try { const { data, error } = await query; return error ? fallback : data ?? fallback; } catch { return fallback; }
+}
+
+async function extras() {
+  const since = new Date(Date.now() - 30 * 864e5).toISOString();
+  const [templates, signups, cafes] = await Promise.all([
+    optional(db().from("sms_templates").select("id, name, body, created_by").order("created_at"), null),
+    optional(db().from("signup_requests").select("status, created_at").gte("created_at", since), null),
+    optional(db().from("cafes").select("status"), null),
+  ]);
+  const pending = await optional(
+    db().from("signup_requests").select("id", { count: "exact", head: true }).eq("status", "pending").then((r) => ({ data: r.count, error: r.error })), 0);
+  const cafeCounts = cafes ? cafes.reduce((m, c) => ((m[c.status || "Unvisited"] = (m[c.status || "Unvisited"] || 0) + 1), m), {}) : null;
+  return {
+    templates: templates && templates.length ? templates : DEFAULT_TEMPLATES,
+    templatesSaved: !!templates,
+    signups: signups ? { last30: signups.length, approved30: signups.filter((r) => r.status === "approved").length, pending } : null,
+    cafes: cafeCounts,
+  };
+}
 
 async function hubUser(req) {
   const header = req.headers?.authorization || "";
@@ -90,15 +123,32 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const [scouts, { log, daily, prevSent30 }] = await Promise.all([loadScouts(), recentLog()]);
+      const [scouts, { log, daily, prevSent30 }, more] = await Promise.all([loadScouts(), recentLog(), extras()]);
       const team = scouts.map((s) => ({ ...publicScout(s), optedOut: !!s.opted_out_at, optedIn: !!s.sms_opt_in }));
       const chapters = [...new Set(team.flatMap((s) => s.chapters))].sort();
+      const groups = Object.entries(GROUP_LABELS)
+        .map(([key, label]) => ({ key, label, count: team.filter((p) => p.group === key).length }))
+        .filter((g) => g.count);
       const sent30 = daily.reduce((n, d) => n + d.sent, 0);
       const failed30 = daily.reduce((n, d) => n + d.failed, 0);
-      return res.status(200).json({ ok: true, me, ...welcome(), team, chapters, log, daily, stats: { sent30, failed30, prevSent30 } });
+      return res.status(200).json({ ok: true, me, ...welcome(), team, chapters, groups, log, daily, stats: { sent30, failed30, prevSent30 }, ...more });
     }
 
-    const { action, to, message } = readBody(req);
+    const { action, to, message, name, body, id } = readBody(req);
+    if (action === "template-save") {
+      const n = String(name || "").trim().slice(0, 60);
+      const b = String(body || "").trim();
+      if (!n || !b) return res.status(400).json({ ok: false, error: "A template needs a name and a message." });
+      if (b.length > MAX_MESSAGE_CHARS) return res.status(400).json({ ok: false, error: `Keep it under ${MAX_MESSAGE_CHARS} characters.` });
+      const { error } = await db().from("sms_templates").insert({ name: n, body: b, created_by: me.name || me.email });
+      if (error) return res.status(500).json({ ok: false, error: `Couldn't save (${error.message}). Has supabase/sms.sql been run?` });
+      return res.status(200).json({ ok: true });
+    }
+    if (action === "template-delete") {
+      const { error } = await db().from("sms_templates").delete().eq("id", String(id || ""));
+      if (error) return res.status(500).json({ ok: false, error: error.message });
+      return res.status(200).json({ ok: true });
+    }
     if (!["preview", "send"].includes(action)) {
       return res.status(400).json({ ok: false, error: 'action must be "preview" or "send"' });
     }

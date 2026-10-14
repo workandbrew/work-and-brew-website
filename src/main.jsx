@@ -51,7 +51,7 @@ function AppRoutes() {
         <Route path="/sms-privacy" element={<SmsPrivacy />} />
         <Route path="/sms-terms" element={<SmsTerms />} />
         <Route path="/event" element={<Event />} />
-        <Route path="/team" element={<TeamHub />} />
+        <Route path="/team/:section?" element={<TeamHub />} />
         {/* Hidden scout portal — not linked anywhere in the UI */}
         <Route path="/ops/:key" element={<ScoutPortal />} />
         <Route path="*" element={<NotFound />} />

@@ -80,7 +80,23 @@ export function last4(phone) {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Which scouts one `to` entry refers to. Order matters: id → phone → "all" → chapter → name.
+// Team groups come from each person's role: "Scout Lead", "Co-Founder", "B2B Manager" → leads;
+// anything with "creator" → creators; everyone else → café scouts.
+export function teamGroup(s) {
+  const role = String(s.role || "").toLowerCase();
+  if (role.includes("creator")) return "creators";
+  if (/(lead|founder|manager|head|director|captain)/.test(role)) return "leads";
+  return "scouts";
+}
+export const GROUP_LABELS = { leads: "Leads", scouts: "Café scouts", creators: "Content creators" };
+
+// "{first name}" in a message becomes each person's first name.
+export function personalize(body, s) {
+  const first = String(s?.name || "").trim().split(/\s+/)[0] || "there";
+  return String(body).replace(/\{\s*first\s*name\s*\}/gi, first);
+}
+
+// Which scouts one `to` entry refers to. Order matters: id → phone → "all" → group → chapter → name.
 function matchEntry(entry, scouts) {
   const q = String(entry || "").trim();
   if (!q) return [];
@@ -91,6 +107,7 @@ function matchEntry(entry, scouts) {
   }
   const lower = q.toLowerCase();
   if (lower === "all" || lower === "everyone") return scouts;
+  if (lower.startsWith("group:")) return scouts.filter((s) => teamGroup(s) === lower.slice(6));
   const chapters = (s) => (s.chapters || []).map((c) => c.toLowerCase());
   // exact chapter ("Bronx", "Manhattan-UWS"), then chapter prefix ("Manhattan" → every Manhattan chapter)
   let hits = scouts.filter((s) => chapters(s).includes(lower));
@@ -131,6 +148,7 @@ export function publicScout(s) {
     id: s.id,
     name: s.name,
     role: s.role,
+    group: teamGroup(s),
     chapters: s.chapters || [],
     phoneLast4: last4(s.phone),
     canText: canText(s),
@@ -222,18 +240,20 @@ export async function deliver({ to, message, dryRun, sentBy }) {
     return { status: 400, json: { ok: false, error: `Too many recipients (${recipients.length}); max is ${MAX_RECIPIENTS}` } };
   }
 
-  const body = withStopLine(text);
-  if (dryRun) return { status: 200, json: { ok: true, dryRun: true, body, recipients: recipients.map(publicScout), skipped } };
+  const template = withStopLine(text);
+  const body = personalize(template, recipients[0]); // what the first person will see
+  if (dryRun) return { status: 200, json: { ok: true, dryRun: true, body, template, recipients: recipients.map(publicScout), skipped } };
 
   const batch_id = randomUUID(); // groups one send to many people in the log
   const results = [];
   for (const s of recipients) {
     let r;
-    try { r = await twilioSend(s.phone, body); } catch (e) { r = { ok: false, error: e.message }; }
+    const personal = personalize(template, s);
+    try { r = await twilioSend(s.phone, personal); } catch (e) { r = { ok: false, error: e.message }; }
     results.push({ id: s.id, name: s.name, ok: r.ok, sid: r.sid, error: r.error });
     try {
       await logMessage({
-        batch_id, scout_id: s.id, to_phone: s.phone, body, twilio_sid: r.sid || null,
+        batch_id, scout_id: s.id, to_phone: s.phone, body: personal, twilio_sid: r.sid || null,
         status: r.ok ? r.status || "queued" : "failed", error: r.ok ? null : r.error,
         sent_by: String(sentBy || "api").slice(0, 80),
       });
@@ -243,5 +263,5 @@ export async function deliver({ to, message, dryRun, sentBy }) {
     } catch { /* the log is best-effort; never block a send on it */ }
   }
   const sent = results.filter((r) => r.ok).length;
-  return { status: sent ? 200 : 502, json: { ok: sent === results.length, sent, failed: results.length - sent, body, results, skipped } };
+  return { status: sent ? 200 : 502, json: { ok: sent === results.length, sent, failed: results.length - sent, body, template, results, skipped } };
 }
