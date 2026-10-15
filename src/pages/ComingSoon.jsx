@@ -157,7 +157,7 @@ export default function ComingSoon({ children }) {
         lineHeight: 1.7,
         fontFamily: "'Pangolin', Georgia, sans-serif",
       }}>
-        Designed, researched and backed by real native first generation latino New Yorkers : for productivity and exploration in support of independent/small business owners
+        Created, researched and backed by real native first gen latino New Yorkers: for productivity and exploration in support of New York City cafes
       </p>
 
       {/* Countdown */}

@@ -75,9 +75,9 @@ export default function Navbar() {
           ) : (
             <button
               className="navbar-cta"
-              onClick={() => { navigate("/signup"); close(); }}
+              onClick={() => { navigate("/login"); close(); }}
             >
-              Sign Up
+              Team Member Login
             </button>
           )}
         </div>
