@@ -12,10 +12,10 @@
   justify-content: space-between;
   padding: 0 2rem;
   height: 80px;
-  background: rgba(24, 10, 2, 0.96);
-  backdrop-filter: blur(12px);
-  border-bottom: 3px solid #372414;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+  background: rgba(245, 240, 232, 0.97);
+  backdrop-filter: blur(14px);
+  border-bottom: 1.5px solid #D9CFC3;
+  box-shadow: 0 2px 12px rgba(27, 58, 107, 0.08);
   box-sizing: border-box;
 }
 
@@ -51,9 +51,9 @@
 }
 
 .navbar-links a {
-  color: #E0D9CF;
+  color: #1A0E06;
   text-decoration: none;
-  white-space: nowrap; /* Prevents text from breaking onto two lines */
+  white-space: nowrap;
   transition: color 0.2s ease;
   line-height: 1;
 }
@@ -61,7 +61,7 @@
 .navbar-links a:hover,
 .navbar-links a:active,
 .navbar-links a.active {
-  color: #372414;
+  color: #1B3A6B;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -76,27 +76,27 @@
 
 .navbar-login,
 .navbar-cta {
-  background: #2C1A0E;
-  color: #E0D9CF;
-  border: 1.5px solid #372414;
+  background: #1B3A6B;
+  color: #FFFFFF;
+  border: none;
   padding: 0.45rem 1.3rem;
   border-radius: 999px;
   font-size: 0.88rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
   white-space: nowrap;
-  transition: border-color 0.3s, box-shadow 0.3s, color 0.3s, transform 0.15s;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
   outline: none;
   user-select: none;
-  box-shadow: 0 0 14px rgba(224, 217, 207, 0.1);
+  box-shadow: 0 2px 10px rgba(27, 58, 107, 0.22);
 }
 
 .navbar-login:hover,
 .navbar-cta:hover {
-  border-color: #E0D9CF;
-  box-shadow: 0 0 20px rgba(55, 36, 20, 0.35), 0 0 6px rgba(55, 36, 20, 0.2);
+  background: #254E8F;
+  box-shadow: 0 4px 18px rgba(27, 58, 107, 0.32);
   transform: translateY(-1px);
 }
 
@@ -109,9 +109,9 @@
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: #2C1A0E;
-  color: #E0D9CF;
-  border: 2px solid #5C3D2E;
+  background: #1B3A6B;
+  color: #FFFFFF;
+  border: 2px solid #254E8F;
   font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
@@ -123,7 +123,7 @@
 }
 
 .navbar-user:hover {
-  background: #5C3D2E;
+  background: #254E8F;
   transform: scale(1.05);
 }
 
@@ -150,7 +150,7 @@
   display: block;
   width: 22px;
   height: 2px;
-  background: #E0D9CF;
+  background: #1A0E06;
   border-radius: 2px;
   transition: transform 0.25s ease, opacity 0.25s ease;
   transform-origin: center;
@@ -171,17 +171,17 @@
    MOBILE DRAWER (HIDDEN ON DESKTOP BY DEFAULT)
 ════════════════════════════════════════════════════════════ */
 .navbar-mobile-menu {
-  display: none !important; /* Prevents duplicate rendering on desktop */
+  display: none !important;
   flex-direction: column;
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  background: #2C1A0E;
-  border-bottom: 1px solid #372414;
+  background: #F5F0E8;
+  border-bottom: 1.5px solid #D9CFC3;
   padding: 0.5rem 1.5rem 1.5rem;
   z-index: 999;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 12px 32px rgba(27, 58, 107, 0.12);
 }
 
 .navbar-mobile-menu a {
@@ -189,14 +189,14 @@
   padding: 0.85rem 0;
   font-size: 1rem;
   font-weight: 700;
-  color: #E0D9CF;
+  color: #1A0E06;
   text-decoration: none;
   font-family: 'AppleGaramond', Georgia, serif;
-  border-bottom: 1px solid #2C1A0E;
+  border-bottom: 1px solid #E8E0D4;
 }
 
 .navbar-mobile-menu a:hover {
-  color: #E0D9CF;
+  color: #1B3A6B;
 }
 
 .navbar-mobile-auth {
@@ -208,22 +208,22 @@
 .navbar-mobile-auth button {
   flex: 1;
   padding: 0.7rem 1rem;
-  background: #2C1A0E;
-  color: #E0D9CF;
-  border: 1.5px solid #372414;
+  background: #1B3A6B;
+  color: #FFFFFF;
+  border: none;
   border-radius: 999px;
   font-size: 0.88rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: border-color 0.3s, box-shadow 0.3s, transform 0.15s;
-  box-shadow: 0 0 14px rgba(224, 217, 207, 0.1);
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+  box-shadow: 0 2px 10px rgba(27, 58, 107, 0.22);
 }
 
 .navbar-mobile-auth button:hover {
-  border-color: #E0D9CF;
-  box-shadow: 0 0 20px rgba(55, 36, 20, 0.35);
+  background: #254E8F;
+  box-shadow: 0 4px 18px rgba(27, 58, 107, 0.32);
   transform: translateY(-1px);
 }
 

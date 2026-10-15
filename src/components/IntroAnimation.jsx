@@ -125,8 +125,8 @@ export default function IntroAnimation({ onDone }) {
 
         if (fillRaw < 1) {
           // ─── PHASE 1: FILL ───────────────────────────────────────────────
-          // Solid espresso background fills entire screen — no dark "sky" above
-          ctx.fillStyle = "#180A02";
+          // Eggshell / warm-white background — espresso liquid rises into it
+          ctx.fillStyle = "#F5F0E8";
           ctx.fillRect(0, 0, W, H);
 
           // Liquid body — richer brown rising from bottom

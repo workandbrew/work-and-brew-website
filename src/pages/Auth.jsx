@@ -40,7 +40,7 @@ export default function Auth() {
   };
 
   return (
-    <div className="page-shell">
+    <div className="page-shell page-shell--light">
       <Navbar />
       <div className="page-content page-content--centered">
         <h1 className="page-title auth-hero">Welcome back ☕</h1>
@@ -55,7 +55,7 @@ export default function Auth() {
             <div style={{ textAlign: "center", padding: "1rem 0" }}>
               <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📬</p>
               <p style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Check your email</p>
-              <p style={{ fontSize: "0.9rem", color: "rgba(224,217,207,0.75)", lineHeight: 1.6 }}>
+              <p style={{ fontSize: "0.9rem", color: "#7A5540", lineHeight: 1.6 }}>
                 A password reset link was sent to <strong>{email}</strong>.
               </p>
               <button
