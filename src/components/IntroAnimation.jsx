@@ -87,10 +87,11 @@ export default function IntroAnimation({ onDone }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    const T_HOLD  = 400;  // brief eggshell pause before coffee rises
     const T_FILL  = 2800;
     const T_CITY  = 1200;
     const T_TITLE = 3000;
-    const T_TOTAL = T_FILL + T_CITY + T_TITLE;
+    const T_TOTAL = T_HOLD + T_FILL + T_CITY + T_TITLE;
 
     let startTs = null;
     let w1 = 0, w2 = 0;
@@ -117,7 +118,16 @@ export default function IntroAnimation({ onDone }) {
         w1 += 0.016; w2 += 0.011;
         ctx.clearRect(0, 0, W, H);
 
-        const fillRaw = Math.min(elapsed / T_FILL, 1);
+        // During the hold phase, just show the eggshell canvas
+        if (elapsed < T_HOLD) {
+          ctx.fillStyle = "#F2ECE3";
+          ctx.fillRect(0, 0, W, H);
+          animRef.current = requestAnimationFrame(frame);
+          return;
+        }
+
+        const fillElapsed = elapsed - T_HOLD;
+        const fillRaw = Math.min(fillElapsed / T_FILL, 1);
         const fillT   = ease(fillRaw);
         // liqY goes from H (bottom) down to -H*0.15 (slightly past top) so the
         // wave surface completely exits the top edge before the fill phase ends.
@@ -126,7 +136,7 @@ export default function IntroAnimation({ onDone }) {
         if (fillRaw < 1) {
           // ─── PHASE 1: FILL ───────────────────────────────────────────────
           // Eggshell / warm-white background — espresso liquid rises into it
-          ctx.fillStyle = "#F5F0E8";
+          ctx.fillStyle = "#F2ECE3";
           ctx.fillRect(0, 0, W, H);
 
           // Liquid body — richer brown rising from bottom
@@ -166,7 +176,7 @@ export default function IntroAnimation({ onDone }) {
           ctx.fillStyle = "#180A02";
           ctx.fillRect(0, 0, W, H);
 
-          const cityElapsed = elapsed - T_FILL;
+          const cityElapsed = fillElapsed - T_FILL;
           const cityP = Math.min(cityElapsed / T_CITY, 1);
           const cityA = easeOut(cityP);
 
@@ -297,6 +307,7 @@ export default function IntroAnimation({ onDone }) {
       opacity:       fading ? 0 : 1,
       transition:    fading ? "opacity 1s ease" : "none",
       pointerEvents: fading ? "none" : "all",
+      background:    "#F2ECE3",  // matches canvas phase-1 so there's zero flash
     }}>
       <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%" }} />
     </div>
