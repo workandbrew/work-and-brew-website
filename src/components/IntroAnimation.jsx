@@ -76,6 +76,11 @@ export default function IntroAnimation({ onDone }) {
   const doneRef    = useRef(false); // guard so onDone fires exactly once
   const [fading, setFading] = useState(false);
 
+  // Pre-load BrightDEMO so the canvas can use it
+  useEffect(() => {
+    document.fonts.load(`60px 'BrightDEMO'`).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -218,7 +223,7 @@ export default function IntroAnimation({ onDone }) {
             ctx.textAlign   = "center";
             ctx.shadowColor = "rgba(180,100,40,0.35)";
             ctx.shadowBlur  = 10;
-            ctx.font        = `800 ${tSize}px 'Yeseva One', Georgia, serif`;
+            ctx.font        = `normal ${tSize}px 'BrightDEMO', 'Yeseva One', Georgia, serif`;
             ctx.fillStyle   = "#E8E0D4";
             ctx.fillText("Work & Brew", W / 2, tY);
             ctx.restore();

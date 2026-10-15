@@ -1,5 +1,34 @@
 /* Brand Fonts */
 @font-face {
+  font-family: 'Pangolin';
+  src: url('/fonts/Pangolin-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'AveriaSerifLibre';
+  src: url('/fonts/AveriaSerifLibre-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Wizanes';
+  src: url('/fonts/wizanes.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'BrightDEMO';
+  src: url('/fonts/BrightDEMO.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+
+@font-face {
   font-family: 'Lorida';
   src: url('/fonts/Lorida-KVegA.ttf') format('truetype');
   font-weight: normal;

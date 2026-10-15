@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import IntroAnimation from "../components/IntroAnimation";
 
-const LAUNCH_DATE = new Date("2026-10-12T18:00:00-04:00");
+const LAUNCH_DATE = new Date("2026-10-18T15:00:00-04:00");
 
 const BYPASS_PATHS = ["/login", "/privacy", "/terms", "/sms-privacy", "/sms-terms"];
 
@@ -124,13 +124,13 @@ export default function ComingSoon({ children }) {
       {/* Eyebrow */}
       <p style={{
         color: C.orange,
-        fontSize: "0.72rem",
-        fontWeight: 700,
-        letterSpacing: "0.2em",
-        textTransform: "uppercase",
+        fontSize: "0.85rem",
+        fontWeight: 400,
+        letterSpacing: "0.06em",
+        fontFamily: "'Wizanes', Georgia, serif",
         marginBottom: "10px",
       }}>
-        Launching October 12, 2026 · 6 PM EST
+        Launching October 18, 2026 : 3 PM EST
       </p>
 
       {/* Title */}
@@ -150,14 +150,14 @@ export default function ComingSoon({ children }) {
       {/* Tagline */}
       <p style={{
         color: C.mutedBrown,
-        fontSize: "clamp(0.85rem, 2vw, 1rem)",
+        fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
         textAlign: "center",
         marginBottom: "40px",
-        maxWidth: "400px",
-        lineHeight: 1.65,
+        maxWidth: "420px",
+        lineHeight: 1.7,
+        fontFamily: "'Pangolin', Georgia, sans-serif",
       }}>
-        A tool designed and backed by real New Yorkers, for New Yorkers —
-        for productivity with the help of caffeine and cafés.
+        A tool designed and backed by real New Yorkers, for New Yorkers : for productivity with the help of caffeine and cafés.
       </p>
 
       {/* Countdown */}
