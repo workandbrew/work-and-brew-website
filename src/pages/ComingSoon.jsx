@@ -150,14 +150,14 @@ export default function ComingSoon({ children }) {
       {/* Tagline */}
       <p style={{
         color: C.mutedBrown,
-        fontSize: "clamp(0.9rem, 2vw, 1.05rem)",
+        fontSize: "clamp(0.88rem, 2vw, 1rem)",
         textAlign: "center",
         marginBottom: "40px",
-        maxWidth: "420px",
+        maxWidth: "480px",
         lineHeight: 1.7,
         fontFamily: "'Pangolin', Georgia, sans-serif",
       }}>
-        A tool designed and backed by real New Yorkers, for New Yorkers : for productivity with the help of caffeine and cafés.
+        Designed, researched and backed by real native first generation latino New Yorkers : for productivity and exploration in support of independent/small business owners
       </p>
 
       {/* Countdown */}
@@ -201,23 +201,21 @@ export default function ComingSoon({ children }) {
         ))}
       </div>
 
-      {/* Divider */}
-      <div style={{
-        width: "40px", height: "2px",
-        background: C.orange, borderRadius: "2px",
-        marginBottom: "28px", opacity: 0.7,
-      }} />
-
       {/* Email sign-up */}
       <div style={{
         display: "flex", flexDirection: "column", alignItems: "center",
-        gap: "8px", width: "100%", maxWidth: "340px",
+        gap: "8px", width: "100%", maxWidth: "380px",
       }}>
         <p style={{
-          color: C.mutedBrown, fontSize: "0.76rem",
-          margin: "0 0 4px", letterSpacing: "0.04em", textAlign: "center",
+          color: C.midBrown,
+          fontSize: "clamp(0.88rem, 2.5vw, 1rem)",
+          fontWeight: 600,
+          margin: "0 0 6px",
+          letterSpacing: "0.01em",
+          textAlign: "center",
+          whiteSpace: "nowrap",
         }}>
-          Be first to know — website launch &amp; app updates
+          Join the community and be the first to know when we go live
         </p>
 
         {submitted ? (
@@ -284,17 +282,19 @@ export default function ComingSoon({ children }) {
           style={{
             background: "transparent",
             border: "none",
-            color: C.border,
-            fontSize: "0.75rem",
+            color: C.mutedBrown,
+            fontSize: "0.78rem",
             cursor: "pointer",
             letterSpacing: "0.04em",
             padding: "4px",
             marginTop: "6px",
             fontFamily: "inherit",
+            textDecoration: "underline",
+            textUnderlineOffset: "3px",
             transition: "color 0.15s",
           }}
-          onMouseOver={(e) => e.target.style.color = C.mutedBrown}
-          onMouseOut={(e) => e.target.style.color = C.border}
+          onMouseOver={(e) => e.target.style.color = C.midBrown}
+          onMouseOut={(e) => e.target.style.color = C.mutedBrown}
         >
           Team member? Log in
         </button>

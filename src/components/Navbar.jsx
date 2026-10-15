@@ -1,14 +1,18 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./Navbar.css";
 
 export default function Navbar() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const { user }  = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const close = () => setMenuOpen(false);
+
+  // On the login page, only show the Sign Up button — no page links
+  const isLoginPage = location.pathname === "/login";
 
   return (
     <nav className="navbar">
@@ -16,13 +20,14 @@ export default function Navbar() {
         <img src="/logo.png" alt="Work & Brew" className="navbar-logo-img" />
       </Link>
 
-      <div className="navbar-links">
-        <Link to="/">Find Cafés ☕</Link>
-        <Link to="/about">Our Story</Link>
-        <Link to="/for-owners">Business Inquiries</Link>
-        {/* members only — shows up once you're signed in */}
-        {user && <Link to="/dashboard">My Cafés</Link>}
-      </div>
+      {!isLoginPage && (
+        <div className="navbar-links">
+          <Link to="/">Find Cafés ☕</Link>
+          <Link to="/about">Our Story</Link>
+          <Link to="/for-owners">Business Inquiries</Link>
+          {user && <Link to="/dashboard">My Cafés</Link>}
+        </div>
+      )}
 
       <div className="navbar-buttons">
         {user ? (
@@ -53,16 +58,18 @@ export default function Navbar() {
 
       {/* Mobile drawer — always in DOM, toggled via is-open class */}
       <div className={`navbar-mobile-menu${menuOpen ? " is-open" : ""}`}>
-        <Link to="/" onClick={close}>Find Cafés ☕</Link>
-        <Link to="/about" onClick={close}>Our Story</Link>
-        <Link to="/for-owners" onClick={close}>Business Inquiries</Link>
-        {user && <Link to="/dashboard" onClick={close}>My Cafés</Link>}
+        {!isLoginPage && (
+          <>
+            <Link to="/" onClick={close}>Find Cafés ☕</Link>
+            <Link to="/about" onClick={close}>Our Story</Link>
+            <Link to="/for-owners" onClick={close}>Business Inquiries</Link>
+            {user && <Link to="/dashboard" onClick={close}>My Cafés</Link>}
+          </>
+        )}
 
         <div className="navbar-mobile-auth">
           {user ? (
-            <button
-              onClick={() => { navigate("/settings"); close(); }}
-            >
+            <button onClick={() => { navigate("/settings"); close(); }}>
               Account Settings
             </button>
           ) : (

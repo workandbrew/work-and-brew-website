@@ -76,9 +76,9 @@ export default function IntroAnimation({ onDone }) {
   const doneRef    = useRef(false); // guard so onDone fires exactly once
   const [fading, setFading] = useState(false);
 
-  // Pre-load BrightDEMO so the canvas can use it
+  // Pre-load AppleGaramond so the canvas can use it
   useEffect(() => {
-    document.fonts.load(`60px 'BrightDEMO'`).catch(() => {});
+    document.fonts.load(`bold 60px 'AppleGaramond'`).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -214,7 +214,8 @@ export default function IntroAnimation({ onDone }) {
           const titleA = cityP >= 1 ? easeOut(Math.min(titleElapsed / 450, 1)) : 0;
 
           if (titleA > 0) {
-            const tSize = Math.round(Math.min(W * 0.082, 96));
+            // Bigger on mobile — use a higher % of width on small screens
+            const tSize = Math.round(W < 500 ? W * 0.13 : Math.min(W * 0.082, 96));
             const tY    = H * 0.40;
 
             // ── Main title — subtle glow only, no hard shadow spread
@@ -223,7 +224,7 @@ export default function IntroAnimation({ onDone }) {
             ctx.textAlign   = "center";
             ctx.shadowColor = "rgba(180,100,40,0.35)";
             ctx.shadowBlur  = 10;
-            ctx.font        = `normal ${tSize}px 'BrightDEMO', 'Yeseva One', Georgia, serif`;
+            ctx.font        = `bold ${tSize}px 'AppleGaramond', Georgia, serif`;
             ctx.fillStyle   = "#E8E0D4";
             ctx.fillText("Work & Brew", W / 2, tY);
             ctx.restore();
@@ -236,7 +237,7 @@ export default function IntroAnimation({ onDone }) {
               ctx.textAlign   = "center";
               ctx.shadowColor = "rgba(180,100,40,0.2)";
               ctx.shadowBlur  = 5;
-              ctx.font        = `500 ${Math.round(Math.min(W * 0.020, 22))}px Inter, sans-serif`;
+              ctx.font        = `500 ${Math.round(W < 500 ? W * 0.030 : Math.min(W * 0.020, 22))}px Inter, sans-serif`;
               ctx.fillStyle   = "rgba(220,210,195,0.65)";
               ctx.fillText("NEW YORK CITY · EST. MARCH 2025", W / 2, tY + tSize * 0.42 + 4);
               ctx.restore();
