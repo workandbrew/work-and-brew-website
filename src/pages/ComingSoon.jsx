@@ -10,13 +10,13 @@ const BYPASS_PATHS = ["/login", "/privacy", "/terms", "/sms-privacy", "/sms-term
 const C = {
   bg:           "#F2ECE3",   // warm off-white / eggshell
   bgCard:       "#EDE5D8",   // slightly deeper cream for cards / boxes
-  border:       "#D4C4A8",   // warm beige border
+  border:       "#C4CDD8",   // blue-tinted border
   darkBrown:    "#1C0A02",   // near-black brown — primary text
   midBrown:     "#3D1F0D",   // secondary text
   mutedBrown:   "#7A4C2E",   // muted / caption text
-  orange:       "#C85A1E",   // burnt autumn orange — primary accent
-  orangeLight:  "#E07840",   // hover / lighter orange
-  orangeFaint:  "rgba(200,90,30,0.12)", // subtle tint
+  orange:       "#1B3A6B",   // dark navy blue — primary accent
+  orangeLight:  "#254E8F",   // hover blue
+  orangeFaint:  "rgba(27,58,107,0.07)", // subtle tint
 };
 
 function getTimeLeft() {
@@ -96,14 +96,16 @@ export default function ComingSoon({ children }) {
   /* ── Wall page (always rendered so the fade-out reveals it) ── */
   const wallPage = (
     <div style={{
-      minHeight: "100vh",
+      minHeight: "100svh",
+      width: "100%",
+      boxSizing: "border-box",
       background: C.bg,
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
       fontFamily: "'Inter', sans-serif",
-      padding: "32px 24px",
+      padding: "32px 16px",
       position: "relative",
       overflow: "hidden",
     }}>
@@ -160,39 +162,40 @@ export default function ComingSoon({ children }) {
         Created, researched and backed by real native first gen latino New Yorkers: for productivity and exploration in support of New York City cafes
       </p>
 
-      {/* Countdown */}
+      {/* Countdown — fixed width per box so numbers never shift layout */}
       <div style={{
-        display: "flex", gap: "12px", marginBottom: "48px",
-        flexWrap: "wrap", justifyContent: "center",
+        display: "flex", gap: "10px", marginBottom: "48px",
+        flexWrap: "nowrap", justifyContent: "center",
       }}>
         {[
-          { label: "Days",    value: time.days },
+          { label: "Days",    value: pad(time.days) },
           { label: "Hours",   value: pad(time.hours) },
           { label: "Minutes", value: pad(time.minutes) },
           { label: "Seconds", value: pad(time.seconds) },
         ].map(({ label, value }) => (
-          <div key={label} style={{ textAlign: "center" }}>
+          <div key={label} style={{ textAlign: "center", width: "72px", flexShrink: 0 }}>
             <div style={{
               background: C.bgCard,
               border: `1.5px solid ${C.border}`,
               borderRadius: "12px",
-              padding: "14px 20px",
-              minWidth: "68px",
+              padding: "12px 0",
+              width: "100%",
               marginBottom: "6px",
-              boxShadow: "0 2px 8px rgba(60,20,5,0.07)",
+              boxShadow: "0 2px 8px rgba(27,58,107,0.08)",
             }}>
               <span style={{
                 color: C.darkBrown,
-                fontSize: "1.9rem",
+                fontSize: "1.8rem",
                 fontWeight: 800,
                 fontVariantNumeric: "tabular-nums",
                 display: "block",
-                fontFamily: "'Playfair Display', Georgia, serif",
+                fontFamily: "'Inter', system-ui, sans-serif",
+                letterSpacing: "-0.02em",
               }}>{value}</span>
             </div>
             <span style={{
               color: C.mutedBrown,
-              fontSize: "0.62rem",
+              fontSize: "0.58rem",
               fontWeight: 700,
               letterSpacing: "0.12em",
               textTransform: "uppercase",
