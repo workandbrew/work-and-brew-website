@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import IntroAnimation from "../components/IntroAnimation";
 
-const LAUNCH_DATE = new Date("2026-10-18T15:00:00-04:00");
+const LAUNCH_DATE = new Date("2026-10-21T15:00:00-04:00");
 
 const BYPASS_PATHS = ["/login", "/privacy", "/terms", "/sms-privacy", "/sms-terms"];
 
@@ -10,13 +10,13 @@ const BYPASS_PATHS = ["/login", "/privacy", "/terms", "/sms-privacy", "/sms-term
 const C = {
   bg:           "#F2ECE3",   // warm off-white / eggshell
   bgCard:       "#EDE5D8",   // slightly deeper cream for cards / boxes
-  border:       "#C4CDD8",   // blue-tinted border
+  border:       "#D9CFC3",   // warm border
   darkBrown:    "#1C0A02",   // near-black brown — primary text
   midBrown:     "#3D1F0D",   // secondary text
   mutedBrown:   "#7A4C2E",   // muted / caption text
-  orange:       "#1B3A6B",   // dark navy blue — primary accent
-  orangeLight:  "#254E8F",   // hover blue
-  orangeFaint:  "rgba(27,58,107,0.07)", // subtle tint
+  orange:       "#000000",   // black — primary accent
+  orangeLight:  "#1A0E06",   // near-black hover
+  orangeFaint:  "rgba(0,0,0,0.07)", // subtle tint
 };
 
 function getTimeLeft() {
@@ -132,7 +132,7 @@ export default function ComingSoon({ children }) {
         fontFamily: "'Wizanes', Georgia, serif",
         marginBottom: "10px",
       }}>
-        Launching October 18, 2026 : 3 PM EST
+        Launching October 21, 2026 : 3 PM EST
       </p>
 
       {/* Title */}
@@ -181,7 +181,7 @@ export default function ComingSoon({ children }) {
               padding: "12px 0",
               width: "100%",
               marginBottom: "6px",
-              boxShadow: "0 2px 8px rgba(27,58,107,0.08)",
+              boxShadow: "0 2px 8px rgba(61,35,20,0.08)",
             }}>
               <span style={{
                 color: C.darkBrown,

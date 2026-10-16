@@ -26,6 +26,7 @@ export default function Navbar() {
           <Link to="/about">Our Story</Link>
           <Link to="/for-owners">Business Inquiries</Link>
           {user && <Link to="/dashboard">My Cafés</Link>}
+          {user && <Link to="/event">Events</Link>}
         </div>
       )}
 
@@ -64,6 +65,7 @@ export default function Navbar() {
             <Link to="/about" onClick={close}>Our Story</Link>
             <Link to="/for-owners" onClick={close}>Business Inquiries</Link>
             {user && <Link to="/dashboard" onClick={close}>My Cafés</Link>}
+            {user && <Link to="/event" onClick={close}>Events</Link>}
           </>
         )}
 

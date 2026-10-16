@@ -97,9 +97,14 @@ export default function IntroAnimation({ onDone }) {
     let w1 = 0, w2 = 0;
 
     function resize() {
-      canvas.width  = window.innerWidth  || 400;
-      canvas.height = window.innerHeight || 700;
-      winsRef.current = buildWindows(canvas.width, canvas.height);
+      const dpr = window.devicePixelRatio || 1;
+      const w   = window.innerWidth  || 400;
+      const h   = window.innerHeight || 700;
+      canvas.width  = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      // Scale all draw calls so coordinates stay in logical pixels
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      winsRef.current = buildWindows(w, h);
     }
     resize();
     window.addEventListener("resize", resize);
@@ -111,8 +116,9 @@ export default function IntroAnimation({ onDone }) {
       try {
         if (!startTs) startTs = ts;
         const elapsed = ts - startTs;
-        const W = canvas.width;
-        const H = canvas.height;
+        const dpr = window.devicePixelRatio || 1;
+        const W = canvas.width  / dpr;
+        const H = canvas.height / dpr;
         const sc = W / 1280;
 
         w1 += 0.016; w2 += 0.011;
@@ -232,10 +238,10 @@ export default function IntroAnimation({ onDone }) {
             ctx.save();
             ctx.globalAlpha = titleA;
             ctx.textAlign   = "center";
-            ctx.shadowColor = "rgba(180,100,40,0.35)";
-            ctx.shadowBlur  = 10;
+            ctx.shadowColor = "rgba(180,100,40,0.2)";
+            ctx.shadowBlur  = 0;
             ctx.font        = `bold ${tSize}px 'AppleGaramond', Georgia, serif`;
-            ctx.fillStyle   = "#E8E0D4";
+            ctx.fillStyle   = "#EDE6DC";
             ctx.fillText("Work & Brew", W / 2, tY);
             ctx.restore();
 
@@ -245,8 +251,8 @@ export default function IntroAnimation({ onDone }) {
               ctx.save();
               ctx.globalAlpha = titleA * tagA;
               ctx.textAlign   = "center";
-              ctx.shadowColor = "rgba(180,100,40,0.2)";
-              ctx.shadowBlur  = 5;
+              ctx.shadowColor = "transparent";
+              ctx.shadowBlur  = 0;
               ctx.font        = `500 ${Math.round(W < 500 ? W * 0.030 : Math.min(W * 0.020, 22))}px Inter, sans-serif`;
               ctx.fillStyle   = "rgba(220,210,195,0.65)";
               ctx.fillText("NEW YORK CITY · EST. MARCH 2025", W / 2, tY + tSize * 0.42 + 4);

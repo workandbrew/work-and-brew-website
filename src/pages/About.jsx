@@ -212,12 +212,12 @@ export default function About() {
 
       {/* About Intro */}
       <div className="about-intro">
-        <h1 className="page-title about-headline">
-          Building Work &amp; Brew, <br />one milestone at a time.
-        </h1>
         <div className="about-hero">
           <div className="about-hero-left">
-            <div className="page-badge">Our Story</div>
+            <div className="page-badge about-badge">Our Story</div>
+            <h1 className="page-title about-headline">
+              Made in New York City,<br />by New Yorkers.
+            </h1>
             <p className="page-body">
               Work & Brew was founded in March 2025 when Denisse (founder), a coding student juggling
               part-time work across NYC at the time, sat down with her best friend Sayraliz at an independently
@@ -231,7 +231,7 @@ export default function About() {
             </p>
           </div>
           <div className="about-hero-right">
-            <img src="/public/about-us-images/cafe-desktop.jpg" alt="NYC Coffee Spot" className="about-img about-img--hero" />
+            <img src="/about-us-images/cafe-desktop.jpg" alt="NYC Coffee Spot" className="about-img about-img--hero" />
           </div>
         </div>
 
@@ -308,6 +308,29 @@ export default function About() {
               </svg>
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Stats Bar */}
+      <div className="about-stats-bar">
+        <div className="about-stat">
+          <span className="about-stat-num">119</span>
+          <span className="about-stat-lbl">Cafés Scouted</span>
+        </div>
+        <div className="about-stat-divider" />
+        <div className="about-stat">
+          <span className="about-stat-num">5</span>
+          <span className="about-stat-lbl">Boroughs Covered</span>
+        </div>
+        <div className="about-stat-divider" />
+        <div className="about-stat">
+          <span className="about-stat-num">10</span>
+          <span className="about-stat-lbl">Team Members</span>
+        </div>
+        <div className="about-stat-divider" />
+        <div className="about-stat">
+          <span className="about-stat-num">2025</span>
+          <span className="about-stat-lbl">Est. New York City</span>
         </div>
       </div>
 
