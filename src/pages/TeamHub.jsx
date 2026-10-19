@@ -11,6 +11,7 @@ import { DailyBars, RankBars, DeliveryMeter, NotConnected, Delta } from "./TeamH
 // what the server returns.
 
 const MAX_CHARS = 480;
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const SCOUT_MAP = "/ops/teambrew26";
 
 const ICONS = {
@@ -32,7 +33,7 @@ const PAGES = [
   { key: "messages", label: "Messages", short: "Messages", sub: "Text one person, a group or the whole team. Every text is logged." },
   { key: "cafes", label: "Cafés", short: "Cafés", sub: "Where every café stands, from the scout map." },
   { key: "analytics", label: "Texting analytics", short: "Analytics", sub: "How the team is using texting · last 30 days" },
-  { key: "growth", label: "Growth & Social", short: "Growth", sub: "Team sign-ups, website, email and social reach." },
+  { key: "growth", label: "Growth & Social", short: "Growth", sub: "Team sign-ups, website, email and social reach across Instagram, TikTok, YouTube and Lemon8." },
 ];
 const pathFor = (key) => (key === "overview" ? "/team" : `/team/${key}`);
 
@@ -86,6 +87,7 @@ function Overview({ data }) {
   const textable = data.team.filter((p) => p.canText).length;
   const visited = data.cafes ? data.cafes["Visit Completed"] || 0 : null;
   const focus = [
+    data.schedules?.some((x) => x.active && x.weekdayName === data.today?.split(",")[0]) ? "A scheduled text goes out this morning" : null,
     data.signups?.pending ? `${data.signups.pending} sign-up${data.signups.pending > 1 ? "s" : ""} waiting for approval` : null,
     failedWeek ? `${failedWeek} text${failedWeek > 1 ? "s" : ""} failed this week: check the log` : null,
     data.cafes?.["In Progress"] ? `${data.cafes["In Progress"]} café visit${data.cafes["In Progress"] > 1 ? "s" : ""} in progress` : null,
@@ -143,10 +145,22 @@ function Overview({ data }) {
         <Card title="Café statuses" sub="From the scout map" className="th-grow">
           {cafeRows.length ? <RankBars rows={cafeRows} unit="Cafés" share={false} suffix="cafés" /> : <p className="th-empty">No café updates yet.</p>}
         </Card>
-        <Card title="Templates" sub="Ready-to-send messages" className="th-grow">
-          <ul className="th-tlist">{data.templates.map((t) => <li key={t.id}>{t.name}</li>)}</ul>
-          <NavLink to="/team/messages" className="th-link">Send one →</NavLink>
-        </Card>
+        {data.schedules?.length ? (
+          <Card title="Scheduled this week" sub="Texts that send themselves" className="th-grow">
+            <ul className="th-scheds">
+              {data.schedules.filter((x) => x.active).map((x) => (
+                <li key={x.id}><span className="th-sched-day">{x.weekdayName.slice(0, 3).toUpperCase()}</span>
+                  <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}</small></div></li>
+              ))}
+            </ul>
+            <NavLink to="/team/messages" className="th-link">Manage →</NavLink>
+          </Card>
+        ) : (
+          <Card title="Templates" sub="Ready-to-send messages" className="th-grow">
+            <ul className="th-tlist">{data.templates.map((t) => <li key={t.id}>{t.name}</li>)}</ul>
+            <NavLink to="/team/messages" className="th-link">Send or schedule one →</NavLink>
+          </Card>
+        )}
       </div>
     </>
   );
@@ -162,6 +176,7 @@ function Compose({ data, onSent }) {
   const [note, setNote] = useState(null);
   const [saving, setSaving] = useState(false);
   const [tplName, setTplName] = useState("");
+  const [when, setWhen] = useState("now"); // "now" or 0-6 (weekday, New York time)
 
   const textable = useMemo(() => data.team.filter((p) => p.canText), [data.team]);
   const everyone = to.includes("all");
@@ -186,6 +201,17 @@ function Compose({ data, onSent }) {
       setPreview(null); setMessage(""); setTo([]);
       onSent();
     } else setNote({ bad: true, text: r.error || (r.results || []).map((x) => `${x.name}: ${x.error}`).join("; ") || "Not sent." });
+  };
+  const doSchedule = async () => {
+    setBusy(true);
+    // Saves the groups/chapters themselves, so new members are included each week.
+    const r = await hubFetch("POST", { action: "schedule-save", to, body: message, weekday: when, name: data.templates.find((t) => t.body === message)?.name });
+    setBusy(false);
+    if (r.ok) {
+      setNote({ text: `Scheduled: goes out every ${WEEKDAYS[when]} morning.` });
+      setPreview(null); setMessage(""); setTo([]); setWhen("now");
+      onSent();
+    } else setNote({ bad: true, text: r.error || "Couldn't schedule it." });
   };
   const saveTemplate = async () => {
     setBusy(true);
@@ -220,6 +246,14 @@ function Compose({ data, onSent }) {
         placeholder="Hi {first name}! New café assignments are up. Due Friday!" onChange={(e) => edit(e.target.value)} />
       <div className="th-hint">{message.length}/{MAX_CHARS} · <b>{"{first name}"}</b> fills in automatically · “Reply STOP to opt out.” is always added</div>
 
+      <div className="th-caps">When</div>
+      <div className="th-chips">
+        <button type="button" className={`th-chip ${when === "now" ? "on" : ""}`} onClick={() => { setWhen("now"); setPreview(null); }}>Send now</button>
+        {[1, 2, 3, 4, 5, 6, 0].map((d) => (
+          <button type="button" key={d} className={`th-chip ${when === d ? "on" : ""}`} onClick={() => { setWhen(d); setPreview(null); }}>Every {WEEKDAYS[d].slice(0, 3)}</button>
+        ))}
+      </div>
+
       {!preview && (
         <div className="th-btns">
           <button className="th-btn" disabled={busy || !to.length || !message.trim()} onClick={doPreview}>{busy ? "Checking…" : "Preview"}</button>
@@ -241,7 +275,9 @@ function Compose({ data, onSent }) {
           {preview.skipped?.length > 0 && <p className="th-hint">Skipping: {preview.skipped.map((s) => `${s.name} (${s.reason})`).join(", ")}</p>}
           <div className="th-bubble">{preview.body}</div>
           <div className="th-btns">
-            <button className="th-btn" disabled={busy} onClick={doSend}>{busy ? "Sending…" : `Send to ${preview.recipients.length}`}</button>
+            {when === "now"
+              ? <button className="th-btn" disabled={busy} onClick={doSend}>{busy ? "Sending…" : `Send to ${preview.recipients.length}`}</button>
+              : <button className="th-btn" disabled={busy} onClick={doSchedule}>{busy ? "Saving…" : `Schedule every ${WEEKDAYS[when]}`}</button>}
             <button className="th-btn ghost" disabled={busy} onClick={() => setPreview(null)}>Edit</button>
           </div>
         </div>
@@ -320,12 +356,43 @@ function Directory({ team }) {
   );
 }
 
+function Schedules({ data, onChange }) {
+  if (!data.schedules) return null;
+  const act = async (action, s, extra = {}) => { await hubFetch("POST", { action, id: s.id, ...extra }); onChange(); };
+  return (
+    <Card title="Scheduled weekly texts" sub="Sent automatically every week, in the morning (New York time)">
+      {!data.schedules.length ? <p className="th-empty">Nothing scheduled. Pick a day under “When” to set one up.</p> : (
+        <ul className="th-scheds">
+          {data.schedules.map((s) => (
+            <li key={s.id} className={s.active ? "" : "off"}>
+              <span className="th-sched-day">{s.weekdayName.slice(0, 3).toUpperCase()}</span>
+              <div className="th-sched-body">
+                <b>{s.name}</b>
+                <small>To {s.recipients.map((r) => groupLabel(r, data)).join(", ")}{s.last_sent_on ? ` · last sent ${s.last_sent_on}` : ""}</small>
+              </div>
+              <button className="th-x plain" onClick={() => act("schedule-toggle", s, { active: !s.active })}>{s.active ? "Pause" : "Resume"}</button>
+              <button className="th-x" onClick={() => act("schedule-delete", s)} aria-label={`Delete ${s.name}`}>Delete</button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function groupLabel(v, data) {
+  if (v === "all") return "Everyone";
+  if (v.startsWith("group:")) return data.groups.find((g) => `group:${g.key}` === v)?.label || v.slice(6);
+  return data.team.find((p) => p.id === v)?.name || v;
+}
+
 function Messages({ data, reload }) {
   return (
     <>
       <div className="th-row">
         <Compose data={data} onSent={reload} />
         <div className="th-side-col th-stack">
+          <Schedules data={data} onChange={reload} />
           <Templates data={data} onChange={reload} />
           <Log log={data.log} />
         </div>
@@ -407,20 +474,129 @@ function Analytics({ data }) {
 
 // ---------------------------------------------------------------- Growth & Social
 
-function Growth({ data }) {
+const ROLES = ["Cafe Scout", "Content Creator", "Scout Lead"];
+
+function Signups({ data, onChange }) {
+  const [choice, setChoice] = useState({});
+  const [busy, setBusy] = useState(null);
+  const [note, setNote] = useState(null);
+  const list = data.pendingSignups || [];
+  const pick = (id, key, v) => setChoice({ ...choice, [id]: { role: "Cafe Scout", chapters: [], ...choice[id], [key]: v } });
+  const decide = async (r, action) => {
+    setBusy(r.id); setNote(null);
+    const c = choice[r.id] || { role: "Cafe Scout", chapters: [] };
+    const res = await hubFetch("POST", { action, id: r.id, ...c });
+    setBusy(null);
+    if (!res.ok) return setNote({ bad: true, text: res.error || "Something went wrong." });
+    setNote({ text: action === "signup-reject" ? `${r.name} was declined.` : `${r.name} is on the team${res.welcome?.sent ? " and got a welcome text" : ""}.` });
+    onChange();
+  };
+  return (
+    <Card title="New sign-ups" sub="From the join-the-team page · approving sends the welcome texts (day 0, 1 and 7)"
+      right={<span className="th-tag n">{list.length} waiting</span>}>
+      {!list.length ? <p className="th-empty">No one waiting for approval.</p> : (
+        <ul className="th-signups">
+          {list.map((r) => {
+            const c = choice[r.id] || { role: "Cafe Scout", chapters: [] };
+            return (
+              <li key={r.id}>
+                <div className="th-su-top"><b>{r.name}</b><small>{r.phoneLast4 ? `•••• ${r.phoneLast4}` : "No phone"} · {r.sms_consent ? "Agreed to texts" : "No text consent"} · {when(r.created_at)}</small></div>
+                <div className="th-chips">{ROLES.map((role) => <button key={role} type="button" className={`th-chip sm ${c.role === role ? "on" : ""}`} onClick={() => pick(r.id, "role", role)}>{role}</button>)}</div>
+                <div className="th-chips">{data.chapters.map((ch) => <button key={ch} type="button" className={`th-chip sm ${c.chapters.includes(ch) ? "on" : ""}`}
+                  onClick={() => pick(r.id, "chapters", c.chapters.includes(ch) ? c.chapters.filter((x) => x !== ch) : [...c.chapters, ch])}>{ch}</button>)}</div>
+                <div className="th-btns">
+                  <button className="th-btn" disabled={busy === r.id} onClick={() => decide(r, "signup-approve")}>Approve</button>
+                  <button className="th-btn ghost" disabled={busy === r.id} onClick={() => decide(r, "signup-reject")}>Decline</button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {note && <p className={`th-note ${note.bad ? "bad" : ""}`}>{note.text}</p>}
+    </Card>
+  );
+}
+
+const SOCIAL = [
+  { key: "instagram", label: "Instagram", icon: "📸", unit: "followers", setup: "Needs a business account" },
+  { key: "tiktok", label: "TikTok", icon: "🎵", unit: "followers", setup: "Needs a TikTok developer app" },
+  { key: "youtube", label: "YouTube", icon: "▶️", unit: "subscribers", setup: "Free Google API key" },
+  { key: "lemon8", label: "Lemon8", icon: "🍋", unit: "followers", setup: "No public API · update weekly by hand" },
+];
+
+function ManualEntry({ platform, onChange }) {
+  const [v, setV] = useState("");
+  const [msg, setMsg] = useState(null);
+  const save = async () => {
+    const r = await hubFetch("POST", { action: "growth-manual", platform, followers: v });
+    if (r.ok) { setV(""); setMsg(null); onChange(); } else setMsg(r.error || "Couldn't save.");
+  };
+  return (
+    <div className="th-manual">
+      <input className="th-input" inputMode="numeric" placeholder="This week's follower count" value={v} onChange={(e) => setV(e.target.value.replace(/[^\d]/g, ""))} />
+      <button className="th-btn ghost" disabled={!v} onClick={save}>Update</button>
+      {msg && <span className="th-note bad">{msg}</span>}
+    </div>
+  );
+}
+
+function SocialCard({ meta, src, manualReady, onChange }) {
+  const live = src?.connected && !src.error;
+  const manual = src?.manual;
+  const value = live ? src.followers : manual?.followers;
+  return (
+    <Card title={meta.label} sub={live ? `Live${src.handle ? ` · ${src.handle}` : ""}` : manual ? `Updated by hand · ${manual.on}` : "Not connected yet"} className="th-half"
+      right={live ? <span className="th-tag g">Live</span> : null}>
+      {value != null ? (
+        <div className="th-social">
+          <div className="th-stat-v">{Number(value).toLocaleString()}</div>
+          <div className="th-stat-c">{meta.unit}{live && src.posts != null ? ` · ${src.posts.toLocaleString()} posts` : ""}{live && src.views ? ` · ${src.views.toLocaleString()} views` : ""}</div>
+          {!live && manual?.previous != null && <Delta now={manual.followers} before={manual.previous} label="vs. last update" />}
+        </div>
+      ) : src?.error ? <p className="th-note bad">Couldn't load: {src.error}</p>
+        : <NotConnected icon={meta.icon} source={meta.label} what={`${meta.unit} and growth`} setup={meta.setup} />}
+      {!live && manualReady && <ManualEntry platform={meta.key} onChange={onChange} />}
+    </Card>
+  );
+}
+
+function Growth({ data, reload }) {
   const s = data.signups;
+  const g = data.growth || {};
+  const web = g.website || {};
+  const email = g.email || {};
+  const followers = SOCIAL.reduce((n, m) => {
+    const src = g.social?.[m.key];
+    const v = src?.connected && !src.error ? src.followers : src?.manual?.followers;
+    return n + (Number(v) || 0);
+  }, 0);
   return (
     <>
       <div className="th-row th-stats">
-        <Stat label="Team sign-ups · 30D" value={s?.last30 ?? "—"} foot={s ? `${s.approved30} approved` : "Not set up yet"} />
-        <Stat label="Waiting for approval" value={s?.pending ?? "—"} foot="From the scout sign-up page" />
-        <Stat label="Team members" value={data.team.length} foot={`across ${data.chapters.length} chapters`} />
+        <Stat label="Team sign-ups · 30D" value={s?.last30 ?? "—"} foot={s ? `${s.pending} waiting for approval` : "Not set up yet"} />
+        <Stat label="Website visitors · 30D" value={web.connected && !web.error ? web.visitors30.toLocaleString() : "—"} foot={web.connected && !web.error ? <Delta now={web.visitors30} before={web.prior30} /> : "Connect Google Analytics"} />
+        <Stat label="Email subscribers" value={email.connected && !email.error ? email.subscribers.toLocaleString() : "—"} foot={email.connected && !email.error ? (email.new30 != null ? `+${email.new30} in 30 days` : "Brevo") : "Connect Brevo"} />
+        <Stat label="Social followers" value={followers ? followers.toLocaleString() : "—"} foot="Instagram, TikTok, YouTube, Lemon8" />
       </div>
+
+      <Signups data={data} onChange={reload} />
+
+      <div className="th-row">
+        <Card title="Website visitors" sub="Google Analytics · last 30 days" className="th-grow">
+          {web.connected && !web.error ? <DailyBars daily={web.daily.map((d) => ({ date: d.date, sent: d.value, failed: 0 }))} />
+            : web.error ? <p className="th-note bad">Couldn't load: {web.error}</p>
+            : <NotConnected icon="🌐" source="Google Analytics" what="daily visitors and traffic sources" setup="One-time setup · about 10 minutes" />}
+        </Card>
+        <Card title={web.connected && !web.error ? "Where visitors come from" : "Email sign-ups"} sub={web.connected && !web.error ? "Sessions by source" : "Brevo"} className="th-side-col">
+          {web.connected && !web.error ? <RankBars rows={web.sources} unit="Sessions" />
+            : email.connected && !email.error ? <div className="th-social"><div className="th-stat-v">{email.subscribers.toLocaleString()}</div><div className="th-stat-c">subscribers</div></div>
+            : <NotConnected icon="✉️" source="Brevo" what="email subscribers" setup="One-time setup · about 5 minutes" />}
+        </Card>
+      </div>
+
       <div className="th-row th-wrap">
-        <Card title="Website visitors" sub="Google Analytics" className="th-half"><NotConnected icon="🌐" source="Google Analytics" what="daily visitors and traffic sources" setup="One-time setup · about 10 minutes" /></Card>
-        <Card title="Email sign-ups" sub="Brevo" className="th-half"><NotConnected icon="✉️" source="Brevo" what="new subscribers per week" setup="One-time setup · about 5 minutes" /></Card>
-        <Card title="Instagram" sub="Followers and best posts" className="th-half"><NotConnected icon="📸" source="Instagram" what="followers and engagement" setup="Needs a business account" /></Card>
-        <Card title="TikTok" sub="Followers and views" className="th-half"><NotConnected icon="🎵" source="TikTok" what="followers and views" setup="Needs a TikTok developer app" /></Card>
+        {SOCIAL.map((m) => <SocialCard key={m.key} meta={m} src={g.social?.[m.key]} manualReady={g.manualReady} onChange={reload} />)}
       </div>
     </>
   );

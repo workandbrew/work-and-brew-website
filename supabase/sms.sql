@@ -115,3 +115,34 @@ create table if not exists public.sms_templates (
 );
 alter table public.sms_templates enable row level security;  -- server-only
 grant all on public.sms_templates to service_role;
+
+-- ---------------------------------------------------------------------------------------------
+-- Team Hub v3: scheduled weekly texts, welcome series, manual social numbers
+-- ---------------------------------------------------------------------------------------------
+create table if not exists public.sms_schedules (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  body text not null check (char_length(body) between 1 and 480),
+  recipients text[] not null,              -- same values the send box uses: "all", "group:scouts", "Bronx", contact ids
+  weekday smallint not null check (weekday between 0 and 6),  -- 0 = Sunday, New York time
+  active boolean not null default true,
+  last_sent_on date,
+  created_by text,
+  created_at timestamptz not null default now()
+);
+alter table public.sms_schedules enable row level security;  -- server-only
+grant all on public.sms_schedules to service_role;
+
+alter table public.sms_contacts add column if not exists welcome_started_at timestamptz;
+alter table public.sms_contacts add column if not exists welcome_step smallint not null default 0;
+
+create table if not exists public.growth_manual (
+  id uuid default gen_random_uuid() primary key,
+  platform text not null check (platform in ('instagram', 'tiktok', 'youtube', 'lemon8')),
+  followers integer not null check (followers >= 0),
+  recorded_on date not null default current_date,
+  recorded_by text,
+  created_at timestamptz not null default now()
+);
+alter table public.growth_manual enable row level security;  -- server-only
+grant all on public.growth_manual to service_role;

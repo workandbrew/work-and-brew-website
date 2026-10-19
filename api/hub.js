@@ -9,11 +9,17 @@
 //   POST { action: "send",    to, message }     → sends, logged with the sender's name
 //   POST { action: "template-save", name, body } → saves a reusable message
 //   POST { action: "template-delete", id }       → removes one
+//   POST { action: "schedule-save", name, body, to, weekday }  → a weekly text (sent by /api/cron)
+//   POST { action: "schedule-toggle" | "schedule-delete", id }
+//   POST { action: "signup-approve", id, chapters, role } / { action: "signup-reject", id }
+//   POST { action: "growth-manual", platform, followers }        → hand-entered follower count
 //
 // Sending goes through the same deliver() as Gwen, so the same rules apply: only active,
 // opted-in team members, STOP line always added, max 25 recipients per send.
 
-import { readBody, db, loadScouts, publicScout, deliver, GROUP_LABELS, MAX_MESSAGE_CHARS } from "./_lib/sms.js";
+import { readBody, db, loadScouts, publicScout, deliver, last4, GROUP_LABELS, MAX_MESSAGE_CHARS } from "./_lib/sms.js";
+import { listSchedules, saveSchedule, updateSchedule, approveSignup, rejectSignup, WEEKDAYS } from "./_lib/automation.js";
+import { growthSnapshot, saveManual } from "./_lib/growth.js";
 
 // Starter templates shown until the team saves its own (the sms_templates table may not exist yet).
 const DEFAULT_TEMPLATES = [
@@ -30,10 +36,13 @@ async function optional(query, fallback) {
 
 async function extras() {
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
-  const [templates, signups, cafes] = await Promise.all([
+  const [templates, signups, cafes, pendingList, schedules, growth] = await Promise.all([
     optional(db().from("sms_templates").select("id, name, body, created_by").order("created_at"), null),
     optional(db().from("signup_requests").select("status, created_at").gte("created_at", since), null),
     optional(db().from("cafes").select("status"), null),
+    optional(db().from("signup_requests").select("id, name, phone, sms_consent, created_at").eq("status", "pending").order("created_at"), []),
+    listSchedules().catch(() => null),
+    growthSnapshot().catch((e) => ({ error: e.message })),
   ]);
   const pending = await optional(
     db().from("signup_requests").select("id", { count: "exact", head: true }).eq("status", "pending").then((r) => ({ data: r.count, error: r.error })), 0);
@@ -43,6 +52,9 @@ async function extras() {
     templatesSaved: !!templates,
     signups: signups ? { last30: signups.length, approved30: signups.filter((r) => r.status === "approved").length, pending } : null,
     cafes: cafeCounts,
+    pendingSignups: pendingList.map(({ phone, ...r }) => ({ ...r, phoneLast4: last4(phone) })),
+    schedules: schedules && schedules.map((s) => ({ ...s, weekdayName: WEEKDAYS[s.weekday] })),
+    growth,
   };
 }
 
@@ -144,6 +156,18 @@ export default async function handler(req, res) {
       if (error) return res.status(500).json({ ok: false, error: `Couldn't save (${error.message}). Has supabase/sms.sql been run?` });
       return res.status(200).json({ ok: true });
     }
+    const reply = (r) => res.status(r.status || 200).json(r.error ? { ok: false, error: r.error } : { ok: true, ...r });
+    const by = me.name || me.email;
+    const extra = readBody(req);
+    if (action === "schedule-save") return reply(await saveSchedule({ name, body, recipients: to, weekday: extra.weekday, createdBy: by }));
+    if (action === "schedule-toggle") { await updateSchedule(String(id), { active: !!extra.active }); return reply({}); }
+    if (action === "schedule-delete") { await updateSchedule(String(id), null); return reply({}); }
+    if (action === "signup-approve") {
+      const r = await approveSignup(String(id), { chapters: extra.chapters, role: extra.role });
+      return reply(r.error ? r : { scout: r.scout, welcome: r.welcome });
+    }
+    if (action === "signup-reject") return reply(await rejectSignup(String(id)));
+    if (action === "growth-manual") return reply(await saveManual(extra.platform, extra.followers, by));
     if (action === "template-delete") {
       const { error } = await db().from("sms_templates").delete().eq("id", String(id || ""));
       if (error) return res.status(500).json({ ok: false, error: error.message });
