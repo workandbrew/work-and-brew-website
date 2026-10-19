@@ -1473,6 +1473,7 @@ async function loadFromSupabase() {
     console.warn('Supabase load failed:', e);
     showToast('⚠ Could not load data: ' + e.message);
   }
+}
 
 async function syncToSupabase() {
   if (!_sbUser) return;
@@ -2189,14 +2190,6 @@ async function saveEditCafe(id) {
     if (modal) modal.remove();
     showToast('✏️ ' + cafe.name + ' updated in Supabase!');
   } catch(e) { showToast('⚠ Error: ' + e.message); }
-}
-  applyFilters();
-  renderPanel();
-  updateStats();
-  saveState();
-  const modal = document.getElementById('cafe-edit-modal');
-  if (modal) modal.remove();
-  showToast('✏️ ' + cafe.name + ' updated!');
 }
 
 function markAsChain(id) {
