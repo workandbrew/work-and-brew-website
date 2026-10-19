@@ -10,7 +10,7 @@
 //   TWILIO_API_KEY_SID + TWILIO_API_KEY_SECRET   (or TWILIO_AUTH_TOKEN)
 
 import { createClient } from "@supabase/supabase-js";
-import { timingSafeEqual } from "node:crypto";
+import { timingSafeEqual, randomUUID } from "node:crypto";
 
 export const MAX_RECIPIENTS = 25;    // per request — a guard against runaway sends/charges
 export const MAX_MESSAGE_CHARS = 480; // ~3 SMS segments, before the STOP line
@@ -80,7 +80,23 @@ export function last4(phone) {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Which scouts one `to` entry refers to. Order matters: id → phone → "all" → chapter → name.
+// Team groups come from each person's role: "Scout Lead", "Co-Founder", "B2B Manager" → leads;
+// anything with "creator" → creators; everyone else → café scouts.
+export function teamGroup(s) {
+  const role = String(s.role || "").toLowerCase();
+  if (role.includes("creator")) return "creators";
+  if (/(lead|founder|manager|head|director|captain)/.test(role)) return "leads";
+  return "scouts";
+}
+export const GROUP_LABELS = { leads: "Leads", scouts: "Café scouts", creators: "Content creators" };
+
+// "{first name}" in a message becomes each person's first name.
+export function personalize(body, s) {
+  const first = String(s?.name || "").trim().split(/\s+/)[0] || "there";
+  return String(body).replace(/\{\s*first\s*name\s*\}/gi, first);
+}
+
+// Which scouts one `to` entry refers to. Order matters: id → phone → "all" → group → chapter → name.
 function matchEntry(entry, scouts) {
   const q = String(entry || "").trim();
   if (!q) return [];
@@ -91,6 +107,7 @@ function matchEntry(entry, scouts) {
   }
   const lower = q.toLowerCase();
   if (lower === "all" || lower === "everyone") return scouts;
+  if (lower.startsWith("group:")) return scouts.filter((s) => teamGroup(s) === lower.slice(6));
   const chapters = (s) => (s.chapters || []).map((c) => c.toLowerCase());
   // exact chapter ("Bronx", "Manhattan-UWS"), then chapter prefix ("Manhattan" → every Manhattan chapter)
   let hits = scouts.filter((s) => chapters(s).includes(lower));
@@ -131,6 +148,7 @@ export function publicScout(s) {
     id: s.id,
     name: s.name,
     role: s.role,
+    group: teamGroup(s),
     chapters: s.chapters || [],
     phoneLast4: last4(s.phone),
     canText: canText(s),
@@ -185,3 +203,65 @@ export async function twilioSend(to, body) {
 
 // Twilio error 21610 = recipient replied STOP.
 export const TWILIO_OPTED_OUT = 21610;
+
+// ---- the one send path (used by /api/send for Gwen & co, and /api/hub for the Team Hub) ----
+
+// Logs one row; if the database is missing a newer column (e.g. batch_id), logs without it.
+async function logMessage(row) {
+  let { error } = await db().from("sms_messages").insert(row);
+  if (error && row.batch_id) {
+    const { batch_id: _drop, ...rest } = row;
+    ({ error } = await db().from("sms_messages").insert(rest));
+  }
+  if (error) console.error("sms_messages log failed:", error.message);
+}
+
+// Validates, resolves recipients and (unless dryRun) sends. Returns { status, json } for the caller.
+export async function deliver({ to, message, dryRun, sentBy }) {
+  const text = String(message || "").trim();
+  if (!text) return { status: 400, json: { ok: false, error: "message is required" } };
+  if (text.length > MAX_MESSAGE_CHARS) {
+    return { status: 400, json: { ok: false, error: `message is over ${MAX_MESSAGE_CHARS} characters` } };
+  }
+
+  let scouts;
+  try { scouts = await loadScouts(); } catch (e) { return { status: 500, json: { ok: false, error: e.message } }; }
+
+  const { entries, unmatched, recipients, skipped } = resolveRecipients(to, scouts);
+  if (!entries.length) return { status: 400, json: { ok: false, error: "to is required" } };
+  if (unmatched.length) {
+    return { status: 400, json: {
+      ok: false, error: `No scout matched: ${unmatched.join(", ")}`, unmatched,
+      chapters: [...new Set(scouts.flatMap((s) => s.chapters || []))].sort(),
+    } };
+  }
+  if (!recipients.length) return { status: 400, json: { ok: false, error: "Nobody in that group can be texted", skipped } };
+  if (recipients.length > MAX_RECIPIENTS) {
+    return { status: 400, json: { ok: false, error: `Too many recipients (${recipients.length}); max is ${MAX_RECIPIENTS}` } };
+  }
+
+  const template = withStopLine(text);
+  const body = personalize(template, recipients[0]); // what the first person will see
+  if (dryRun) return { status: 200, json: { ok: true, dryRun: true, body, template, recipients: recipients.map(publicScout), skipped } };
+
+  const batch_id = randomUUID(); // groups one send to many people in the log
+  const results = [];
+  for (const s of recipients) {
+    let r;
+    const personal = personalize(template, s);
+    try { r = await twilioSend(s.phone, personal); } catch (e) { r = { ok: false, error: e.message }; }
+    results.push({ id: s.id, name: s.name, ok: r.ok, sid: r.sid, error: r.error });
+    try {
+      await logMessage({
+        batch_id, scout_id: s.id, to_phone: s.phone, body: personal, twilio_sid: r.sid || null,
+        status: r.ok ? r.status || "queued" : "failed", error: r.ok ? null : r.error,
+        sent_by: String(sentBy || "api").slice(0, 80),
+      });
+      if (r.code === TWILIO_OPTED_OUT) {
+        await db().from("sms_contacts").update({ opted_out_at: new Date().toISOString() }).eq("id", s.id);
+      }
+    } catch { /* the log is best-effort; never block a send on it */ }
+  }
+  const sent = results.filter((r) => r.ok).length;
+  return { status: sent ? 200 : 502, json: { ok: sent === results.length, sent, failed: results.length - sent, body, template, results, skipped } };
+}

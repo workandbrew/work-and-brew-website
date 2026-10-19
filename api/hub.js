@@ -1,0 +1,162 @@
+// /api/hub — the server side of the private Team Hub page (/team).
+//
+// Only logged-in website users whose email is in the Supabase `hub_admins` table get in
+// (Den, David, Armando, Sayraliz). The browser sends its Supabase login token:
+//   Authorization: Bearer <supabase access token>
+//
+//   GET                                         → { me, team, chapters, groups, log, templates, signups, cafes, ... }
+//   POST { action: "preview", to, message }     → who would get it + the exact text (sends nothing)
+//   POST { action: "send",    to, message }     → sends, logged with the sender's name
+//   POST { action: "template-save", name, body } → saves a reusable message
+//   POST { action: "template-delete", id }       → removes one
+//
+// Sending goes through the same deliver() as Gwen, so the same rules apply: only active,
+// opted-in team members, STOP line always added, max 25 recipients per send.
+
+import { readBody, db, loadScouts, publicScout, deliver, GROUP_LABELS, MAX_MESSAGE_CHARS } from "./_lib/sms.js";
+
+// Starter templates shown until the team saves its own (the sms_templates table may not exist yet).
+const DEFAULT_TEMPLATES = [
+  { id: "default-monday", name: "Monday assignments", body: "Hi {first name}! Your cafés for this week are up on the scout map. Due Friday. Thanks for all the great finds!" },
+  { id: "default-checkin", name: "Mid-week check-in", body: "Hi {first name}, quick check-in: how are your café visits going this week? Reply if you need help." },
+  { id: "default-friday", name: "Due today + shoutout", body: "Hi {first name}! Café visits are due today. Shoutout to everyone who logged visits this week!" },
+  { id: "default-welcome", name: "Welcome new scout", body: "Welcome to Work & Brew, {first name}! Your first café is on the scout map. We're glad you're here." },
+];
+
+// Optional tables: if one isn't set up yet, the hub still loads and shows an empty state.
+async function optional(query, fallback) {
+  try { const { data, error } = await query; return error ? fallback : data ?? fallback; } catch { return fallback; }
+}
+
+async function extras() {
+  const since = new Date(Date.now() - 30 * 864e5).toISOString();
+  const [templates, signups, cafes] = await Promise.all([
+    optional(db().from("sms_templates").select("id, name, body, created_by").order("created_at"), null),
+    optional(db().from("signup_requests").select("status, created_at").gte("created_at", since), null),
+    optional(db().from("cafes").select("status"), null),
+  ]);
+  const pending = await optional(
+    db().from("signup_requests").select("id", { count: "exact", head: true }).eq("status", "pending").then((r) => ({ data: r.count, error: r.error })), 0);
+  const cafeCounts = cafes ? cafes.reduce((m, c) => ((m[c.status || "Unvisited"] = (m[c.status || "Unvisited"] || 0) + 1), m), {}) : null;
+  return {
+    templates: templates && templates.length ? templates : DEFAULT_TEMPLATES,
+    templatesSaved: !!templates,
+    signups: signups ? { last30: signups.length, approved30: signups.filter((r) => r.status === "approved").length, pending } : null,
+    cafes: cafeCounts,
+  };
+}
+
+async function hubUser(req) {
+  const header = req.headers?.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
+  if (!token) return { status: 401, error: "Please log in." };
+  const { data, error } = await db().auth.getUser(token);
+  const email = data?.user?.email?.toLowerCase();
+  if (error || !email) return { status: 401, error: "Your login expired. Please log in again." };
+  const { data: admin, error: adminErr } = await db()
+    .from("hub_admins").select("email, name, role").ilike("email", email).maybeSingle();
+  if (adminErr) return { status: 500, error: `Team Hub isn't set up yet (${adminErr.message})` };
+  if (!admin) return { status: 403, error: "The Team Hub is for department heads only." };
+  return { admin };
+}
+
+// Groups log rows from one send (same batch) into a single entry, newest first.
+async function recentLog() {
+  const [{ data: rows, error }, { data: people }] = await Promise.all([
+    db().from("sms_messages").select("*").order("created_at", { ascending: false }).limit(400),
+    db().from("sms_contacts").select("id, name"),
+  ]);
+  if (error) throw new Error(error.message);
+  const names = new Map((people || []).map((p) => [p.id, p.name]));
+  const batches = new Map();
+  for (const r of rows || []) {
+    const key = r.batch_id || r.id;
+    if (!batches.has(key)) {
+      batches.set(key, { id: key, at: r.created_at, from: r.sent_by || "unknown", body: r.body, recipients: [] });
+    }
+    batches.get(key).recipients.push({
+      name: names.get(r.scout_id) || "Removed contact",
+      ok: r.status !== "failed",
+      error: r.error || null,
+    });
+  }
+  const log = [...batches.values()].slice(0, 60).map((b) => ({
+    ...b,
+    sent: b.recipients.filter((x) => x.ok).length,
+    failed: b.recipients.filter((x) => !x.ok).length,
+  }));
+  const days = dailyCounts(rows || [], 60);
+  return { log, daily: days.slice(30), prevSent30: days.slice(0, 30).reduce((n, d) => n + d.sent, 0) };
+}
+
+// "Good morning" + "Friday, October 9" in New York time, for the hub's welcome banner.
+function welcome() {
+  const now = new Date();
+  const hour = Number(now.toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" }));
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const today = now.toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long", month: "long", day: "numeric" });
+  return { greeting, today };
+}
+
+// Texts per day (New York time) for the last 30 days, oldest first — feeds the Team Hub chart.
+const nyDay = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+function dailyCounts(rows, days = 30) {
+  const out = new Map();
+  for (let i = days - 1; i >= 0; i--) out.set(nyDay(Date.now() - i * 864e5), { date: "", sent: 0, failed: 0 });
+  for (const [k, v] of out) v.date = k;
+  for (const r of rows) {
+    const day = out.get(nyDay(r.created_at));
+    if (day) day[r.status === "failed" ? "failed" : "sent"]++;
+  }
+  return [...out.values()];
+}
+
+export default async function handler(req, res) {
+  if (!["GET", "POST"].includes(req.method)) {
+    res.setHeader("Allow", "GET, POST");
+    return res.status(405).json({ ok: false, error: "GET/POST only" });
+  }
+  let who;
+  try { who = await hubUser(req); } catch (e) { return res.status(500).json({ ok: false, error: e.message }); }
+  if (!who.admin) return res.status(who.status).json({ ok: false, error: who.error });
+  const me = who.admin;
+
+  try {
+    if (req.method === "GET") {
+      const [scouts, { log, daily, prevSent30 }, more] = await Promise.all([loadScouts(), recentLog(), extras()]);
+      const team = scouts.map((s) => ({ ...publicScout(s), optedOut: !!s.opted_out_at, optedIn: !!s.sms_opt_in }));
+      const chapters = [...new Set(team.flatMap((s) => s.chapters))].sort();
+      const groups = Object.entries(GROUP_LABELS)
+        .map(([key, label]) => ({ key, label, count: team.filter((p) => p.group === key).length }))
+        .filter((g) => g.count);
+      const sent30 = daily.reduce((n, d) => n + d.sent, 0);
+      const failed30 = daily.reduce((n, d) => n + d.failed, 0);
+      return res.status(200).json({ ok: true, me, ...welcome(), team, chapters, groups, log, daily, stats: { sent30, failed30, prevSent30 }, ...more });
+    }
+
+    const { action, to, message, name, body, id } = readBody(req);
+    if (action === "template-save") {
+      const n = String(name || "").trim().slice(0, 60);
+      const b = String(body || "").trim();
+      if (!n || !b) return res.status(400).json({ ok: false, error: "A template needs a name and a message." });
+      if (b.length > MAX_MESSAGE_CHARS) return res.status(400).json({ ok: false, error: `Keep it under ${MAX_MESSAGE_CHARS} characters.` });
+      const { error } = await db().from("sms_templates").insert({ name: n, body: b, created_by: me.name || me.email });
+      if (error) return res.status(500).json({ ok: false, error: `Couldn't save (${error.message}). Has supabase/sms.sql been run?` });
+      return res.status(200).json({ ok: true });
+    }
+    if (action === "template-delete") {
+      const { error } = await db().from("sms_templates").delete().eq("id", String(id || ""));
+      if (error) return res.status(500).json({ ok: false, error: error.message });
+      return res.status(200).json({ ok: true });
+    }
+    if (!["preview", "send"].includes(action)) {
+      return res.status(400).json({ ok: false, error: 'action must be "preview" or "send"' });
+    }
+    const { status, json } = await deliver({
+      to, message, dryRun: action === "preview", sentBy: `Team Hub · ${me.name || me.email}`,
+    });
+    res.status(status).json(json);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+}

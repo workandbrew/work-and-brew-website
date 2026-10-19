@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from "vitest";
-import { isAuthorized, normalizePhone, withStopLine, resolveRecipients, publicScout } from "../sms.js";
+import { isAuthorized, normalizePhone, withStopLine, resolveRecipients, publicScout, teamGroup, personalize } from "../sms.js";
 
 const scouts = [
   { id: "11111111-1111-1111-1111-111111111111", name: "Orlando S.", phone: "+17185550001", chapters: ["Bronx"], sms_opt_in: true, active: true },
@@ -75,5 +75,31 @@ describe("publicScout", () => {
     expect(p).not.toHaveProperty("phone");
     expect(p.phoneLast4).toBe("0001");
     expect(p.canText).toBe(true);
+  });
+});
+
+describe("team groups", () => {
+  it("sorts people into leads, café scouts and creators by role", () => {
+    expect(teamGroup({ role: "Scout Lead" })).toBe("leads");
+    expect(teamGroup({ role: "Co-Founder" })).toBe("leads");
+    expect(teamGroup({ role: "B2B Manager" })).toBe("leads");
+    expect(teamGroup({ role: "Cafe Scout" })).toBe("scouts");
+    expect(teamGroup({ role: "Content Creator" })).toBe("creators");
+    expect(teamGroup({})).toBe("scouts");
+  });
+  it("'group:leads' texts only the leads", () => {
+    const team = [{ ...scouts[0], role: "Cafe Scout" }, { ...scouts[2], role: "Scout Lead" }];
+    expect(names(resolveRecipients("group:leads", team))).toEqual(["Armando Bishop"]);
+    expect(names(resolveRecipients("group:scouts", team))).toEqual(["Orlando S."]);
+  });
+});
+
+describe("personalize", () => {
+  it("fills in each person's first name", () => {
+    expect(personalize("Hi {first name}! Due Friday.", { name: "Iris Medina" })).toBe("Hi Iris! Due Friday.");
+    expect(personalize("Hey {First Name}", { name: "Orlando S." })).toBe("Hey Orlando");
+  });
+  it("leaves messages without the placeholder alone", () => {
+    expect(personalize("Due Friday.", { name: "Iris" })).toBe("Due Friday.");
   });
 });

@@ -87,3 +87,31 @@ create table if not exists public.sms_messages (
 
 alter table public.sms_messages enable row level security;
 -- (no policies on purpose: server-only)
+
+-- ---------------------------------------------------------------------------------------------
+-- Team Hub (/team): who may use it, and grouping one send to many people in the log
+-- ---------------------------------------------------------------------------------------------
+create table if not exists public.hub_admins (
+  email text primary key,                  -- the email they log into the website with
+  name text not null,
+  role text,
+  created_at timestamptz not null default now()
+);
+alter table public.hub_admins enable row level security;  -- server-only
+grant all on public.hub_admins to service_role;
+
+alter table public.sms_messages add column if not exists batch_id uuid;
+create index if not exists sms_messages_created_at_idx on public.sms_messages (created_at desc);
+
+-- ---------------------------------------------------------------------------------------------
+-- Team Hub v2: saved message templates
+-- ---------------------------------------------------------------------------------------------
+create table if not exists public.sms_templates (
+  id uuid default gen_random_uuid() primary key,
+  name text not null check (char_length(name) between 1 and 60),
+  body text not null check (char_length(body) between 1 and 480),
+  created_by text,
+  created_at timestamptz not null default now()
+);
+alter table public.sms_templates enable row level security;  -- server-only
+grant all on public.sms_templates to service_role;
