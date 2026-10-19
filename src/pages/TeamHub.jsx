@@ -32,7 +32,7 @@ const PAGES = [
   { key: "messages", label: "Messages", short: "Messages", sub: "Text one person, a group or the whole team. Every text is logged." },
   { key: "cafes", label: "Cafés", short: "Cafés", sub: "Where every café stands, from the scout map." },
   { key: "analytics", label: "Texting analytics", short: "Analytics", sub: "How the team is using texting · last 30 days" },
-  { key: "growth", label: "Growth & Social", short: "Growth", sub: "Team sign-ups, website, email and social reach." },
+  { key: "growth", label: "Growth & Social", short: "Growth", sub: "Team sign-ups, website, email and social reach across Instagram, TikTok, YouTube and Lemon8." },
 ];
 const pathFor = (key) => (key === "overview" ? "/team" : `/team/${key}`);
 
@@ -421,6 +421,8 @@ function Growth({ data }) {
         <Card title="Email sign-ups" sub="Brevo" className="th-half"><NotConnected icon="✉️" source="Brevo" what="new subscribers per week" setup="One-time setup · about 5 minutes" /></Card>
         <Card title="Instagram" sub="Followers and best posts" className="th-half"><NotConnected icon="📸" source="Instagram" what="followers and engagement" setup="Needs a business account" /></Card>
         <Card title="TikTok" sub="Followers and views" className="th-half"><NotConnected icon="🎵" source="TikTok" what="followers and views" setup="Needs a TikTok developer app" /></Card>
+        <Card title="YouTube" sub="Subscribers and views" className="th-half"><NotConnected icon="▶️" source="YouTube" what="subscribers, views and top videos" setup="One-time setup · free Google API key" /></Card>
+        <Card title="Lemon8" sub="Followers and saves" className="th-half"><NotConnected icon="🍋" source="Lemon8" what="followers and post saves" setup="No public API yet · weekly manual entry" /></Card>
       </div>
     </>
   );
