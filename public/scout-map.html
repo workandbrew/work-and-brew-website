@@ -1139,6 +1139,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
       <p id="sb-error" style="color:#ff8a70;font-size:0.78rem;margin:0;min-height:18px;"></p>
       <button type="submit" id="sb-login-btn" style="padding:12px;border-radius:10px;border:none;background:#a0522d;color:#f4efe6;font-size:0.9rem;font-weight:700;cursor:pointer;transition:opacity 0.15s;">Sign In ☕</button>
     </form>
+    <a href="/" style="display:block;margin-top:18px;color:rgba(244,239,230,0.4);font-size:0.78rem;text-decoration:none;letter-spacing:0.04em;" onmouseover="this.style.color='rgba(244,239,230,0.75)'" onmouseout="this.style.color='rgba(244,239,230,0.4)'">← Return to Home</a>
   </div>
   <!-- Loading state shown after login while Supabase syncs -->
   <div id="sb-loading-state" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;">
@@ -1776,7 +1777,7 @@ const STORAGE_KEY = 'wab_cafe_map_v4';
 // ============================================================
 // STATE
 // ============================================================
-let state = {
+var state = {
   cafes: [],
   persons: Array.from({length:10}, (_,i) => ({
     name: HOME_BASE_DEFAULTS[i].name,
@@ -3910,6 +3911,5 @@ function init() {
   <button class="bulk-apply-btn" onclick="bulkApply()">Apply</button>
   <button class="bulk-clear-btn" onclick="bulkClear()">✕ Clear</button>
 </div>
-</script>
 </body>
 </html>
