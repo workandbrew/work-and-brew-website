@@ -1498,52 +1498,50 @@ function debouncedSync() {
 
 async function sbOnAuthSuccess(user) {
   _sbUser = user;
-  adminUnlocked = true; // scouts authenticated via Supabase — no need for extra password
+  adminUnlocked = true;
 
-  // Switch overlay to loading state while we fetch Supabase data
   const loginForm = document.querySelector('#sb-login-overlay > div');
   const loadingState = document.getElementById('sb-loading-state');
   const loadingBar = document.getElementById('sb-loading-bar');
   if (loginForm) loginForm.style.display = 'none';
   if (loadingState) loadingState.style.display = 'flex';
 
-  // Animate the progress bar to give visual feedback
   let barPct = 0;
   const barInterval = setInterval(() => {
     barPct = Math.min(barPct + (barPct < 60 ? 8 : barPct < 85 ? 3 : 1), 90);
     if (loadingBar) loadingBar.style.width = barPct + '%';
   }, 200);
 
-  // Initialize map behind the overlay
-  if (!_sbInitialized) {
-    _sbInitialized = true;
-    init();
-  }
+  try {
+    if (!_sbInitialized) {
+      _sbInitialized = true;
+      init();
+    }
 
-  // Show scout toolbar buttons
-  const cpBtn = document.getElementById('btn-changepw');
-  if (cpBtn) cpBtn.style.display = 'inline-block';
-  const syncBtn = document.getElementById('btn-sync-cloud');
-  if (syncBtn) syncBtn.style.display = 'inline-block';
-  const exportBtn = document.getElementById('btn-export-sql');
-  if (exportBtn) exportBtn.style.display = 'inline-block';
+    const cpBtn = document.getElementById('btn-changepw');
+    if (cpBtn) cpBtn.style.display = 'inline-block';
+    const syncBtn = document.getElementById('btn-sync-cloud');
+    if (syncBtn) syncBtn.style.display = 'inline-block';
+    const exportBtn = document.getElementById('btn-export-sql');
+    if (exportBtn) exportBtn.style.display = 'inline-block';
 
-  // Fetch latest data from Supabase
-  await loadFromSupabase();
-
-  // Complete the bar then fade out the overlay
-  clearInterval(barInterval);
-  if (loadingBar) loadingBar.style.width = '100%';
-  await new Promise(r => setTimeout(r, 350));
-
-  const overlay = document.getElementById('sb-login-overlay');
-  if (overlay) {
-    overlay.style.transition = 'opacity 0.5s ease';
-    overlay.style.opacity = '0';
-    await new Promise(r => setTimeout(r, 500));
-    overlay.style.display = 'none';
-    overlay.style.opacity = '';
-    overlay.style.transition = '';
+    await loadFromSupabase();
+  } catch(e) {
+    console.error('Auth success error:', e);
+    showToast('⚠ Load error: ' + e.message + ' — map loaded without latest data');
+  } finally {
+    clearInterval(barInterval);
+    if (loadingBar) loadingBar.style.width = '100%';
+    await new Promise(r => setTimeout(r, 350));
+    const overlay = document.getElementById('sb-login-overlay');
+    if (overlay) {
+      overlay.style.transition = 'opacity 0.5s ease';
+      overlay.style.opacity = '0';
+      await new Promise(r => setTimeout(r, 500));
+      overlay.style.display = 'none';
+      overlay.style.opacity = '';
+      overlay.style.transition = '';
+    }
   }
 }
 
