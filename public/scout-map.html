@@ -1472,12 +1472,6 @@ async function loadFromSupabase() {
     console.warn('Supabase load failed:', e);
     showToast('⚠ Could not load data: ' + e.message);
   }
-}
-  } catch(e) {
-    console.warn('Supabase load failed:', e);
-    showToast('⚠ Could not load data: ' + e.message);
-  }
-}
 
 async function syncToSupabase() {
   if (!_sbUser) return;
@@ -1808,19 +1802,6 @@ function loadState() {
     const s = JSON.parse(saved);
     // Cafes are now loaded from Supabase — skip cafe merging from localStorage
     if (s.persons) state.persons = s.persons;
-    state.persons.forEach((p, i) => {
-      const def = HOME_BASE_DEFAULTS[i] || { name: p.name, homeBases: [] };
-      if (!p.name) p.name = def.name;
-      if (!p.homeBases || !Array.isArray(p.homeBases)) p.homeBases = def.homeBases;
-    });
-    if (s.activeTab) state.activeTab = s.activeTab;
-    if (s.boroughFilter) state.boroughFilter = s.boroughFilter;
-    if (s.panelOpen !== undefined) state.panelOpen = s.panelOpen;
-  } catch(e) { console.warn('State load error', e); }
-}
-    });
-    if (s.persons) state.persons = s.persons;
-    // Seed home bases from defaults only if not yet saved (allows custom edits to persist)
     state.persons.forEach((p, i) => {
       const def = HOME_BASE_DEFAULTS[i] || { name: p.name, homeBases: [] };
       if (!p.name) p.name = def.name;
@@ -2175,24 +2156,41 @@ function showEditCafe(id) {
   requestAnimationFrame(() => { const n = document.getElementById('edit-cafe-name'); if(n) n.focus(); });
 }
 
-function saveEditCafe(id) {
+async function saveEditCafe(id) {
   const cafe = state.cafes.find(c => c.id === id);
   if (!cafe) return;
-  const name = document.getElementById('edit-cafe-name').value.trim();
+  const name    = document.getElementById('edit-cafe-name').value.trim();
   const address = document.getElementById('edit-cafe-address').value.trim();
   const borough = document.getElementById('edit-cafe-borough').value;
-  const lat = parseFloat(document.getElementById('edit-cafe-lat').value);
-  const lng = parseFloat(document.getElementById('edit-cafe-lng').value);
+  const lat     = parseFloat(document.getElementById('edit-cafe-lat').value);
+  const lng     = parseFloat(document.getElementById('edit-cafe-lng').value);
   if (!name) { alert('Name is required.'); return; }
-  cafe.name = name;
-  if (address) cafe.address = address;
-  cafe.borough = borough;
-  if (!isNaN(lat)) cafe.lat = lat;
-  if (!isNaN(lng)) cafe.lng = lng;
-  if (markers[id]) {
-    markers[id].setLatLng([cafe.lat, cafe.lng]);
-    markers[id].setPopupContent(buildPopupContent(cafe));
-  }
+
+  try {
+    const { error } = await sb.from('cafes').update({
+      name,
+      address: address || cafe.address,
+      borough,
+      latitude: isNaN(lat) ? cafe.lat : lat,
+      longitude: isNaN(lng) ? cafe.lng : lng,
+    }).eq('id', id);
+    if (error) { showToast('⚠ Could not save: ' + error.message); return; }
+
+    cafe.name = name;
+    if (address) cafe.address = address;
+    cafe.borough = borough;
+    if (!isNaN(lat)) cafe.lat = lat;
+    if (!isNaN(lng)) cafe.lng = lng;
+    if (markers[id]) {
+      markers[id].setLatLng([cafe.lat, cafe.lng]);
+      markers[id].setPopupContent(buildPopupContent(cafe));
+    }
+    applyFilters(); renderPanel(); updateStats();
+    const modal = document.getElementById('cafe-edit-modal');
+    if (modal) modal.remove();
+    showToast('✏️ ' + cafe.name + ' updated in Supabase!');
+  } catch(e) { showToast('⚠ Error: ' + e.message); }
+}
   applyFilters();
   renderPanel();
   updateStats();
@@ -2944,60 +2942,65 @@ document.getElementById('parse-gmap-btn').onclick = async function() {
   }
 };
 
-document.getElementById('add-cafe-confirm').onclick = function() {
+document.getElementById('add-cafe-confirm').onclick = async function() {
   const name = document.getElementById('new-cafe-name').value.trim();
   const addr = document.getElementById('new-cafe-addr').value.trim();
-  const lat = parseFloat(document.getElementById('new-cafe-lat').value);
-  const lng = parseFloat(document.getElementById('new-cafe-lng').value);
+  const lat  = parseFloat(document.getElementById('new-cafe-lat').value);
+  const lng  = parseFloat(document.getElementById('new-cafe-lng').value);
   const boro = document.getElementById('new-cafe-boro').value;
   const type = document.getElementById('new-cafe-type').value;
-  
+
   if (!name) { showToast('Enter a café name'); return; }
   if (isNaN(lat) || isNaN(lng)) {
-    // Use borough centroid as fallback
-    const centroids = {
-      Manhattan:[40.7831,-73.9712], Brooklyn:[40.6782,-73.9442],
-      Queens:[40.7282,-73.7949], Bronx:[40.8448,-73.8648]
-    };
+    const centroids = { Manhattan:[40.7831,-73.9712], Brooklyn:[40.6782,-73.9442], Queens:[40.7282,-73.7949], Bronx:[40.8448,-73.8648] };
     const [defLat, defLng] = centroids[boro] || [40.7128,-74.0060];
     document.getElementById('new-cafe-lat').value = defLat;
     document.getElementById('new-cafe-lng').value = defLng;
     showToast('⚠ Using borough center — paste a Google Maps link for exact location');
     return;
   }
-  
-  const newId = 'u' + Date.now();
-  const newCafe = {
-    id: newId, name, borough: boro, zip: '', address: addr || name + ', ' + boro,
-    lat, lng, isChain: type === 'chain', isNew: true,
-    status: 'Unvisited', assignedTo: null
-  };
-  state.cafes.push(newCafe);
-  createMarker(newCafe);
 
-  // Switch to the tab that will show this new cafe so user can find it
-  const targetTab = type === 'chain' ? 'chain' : 'independent';
-  if (state.activeTab !== targetTab) {
-    state.activeTab = targetTab;
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === targetTab));
+  const btn = document.getElementById('add-cafe-confirm');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const { data, error } = await sb.from('cafes').insert({
+      name, address: addr || name + ', ' + boro,
+      borough: boro, latitude: lat, longitude: lng,
+      status: 'Unvisited', source: 'user-added'
+    }).select('id').single();
+    if (error) { showToast('⚠ Could not add café: ' + error.message); return; }
+
+    const newCafe = {
+      id: data.id, number: '', name, address: addr || name + ', ' + boro,
+      borough: boro, zip: '', lat, lng,
+      isChain: type === 'chain', isNew: true,
+      status: 'Unvisited', assignedTo: null, assignedToName: null,
+      description: '', notes: '', wifi: null, outlets: null, restroom: null,
+      seats: '', timeRestrict: false, restrictNote: '', scoutName: ''
+    };
+    state.cafes.push(newCafe);
+    createMarker(newCafe);
+
+    const targetTab = type === 'chain' ? 'chain' : 'independent';
+    if (state.activeTab !== targetTab) {
+      state.activeTab = targetTab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === targetTab));
+    }
+    applyFilters(); updateStats(); renderPanel();
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addCafeModal'));
+    modal.hide();
+    ['gmap-url-inp','new-cafe-name','new-cafe-addr','new-cafe-lat','new-cafe-lng'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    map.flyTo([lat, lng], 16, { duration: 0.8 });
+    setTimeout(() => markers[data.id]?.openPopup(), 900);
+    showToast('✅ ' + name + ' added!');
+  } catch(e) {
+    showToast('⚠ Error: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Add to Map';
   }
-
-  applyFilters();
-  updateStats();
-  renderPanel();
-  saveState();
-
-  const modal = bootstrap.Modal.getInstance(document.getElementById('addCafeModal'));
-  modal.hide();
-
-  // Reset form
-  ['gmap-url-inp','new-cafe-name','new-cafe-addr','new-cafe-lat','new-cafe-lng'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-
-  map.flyTo([lat, lng], 16, { duration: 0.8 });
-  setTimeout(() => markers[newId]?.openPopup(), 900);
-  showToast(`✅ ${name} added! Switched to ${targetTab === 'chain' ? 'Chain' : 'Independent'} tab.`);
 };
 
 document.getElementById('btn-add-cafe').onclick = function() {
@@ -3222,18 +3225,19 @@ function showToast(msg) {
 // ============================================================
 // DELETE CAFE
 // ============================================================
-function deleteCafe(id) {
+async function deleteCafe(id) {
   const cafe = state.cafes.find(c => c.id === id);
   if (!cafe) return;
-  if (!confirm("Remove \"" + cafe.name + "\" from the map?\nThis cannot be undone.")) return;
-  state.cafes = state.cafes.filter(c => c.id !== id);
-  if (markers[id]) { markerLayer.removeLayer(markers[id]); delete markers[id]; }
-  map.closePopup();
-  applyFilters();
-  updateStats();
-  renderPanel();
-  saveState();
-  showToast("Removed: " + cafe.name);
+  if (!confirm('Remove "' + cafe.name + '" permanently from Supabase?\nThis cannot be undone.')) return;
+  try {
+    const { error } = await sb.from('cafes').delete().eq('id', id);
+    if (error) { showToast('⚠ Could not delete: ' + error.message); return; }
+    state.cafes = state.cafes.filter(c => c.id !== id);
+    if (markers[id]) { markerLayer.removeLayer(markers[id]); delete markers[id]; }
+    map.closePopup();
+    applyFilters(); updateStats(); renderPanel();
+    showToast('🗑 Removed: ' + cafe.name);
+  } catch(e) { showToast('⚠ Error: ' + e.message); }
 }
 
 
