@@ -137,8 +137,9 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   transition: border 0.15s, background 0.15s;
   flex-shrink: 1;
 }
-#status-filter { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18); border-radius: 6px; color: var(--beige-light); padding: 5px 8px; font-size: 0.72rem; font-family: 'Inter', sans-serif; outline: none; max-width: 150px; flex-shrink: 0; }
-#status-filter option { color: #2a2320; }
+#status-filter { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; color: #fff; font-family: 'Inter', sans-serif; font-size: 0.78rem; padding: 5px 10px; cursor: pointer; outline: none; }
+#status-filter option { background: #2a2a2a; color: #fff; }
+#status-filter:focus { border-color: var(--tan); }
 #search-input::placeholder { color: rgba(255,255,255,0.35); }
 #search-input:focus { border-color: var(--tan); background: rgba(255,255,255,0.16); }
 
@@ -1185,6 +1186,10 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 #search-suggest .sg-addr { font-size:0.65rem; color:#8a7560; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #search-suggest .sg-info { min-width:0; flex:1; }
 #search-suggest .sg-st { font-size:0.6rem; font-weight:700; white-space:nowrap; color:#8a7560; }
+
+/* Café names in every list: bold + underlined, click opens the pin */
+.cl-cafe-name, .list-mode-name, .cafe-item-mini > span:not(.boro-dot) { font-weight: 700 !important; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.checklist-item:hover .cl-cafe-name, .list-mode-item:hover .list-mode-name, .cafe-item-mini:hover > span { color: #C47F2E; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -1281,13 +1286,6 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   <button class="tab-btn" data-tab="ineligible">❌ Ineligible</button>
   <button class="tab-btn" data-tab="review" id="tab-review" style="display:none">🔎 Review</button>
   <div style="margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);height:20px;"></div>
-  <select id="status-filter" title="Filter by status" style="display:none" onchange="setStatusFilter(this.value)">
-    <option value="All">All statuses</option>
-    <option>Unvisited</option><option>Assigned</option><option>In Progress</option><option>Pending Visit</option>
-    <option>In Review</option><option>Visit Completed</option><option>Official Cafe Listing</option>
-    <option>Needs Revisit</option><option>Backlogged Cafe</option><option>Temporarily Unavailable</option>
-    <option>Permanently Closed</option><option>Ineligible Cafe</option>
-  </select>
   <input id="search-input" type="text" placeholder="🔍 Search cafés...">
   <div style="margin-left:2px;border-left:1px solid rgba(255,255,255,0.2);height:20px;flex-shrink:0;"></div>
   <div id="addr-lookup-wrap">
@@ -1318,6 +1316,14 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   <span class="scout-filter-label">View by scout:</span>
   <select id="scout-filter-select" onchange="setScoutFilter(this.value==='all'?null:parseInt(this.value))">
     <option value="all">All Scouts</option>
+  </select>
+  <span class="scout-filter-label" id="status-filter-label" style="display:none">Status:</span>
+  <select id="status-filter" title="Filter by status" style="display:none" onchange="setStatusFilter(this.value)">
+    <option value="All">All statuses</option>
+    <option>Unvisited</option><option>Assigned</option><option>In Progress</option><option>Pending Visit</option>
+    <option>In Review</option><option>Visit Completed</option><option>Official Cafe Listing</option>
+    <option>Needs Revisit</option><option>Backlogged Cafe</option><option>Temporarily Unavailable</option>
+    <option>Permanently Closed</option><option>Ineligible Cafe</option>
   </select>
   <button id="scout-locate-btn">📍 Locate Me &amp; Glow Nearby</button>
   <span id="scout-glow-countdown"></span>
@@ -2127,7 +2133,6 @@ function buildPopupContent(cafe) {
     <a class="popup-dir-btn" href="https://www.google.com/maps/dir/?api=1&destination=${dirAddr}" target="_blank">🗺 Get Directions</a>
     ${canScout ? `<button class="popup-scout-btn" onclick="openScoutForm('${cafe.id}')">📝 Scout this café</button>` : ''}
     ${_wfIsApprover ? `<button class="popup-del-btn" onclick="deleteCafe('${cafe.id}')">🗑 Remove from map</button>` : ''}
-    ${!cafe.isChain && !cafe.isMultiLoc ? `<button class="popup-chain-btn" onclick="markAsChain('${cafe.id}')">⛓ This is a chain café (move to Chain tab)</button>` : ''}
   </div>`;
 }
 
@@ -3189,6 +3194,7 @@ function setTab(tab) {
   } else {
     bar.classList.remove('visible');
   }
+  wfSyncFilterBar();
   applyFilters();
   renderPanel();
   saveState();
@@ -4141,6 +4147,24 @@ function wfDetectRole(user) {
   if (tab) tab.style.display = _wfIsApprover ? '' : 'none';
   const sf = document.getElementById('status-filter');
   if (sf) sf.style.display = _wfIsApprover ? '' : 'none';
+  const sfl = document.getElementById('status-filter-label');
+  if (sfl) sfl.style.display = _wfIsApprover ? '' : 'none';
+  wfSyncFilterBar();
+}
+
+// Approvers keep the filter bar on every tab (for the status filter); the scout-only
+// controls in it are hidden outside Scout View.
+function wfSyncFilterBar() {
+  const bar = document.getElementById('scout-filter-bar');
+  if (!bar) return;
+  const onScout = state.activeTab === 'scout';
+  if (_wfIsApprover && !onScout) bar.classList.add('visible');
+  ['scout-filter-select', 'scout-locate-btn', 'scout-glow-countdown'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = onScout ? '' : 'none';
+  });
+  const lbl = document.querySelector('#scout-filter-bar .scout-filter-label:not(#status-filter-label)');
+  if (lbl) lbl.style.display = onScout ? '' : 'none';
+  setTimeout(() => { if (typeof map !== 'undefined') map.invalidateSize(); }, 100);
 }
 
 function setStatusFilter(v) {
@@ -4340,6 +4364,11 @@ function renderScoutForm(cafe) {
       <textarea id="wf-notes" rows="3" placeholder="Anything a remote worker should know before going" oninput="wfOnChange()">${escHtml(d.notes || '')}</textarea>
     </div>
 
+    <div class="wf-section">
+      <label class="wf-chip" style="justify-content:flex-start"><input type="checkbox" id="wf-ischain" ${d.isChain ? 'checked' : ''} onchange="wfOnChange()">⛓ This is a chain café (not an independent small business)</label>
+      <div class="wf-hint">The team will confirm this on review before it moves to the Chain tab.</div>
+    </div>
+
     <div class="wf-meta">Scout: <b>${escHtml(_wfScoutName || 'unknown')}</b> · Date: filled in on submit (${today})</div>
     <div id="wf-error" class="wf-error" style="display:none"></div>
     <button id="wf-submit" class="wf-submit" onclick="wfSubmit('${cafe.id}')">Submit café for review</button>
@@ -4380,6 +4409,8 @@ function wfReadDraftFromForm(id) {
   d.anyRestrict = wfVal('wf-anyrestrict');
   d.restrictions = d.anyRestrict === 'TRUE' ? wfText('wf-restrict') : '';
   d.notes = wfText('wf-notes');
+  const chainChk = document.getElementById('wf-ischain');
+  d.isChain = !!(chainChk && chainChk.checked);
   return d;
 }
 
@@ -4519,6 +4550,7 @@ async function wfSubmit(id) {
       seats: d.seats, seatsType: seatTypes.join(', '),
       anyRestrictions: d.anyRestrict, restrictions: d.restrictions,
       notes: d.notes,
+      chainFlag: d.isChain ? 'TRUE' : 'FALSE',
     };
     await wfApi('submit', {
       cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address, borough: cafe.borough, zip: cafe.zip },
@@ -4624,6 +4656,10 @@ async function renderReviewPanel(cafe) {
     </div>
     <div class="wf-section"><div class="wf-label">Scout notes</div><textarea id="rv-notes" rows="3">${escHtml(s.notes || '')}</textarea></div>
 
+    <div class="wf-section">
+      <label class="wf-chip" style="justify-content:flex-start;${s.chainFlag === 'TRUE' ? 'border-color:#6366F1;background:#eef2ff' : ''}"><input type="checkbox" id="rv-ischain" ${(s.chainFlag === 'TRUE' || s.isChain === 'TRUE') ? 'checked' : ''}>⛓ Chain café (moves to the Chain tab on approve)</label>
+      ${s.chainFlag === 'TRUE' ? '<div class="wf-hint">The scout flagged this as a chain. Untick if they were wrong.</div>' : ''}
+    </div>
     <div class="wf-section"><div class="wf-label">Send back note <span class="wf-hint-inline">(only if sending back)</span></div><textarea id="rv-sendback" rows="2" placeholder="What should the scout fix or add?"></textarea></div>
     <div id="rv-error" class="wf-error" style="display:none"></div>
     <div class="wf-row-btns">
@@ -4642,6 +4678,7 @@ function wfReadReview() {
     seats: v('rv-seats'), seatsType: v('rv-seatstype'), environment: v('rv-env'), highlight: v('rv-highlight'), description: v('rv-desc'),
     anyRestrictions: v('rv-anyrestrict'), restrictions: v('rv-restrict'), notes: v('rv-notes'),
     listingPhotoIds: Array.from(document.querySelectorAll('.rv-photo:checked')).map(e => e.value),
+    isChain: !!(document.getElementById('rv-ischain') && document.getElementById('rv-ischain').checked),
   };
 }
 
@@ -4655,6 +4692,7 @@ async function wfApprove(id) {
   try {
     await wfApi('approve', { cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address }, fields, approvedBy: (_sbUser && _sbUser.email) || '' });
     cafe.status = 'Visit Completed';
+    cafe.isChain = !!fields.isChain;
     state.reviewCafeId = null;
     refreshMarker(cafe); applyFilters(); renderPanel(); updateStats(); saveState();
     showToast('🎉 ' + cafe.name + ' is live on the public map');

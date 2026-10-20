@@ -12,7 +12,8 @@
  *   POST approve       → finalizes the row (Status = Visit Completed), pings Slack
  *   POST sendBack      → Status = Needs Revisit, pings Slack with the note
  *   POST removeUpload  → trashes a file the scout removed before submitting
- *   GET  ?action=markers → CSV of completed cafés for the public map
+ *   POST setStatus     → approver moves a café (e.g. Visit Completed → Official Cafe Listing)
+ *   GET  ?action=markers → CSV of Official Cafe Listing cafés for the public map (60s cache)
  *
  * One-time settings: Project Settings → Script Properties
  *   SLACK_SUBMISSIONS_WEBHOOK  (required)  incoming webhook for #cafe-submissions
@@ -31,7 +32,7 @@ var DEFAULT_APPROVERS = ['denissemedinaflores@gmail.com', 'davidatorres123@gmail
 var EXTRA_COLUMNS = [
   'ReviewStatus', 'Website', 'HoursWeekday', 'HoursWeekend', 'WeekendRestrictions', 'Environment',
   'SeatsType', 'Notes', 'DateScouted', 'SubmittedBy', 'PhotoIds', 'ListingPhotoIds', 'DriveFolderUrl',
-  'AddressFlag', 'AddressFlagNote', 'ApprovedBy', 'ApprovedAt', 'SendBackNote'
+  'AddressFlag', 'AddressFlagNote', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag'
 ];
 
 // ------------------------------------------------------------ entry points
@@ -48,6 +49,7 @@ function doPost(e) {
       case 'getSubmission': out = handleGetSubmission_(body, user); break;
       case 'approve':       out = handleApprove_(body, user); break;
       case 'sendBack':      out = handleSendBack_(body, user); break;
+      case 'setStatus':     out = handleSetStatus_(body, user); break;
       default: throw new Error('Unknown action: ' + body.action);
     }
     out.ok = true;
@@ -217,6 +219,7 @@ function handleSubmit_(body, user) {
     Seats: f.seats || '', SeatsType: f.seatsType || '',
     TimeRestriction: f.anyRestrictions || '', RestrictionAmount: f.restrictions || '',
     Notes: f.notes || '',
+    ChainFlag: f.chainFlag === 'TRUE' ? 'reported' : '',
     ScoutName: scoutName,
     SubmittedBy: user.email,
     DateScouted: today_(),
@@ -243,6 +246,7 @@ function handleSubmit_(body, user) {
     '*Vibe:* ' + f.environment,
     '*Highlight:* ' + (f.highlight || ''),
     f.notes ? '*Notes:* ' + f.notes : '',
+    f.chainFlag === 'TRUE' ? '⛓ *Scout says this is a chain café* (confirm on review)' : '',
     photos.length + ' photo/video' + (photos.length === 1 ? '' : 's') + ' · <' + folder.getUrl() + '|Drive folder>',
     '<' + reviewLink + '|🔎 Review & approve in the scout map>'
   ].filter(String);
@@ -265,7 +269,7 @@ function handleFlagAddress_(body, user) {
 }
 
 function handleGetSubmission_(body, user) {
-  requireApprover_(user);
+  // Any logged-in scout may read a submission (the map shows non-approvers a read-only view)
   var sh = sheet_(), h = ensureColumns_(sh);
   var row = findRow_(sh, h, body.cafe || {});
   if (row === -1) throw new Error('This café is not in the spreadsheet.');
@@ -279,6 +283,7 @@ function handleGetSubmission_(body, user) {
     submittedBy: r.ScoutName || r.SubmittedBy, dateScouted: r.DateScouted, website: r.Website,
     hoursWeekday: r.HoursWeekday, hoursWeekend: r.HoursWeekend, weekendRestrictions: String(r.WeekendRestrictions || ''),
     environment: r.Environment, highlight: r.Highlight, description: r.Description,
+    chainFlag: String(r.ChainFlag || '') === 'reported' ? 'TRUE' : 'FALSE', isChain: String(r.isChain || '').toUpperCase(),
     wifi: String(r.WiFi || ''), secured: String(r.Secured || ''), outlets: String(r.Outlets || ''), hotFood: String(r.HotFood || ''), restroom: String(r.Restroom || ''),
     seats: r.Seats, seatsType: r.SeatsType, anyRestrictions: String(r.TimeRestriction || ''), restrictions: r.RestrictionAmount, notes: r.Notes,
     photos: photos, listingPhotoIds: listing, folderUrl: r.DriveFolderUrl,
@@ -301,6 +306,7 @@ function handleApprove_(body, user) {
     Seats: f.seats || '', SeatsType: f.seatsType || '',
     TimeRestriction: f.anyRestrictions || '', RestrictionAmount: f.restrictions || '', Notes: f.notes || '',
     ListingPhotoIds: JSON.stringify(f.listingPhotoIds || []),
+    isChain: f.isChain ? 'TRUE' : 'FALSE', ChainFlag: '',
     ApprovedBy: user.email, ApprovedAt: now_(),
   });
   CacheService.getScriptCache().remove('markers_csv');
@@ -317,6 +323,28 @@ function handleSendBack_(body, user) {
   if (row !== -1) setCells_(sh, h, row, { Status: 'Needs Revisit', ReviewStatus: 'Sent back', SendBackNote: (body.note || '') + ' (' + user.email + ', ' + now_() + ')' });
   postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '↩ Sent back: ' + (cafe.name || ''), '*' + (cafe.name || '') + '* was sent back to the scout.\n*Note:* ' + (body.note || '') + '\n_From: ' + user.email + '_', []);
   return {};
+}
+
+var ALLOWED_STATUSES = ['Unvisited', 'Assigned', 'In Progress', 'Pending Visit', 'In Review', 'Visit Completed', 'Official Cafe Listing', 'Needs Revisit', 'Backlogged Cafe', 'Temporarily Unavailable', 'Permanently Closed', 'Ineligible Cafe'];
+
+// Approver moves a café between statuses (mainly Visit Completed <-> Official Cafe Listing)
+function handleSetStatus_(body, user) {
+  requireApprover_(user);
+  var status = String(body.status || '');
+  if (ALLOWED_STATUSES.indexOf(status) === -1) throw new Error('Unknown status: ' + status);
+  var sh = sheet_(), h = ensureColumns_(sh);
+  var cafe = body.cafe || {};
+  var row = findRow_(sh, h, cafe);
+  if (row === -1) throw new Error('This café is not in the spreadsheet.');
+  var fields = { Status: status };
+  if (status === 'Official Cafe Listing') { fields.ReviewStatus = 'Official'; fields.ApprovedBy = user.email; fields.ApprovedAt = now_(); }
+  else if (status === 'Visit Completed') { fields.ReviewStatus = 'Approved'; }
+  setCells_(sh, h, row, fields);
+  CacheService.getScriptCache().remove('markers_csv');
+  if (status === 'Official Cafe Listing') {
+    postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '⭐ Now official: ' + (cafe.name || ''), '*' + (cafe.name || '') + '* is live on the public Work & Brew map. Published by ' + user.email + '.', []);
+  }
+  return { status: status };
 }
 
 // ------------------------------------------------------------ slack
@@ -350,7 +378,8 @@ function buildMarkersCsv_() {
     data.forEach(function (vals) {
       var r = {};
       Object.keys(h).forEach(function (k) { r[k] = vals[h[k] - 1]; });
-      if (String(r.Status).trim() !== 'Visit Completed') return;
+      if (String(r.Status).trim() !== 'Official Cafe Listing') return;
+      if (String(r.isChain || '').toUpperCase() === 'TRUE') return; // public map is independents only
       if (!r.Latitude || !r.Longitude) return;
       var listing = [];
       try { listing = JSON.parse(r.ListingPhotoIds || '[]'); } catch (e) {}
@@ -362,7 +391,7 @@ function buildMarkersCsv_() {
     });
   }
   var csv = lines.join('\n');
-  try { cache.put('markers_csv', csv, 300); } catch (e) {}
+  try { cache.put('markers_csv', csv, 60); } catch (e) {}
   return csv;
 }
 function csvCell_(v) {
