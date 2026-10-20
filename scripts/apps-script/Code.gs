@@ -1,7 +1,7 @@
 /**
- * Work & Brew — Scout Workflow backend
+ * Work & Brew: Scout Workflow backend
  * ------------------------------------------------------------
- * Apps Script project (standalone or bound to the sheet — either works; it opens the
+ * Apps Script project (standalone or bound to the sheet, either works; it opens the
  * spreadsheet by SPREADSHEET_ID). Deployed as a Web App: Execute as "Me", access "Anyone".
  *
  * What it does
@@ -153,7 +153,7 @@ function parentFolder_() {
   var props = PropertiesService.getScriptProperties();
   var id = props.getProperty('DRIVE_FOLDER_ID');
   if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
-  var f = DriveApp.createFolder('Work & Brew — Café Photos');
+  var f = DriveApp.createFolder('Work & Brew Café Photos');
   props.setProperty('DRIVE_FOLDER_ID', f.getId());
   return f;
 }
@@ -236,7 +236,7 @@ function handleSubmit_(body, user) {
   }
   var lines = [
     '*' + (cafe.name || 'Café') + '* · ' + (cafe.borough || '') + '\n' + (cafe.address || ''),
-    '*Scout:* ' + scoutName + '   *Hours:* M–F ' + f.hoursWeekday + ' · Sat–Sun ' + f.hoursWeekend,
+    '*Scout:* ' + scoutName + '\n*Hours:* Mon to Fri ' + f.hoursWeekday + ' · Sat to Sun ' + f.hoursWeekend,
     '*WiFi* ' + f.wifi + (f.wifi === 'YES' ? ' (secured ' + f.secured + ')' : '') + '  ·  *Outlets* ' + f.outlets + '  ·  *Hot food* ' + f.hotFood + '  ·  *Restroom* ' + f.restroom,
     '*Seats* ' + f.seats + ' · ' + f.seatsType,
     '*Weekend laptop restrictions:* ' + (f.weekendRestrictions === 'TRUE' ? 'Yes' : 'No') + '   *Other restrictions:* ' + (f.anyRestrictions === 'TRUE' ? f.restrictions : 'None'),
@@ -257,9 +257,9 @@ function handleFlagAddress_(body, user) {
   var sh = sheet_(), h = ensureColumns_(sh);
   var cafe = body.cafe || {};
   var row = findRow_(sh, h, cafe);
-  if (row !== -1) setCells_(sh, h, row, { AddressFlag: 'reported', AddressFlagNote: (body.note || '') + ' — ' + (body.scoutName || user.email) + ', ' + now_() });
+  if (row !== -1) setCells_(sh, h, row, { AddressFlag: 'reported', AddressFlagNote: (body.note || '') + ' (' + (body.scoutName || user.email) + ', ' + now_() + ')' });
   postSlack_('SLACK_ADDRESS_WEBHOOK', '📍 Address flagged: ' + (cafe.name || ''),
-    '*' + (cafe.name || '') + '*\nListed as: ' + (cafe.address || '') + '\n*Scout says:* ' + (body.note || '') + '\n_— ' + (body.scoutName || user.email) + '_\n' +
+    '*' + (cafe.name || '') + '*\nListed as: ' + (cafe.address || '') + '\n*Scout says:* ' + (body.note || '') + '\n_From: ' + (body.scoutName || user.email) + '_\n' +
     'Fix it with the ✏️ button on the café in the scout map, then clear the flag in the sheet (AddressFlag column).', []);
   return {};
 }
@@ -314,15 +314,15 @@ function handleSendBack_(body, user) {
   var sh = sheet_(), h = ensureColumns_(sh);
   var cafe = body.cafe || {};
   var row = findRow_(sh, h, cafe);
-  if (row !== -1) setCells_(sh, h, row, { Status: 'Needs Revisit', ReviewStatus: 'Sent back', SendBackNote: (body.note || '') + ' — ' + user.email + ', ' + now_() });
-  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '↩ Sent back: ' + (cafe.name || ''), '*' + (cafe.name || '') + '* was sent back to the scout.\n*Note:* ' + (body.note || '') + '\n_— ' + user.email + '_', []);
+  if (row !== -1) setCells_(sh, h, row, { Status: 'Needs Revisit', ReviewStatus: 'Sent back', SendBackNote: (body.note || '') + ' (' + user.email + ', ' + now_() + ')' });
+  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '↩ Sent back: ' + (cafe.name || ''), '*' + (cafe.name || '') + '* was sent back to the scout.\n*Note:* ' + (body.note || '') + '\n_From: ' + user.email + '_', []);
   return {};
 }
 
 // ------------------------------------------------------------ slack
 function postSlack_(propName, title, text, images) {
   var url = PropertiesService.getScriptProperties().getProperty(propName);
-  if (!url) return; // Slack not set up yet — the sheet still has everything
+  if (!url) return; // Slack not set up yet; the sheet still has everything
   var blocks = [
     { type: 'header', text: { type: 'plain_text', text: title.substring(0, 150) } },
     { type: 'section', text: { type: 'mrkdwn', text: text.substring(0, 2900) } }
@@ -330,7 +330,7 @@ function postSlack_(propName, title, text, images) {
   var payload = { text: title, blocks: blocks };
   var res = UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true });
   if (res.getResponseCode() !== 200 && images && images.length) {
-    // Slack sometimes rejects image blocks it can't fetch — retry without them
+    // Slack sometimes rejects image blocks it can't fetch, so retry without them
     payload.blocks = blocks.slice(0, 2);
     UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true });
   }

@@ -14,6 +14,7 @@ const BOROUGHS = ["All", "Bronx", "Manhattan", "Brooklyn", "Queens"];
 // Café list source. The live feed is the café spreadsheet (served by its Apps Script
 // as CSV, completed cafés only). /markers.csv stays as the fallback if the feed is down.
 const MARKERS_FEED_URL = import.meta.env.VITE_MARKERS_FEED_URL || "";
+const LIVE_REFRESH_MS = 90 * 1000; // how often the public map re-checks the sheet feed
 function fetchMarkersCsv() {
   const local = () => fetch("/markers.csv").then((r) => r.text());
   if (!MARKERS_FEED_URL) return local();
@@ -95,6 +96,8 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
   const markersRef      = useRef([]);
   const visibleMarkersRef = useRef(new Set()); // tracks which markers are currently on the map
   const userMarkerRef   = useRef(null);
+  const refreshTimerRef = useRef(null);
+  const lastCsvRef      = useRef("");
   const [mapLoaded, setMapLoaded] = useState(false);
   const [activeBoro, setActiveBoro] = useState("All");
   const [stats, setStats] = useState({});
@@ -206,11 +209,28 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
           } else {
             fetchMarkersCsv()
               .then((csvText) => {
+                lastCsvRef.current = csvText;
                 const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true }).data;
                 cachedMarkerData = parsed;
                 plotMarkers(parsed);
               })
               .catch((err) => console.error("Error loading markers.csv:", err));
+          }
+          // Live refresh: re-read the café feed periodically so a café made official
+          // in the scout map shows up here without a reload.
+          if (MARKERS_FEED_URL && !refreshTimerRef.current) {
+            refreshTimerRef.current = setInterval(() => {
+              if (document.hidden || !mapRef.current) return;
+              fetchMarkersCsv()
+                .then((csvText) => {
+                  if (!csvText || csvText === lastCsvRef.current) return;
+                  lastCsvRef.current = csvText;
+                  const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true }).data;
+                  cachedMarkerData = parsed;
+                  plotMarkers(parsed);
+                })
+                .catch(() => {});
+            }, LIVE_REFRESH_MS);
           }
         }
       });
@@ -229,6 +249,7 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
 
     return () => {
       observer.disconnect();
+      if (refreshTimerRef.current) { clearInterval(refreshTimerRef.current); refreshTimerRef.current = null; }
       mapRef.current?.remove();
       mapRef.current = null;
     };

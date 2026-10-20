@@ -2066,7 +2066,7 @@ function buildPopupContent(cafe) {
               onmouseout="this.style.borderColor='#d1d5db';this.style.color='#888'">✏️</button>
     </div>
     <div class="popup-addr">${cafe.address}</div>
-    ${inReview ? `<div style="font-size:0.75rem;color:#C47F2E;font-weight:700;margin:6px 0 2px">⏳ In review — submitted, waiting for approval</div>
+    ${inReview ? `<div style="font-size:0.75rem;color:#C47F2E;font-weight:700;margin:6px 0 2px">⏳ In review: submitted, waiting for approval</div>
       ${_wfIsApprover ? `<button class="popup-review-btn" onclick="openReview('${cafe.id}')">🔎 Review submission</button>` : ''}` : ''}
     ${cafe.status === 'Needs Revisit' && cafe.notes ? `<div style="font-size:0.7rem;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:5px 7px;margin:4px 0">${escHtml(cafe.notes)}</div>` : ''}
     ${!isCompleted ? `
@@ -4057,7 +4057,7 @@ function init() {
 
 
 // ============================================================
-// SCOUT WORKFLOW V2 — in-map café form, uploads, review & approve
+// SCOUT WORKFLOW V2: in-map café form, uploads, review & approve
 // Backend = Google Apps Script bound to the café spreadsheet
 // (see scripts/apps-script/Code.gs). Nothing secret lives here.
 // ============================================================
@@ -4216,7 +4216,7 @@ function renderScoutForm(cafe) {
     <div class="wf-title">${escHtml(cafe.name)}</div>
     <div class="wf-addr">${escHtml(cafe.address)}</div>
     ${flagged
-      ? `<div class="wf-flag-badge">⚠ Address flagged — we're on it</div>`
+      ? `<div class="wf-flag-badge">⚠ Address flagged: we're on it</div>`
       : `<a class="wf-link" onclick="wfToggleAddrBox()">Address wrong? Tell us</a>
          <div id="wf-addr-box" class="wf-addr-box" style="display:none">
            <textarea id="wf-addr-note" rows="2" placeholder="What's the correct address? Or what's off about it?"></textarea>
@@ -4239,8 +4239,8 @@ function renderScoutForm(cafe) {
     <div class="wf-section">
       <div class="wf-label">Confirmed hours <span class="wf-req">*</span> <span class="wf-hint-inline">(scroll to pick)</span></div>
       <div class="wf-hours">
-        <span>Mon–Fri</span>${wfTime('wf-h-wd-open', d.wdOpen)}<span class="wf-to">to</span>${wfTime('wf-h-wd-close', d.wdClose)}
-        <span>Sat–Sun</span>${wfTime('wf-h-we-open', d.weOpen)}<span class="wf-to">to</span>${wfTime('wf-h-we-close', d.weClose)}
+        <span>Mon to Fri</span>${wfTime('wf-h-wd-open', d.wdOpen)}<span class="wf-to">to</span>${wfTime('wf-h-wd-close', d.wdClose)}
+        <span>Sat to Sun</span>${wfTime('wf-h-we-open', d.weOpen)}<span class="wf-to">to</span>${wfTime('wf-h-we-close', d.weClose)}
       </div>
     </div>
 
@@ -4299,7 +4299,7 @@ function renderScoutForm(cafe) {
       <textarea id="wf-notes" rows="3" placeholder="Anything a remote worker should know before going" oninput="wfOnChange()">${escHtml(d.notes || '')}</textarea>
     </div>
 
-    <div class="wf-meta">Scout: <b>${escHtml(_wfScoutName || '—')}</b> · Date: filled in on submit (${today})</div>
+    <div class="wf-meta">Scout: <b>${escHtml(_wfScoutName || 'unknown')}</b> · Date: filled in on submit (${today})</div>
     <div id="wf-error" class="wf-error" style="display:none"></div>
     <button id="wf-submit" class="wf-submit" onclick="wfSubmit('${cafe.id}')">Submit café for review</button>
     <div class="wf-hint" style="text-align:center">Your answers save on this device as you go.</div>
@@ -4375,7 +4375,7 @@ async function wfUploadFiles(id, fileList) {
   let done = 0, failed = 0;
   for (const f of files) {
     if (f.size > MAX_UPLOAD_MB * 1024 * 1024) {
-      showToast(`⚠ ${f.name} is over ${MAX_UPLOAD_MB} MB — add it to the Drive folder instead`);
+      showToast(`⚠ ${f.name} is over ${MAX_UPLOAD_MB} MB: add it to the Drive folder instead`);
       failed++; continue;
     }
     if (text) text.textContent = `Uploading ${done + failed + 1}/${files.length}… ${f.name}`;
@@ -4426,7 +4426,7 @@ async function wfFlagAddress(id) {
   try {
     await wfApi('flagAddress', { cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address }, note, scoutName: _wfScoutName });
     cafe.addressFlag = 'reported';
-    showToast('📍 Sent to the team — you can keep scouting');
+    showToast('📍 Sent to the team: you can keep scouting');
     renderScoutForm(cafe);
   } catch (e) { showToast('⚠ ' + e.message); }
 }
@@ -4469,8 +4469,8 @@ async function wfSubmit(id) {
   try {
     const seatTypes = (d.seatTypes || []).concat(d.seatOther ? ['Other: ' + d.seatOther] : []);
     const form = {
-      hoursWeekday: `${wfFmtTime(d.wdOpen)} – ${wfFmtTime(d.wdClose)}`,
-      hoursWeekend: `${wfFmtTime(d.weOpen)} – ${wfFmtTime(d.weClose)}`,
+      hoursWeekday: `${wfFmtTime(d.wdOpen)} to ${wfFmtTime(d.wdClose)}`,
+      hoursWeekend: `${wfFmtTime(d.weOpen)} to ${wfFmtTime(d.weClose)}`,
       weekendRestrictions: d.weekendRestrict,
       environment: d.environment,
       highlight: d.highlight,
@@ -4562,7 +4562,7 @@ async function renderReviewPanel(cafe) {
 
     <div class="wf-section"><div class="wf-label">Website <span class="wf-hint-inline">(optional, yours to add)</span></div><input id="rv-website" value="${escHtml(s.website || '')}" placeholder="https://"></div>
     <div class="wf-section"><div class="wf-label">Hours</div>
-      <input id="rv-hours-wd" value="${escHtml(s.hoursWeekday || '')}" placeholder="Mon–Fri"><input id="rv-hours-we" value="${escHtml(s.hoursWeekend || '')}" placeholder="Sat–Sun" style="margin-top:6px"></div>
+      <input id="rv-hours-wd" value="${escHtml(s.hoursWeekday || '')}" placeholder="Mon to Fri"><input id="rv-hours-we" value="${escHtml(s.hoursWeekend || '')}" placeholder="Sat to Sun" style="margin-top:6px"></div>
     <div class="wf-section wf-grid3">
       <div><div class="wf-label">Weekend restrictions</div>${tf('rv-weekend', s.weekendRestrictions)}</div>
       <div><div class="wf-label">WiFi</div>${yn('rv-wifi', s.wifi)}</div>
@@ -4576,7 +4576,7 @@ async function renderReviewPanel(cafe) {
       <input id="rv-seatstype" value="${escHtml(s.seatsType || '')}" placeholder="Seat types" style="margin-top:6px"></div>
     <div class="wf-section"><div class="wf-label">Highlight (what makes it unique)</div><textarea id="rv-highlight" rows="2">${escHtml(s.highlight || '')}</textarea></div>
     <div class="wf-section"><div class="wf-label">Environment (scout's words)</div><textarea id="rv-env" rows="3">${escHtml(s.environment || '')}</textarea></div>
-    <div class="wf-section"><div class="wf-label">Listing description <span class="wf-hint-inline">(what the public sees — edit freely)</span></div><textarea id="rv-desc" rows="4">${escHtml(s.description || s.environment || '')}</textarea></div>
+    <div class="wf-section"><div class="wf-label">Listing description <span class="wf-hint-inline">(what the public sees: edit freely)</span></div><textarea id="rv-desc" rows="4">${escHtml(s.description || s.environment || '')}</textarea></div>
     <div class="wf-section wf-grid3" style="grid-template-columns:1fr 2fr">
       <div><div class="wf-label">Any restrictions</div>${tf('rv-anyrestrict', s.anyRestrictions)}</div>
       <div><div class="wf-label">Restriction details</div><input id="rv-restrict" value="${escHtml(s.restrictions || '')}"></div>
@@ -4609,7 +4609,7 @@ async function wfApprove(id) {
   if (!cafe) return;
   const fields = wfReadReview();
   const err = document.getElementById('rv-error');
-  if (!fields.listingPhotoIds.length) { err.style.display = 'block'; err.textContent = 'Pick at least one photo for the listing.'; return; }
+  if (!fields.listingPhotoIds.length && document.querySelectorAll('.rv-photo').length) { err.style.display = 'block'; err.textContent = 'Pick at least one photo for the listing.'; return; }
   const btn = document.getElementById('rv-approve'); btn.disabled = true; btn.textContent = 'Publishing…';
   try {
     await wfApi('approve', { cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address }, fields, approvedBy: (_sbUser && _sbUser.email) || '' });
