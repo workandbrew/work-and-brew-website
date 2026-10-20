@@ -1700,7 +1700,7 @@ function bulkApply() {
   const newStatus = document.getElementById('bulk-status-select').value;
   if (!newStatus) { showToast('⚠ Pick a status first'); return; }
   _bulkSelected.forEach(id => {
-    const cafe = state.cafes.find(c => c.id === id);
+    const cafe = state.cafes.find(c => String(c.id) === String(id));
     if (cafe) cafe.status = newStatus;
     if (markers[id]) {
       markerLayer.removeLayer(markers[id]);
@@ -2103,7 +2103,7 @@ function buildPopupContent(cafe) {
 }
 
 function updateAssign(id, val) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
   cafe.assignedTo = val === '' ? null : parseInt(val);
   refreshMarker(cafe);
@@ -2113,8 +2113,13 @@ function updateAssign(id, val) {
 }
 
 function updateStatus(id, val) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
+  // A scout marking a café complete by hand still goes through review first.
+  if (val === 'Visit Completed' && !_wfIsApprover && cafe.status !== 'Visit Completed') {
+    wfManualComplete(cafe);
+    return;
+  }
   cafe.status = val;
   refreshMarker(cafe);
   if (val === 'Visit Completed') {
@@ -2154,7 +2159,7 @@ function onStatusChange(id, val) {
 }
 
 function submitIneligible(id, reasonParam) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
   // Prefer directly passed value; fall back to getElementById just in case
   const inp = document.getElementById('ineligible-reason-inp-' + id);
@@ -2174,7 +2179,7 @@ function submitIneligible(id, reasonParam) {
 // EDIT CAFE MODAL
 // ============================================================
 function showEditCafe(id) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
   const existing = document.getElementById('cafe-edit-modal');
   if (existing) existing.remove();
@@ -2225,7 +2230,7 @@ function showEditCafe(id) {
 }
 
 async function saveEditCafe(id) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
   const name    = document.getElementById('edit-cafe-name').value.trim();
   const address = document.getElementById('edit-cafe-address').value.trim();
@@ -2261,7 +2266,7 @@ async function saveEditCafe(id) {
 }
 
 function markAsChain(id) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
   if (!confirm(`Move "${cafe.name}" to Chain Cafés?\nIt will be removed from the Small Business tab.`)) return;
   cafe.isChain = true;
@@ -2276,7 +2281,7 @@ function markAsChain(id) {
 }
 
 function undoCompleted(id) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
   cafe.status = 'Unvisited';
   refreshMarker(cafe);
@@ -2365,7 +2370,7 @@ function applyFilters() {
   _applyRaf = requestAnimationFrame(() => {
     _applyRaf = null;
     shouldShow.forEach(id => {
-      const cafe = state.cafes.find(c => c.id === id);
+      const cafe = state.cafes.find(c => String(c.id) === String(id));
       if (!cafe) return;
       if (!markers[id]) createMarker(cafe);
       if (!markerLayer.hasLayer(markers[id])) markerLayer.addLayer(markers[id]);
@@ -2848,7 +2853,7 @@ function updateDeadline(idx, val) {
 }
 
 function zoomToCafe(id) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
   map.setView([cafe.lat, cafe.lng], 16);
   // Ensure marker is visible — switch tabs if needed
@@ -3301,13 +3306,13 @@ function showToast(msg) {
 // DELETE CAFE
 // ============================================================
 async function deleteCafe(id) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
   if (!confirm('Remove "' + cafe.name + '" permanently from Supabase?\nThis cannot be undone.')) return;
   try {
     const { error } = await sb.from('cafes').delete().eq('id', id);
     if (error) { showToast('⚠ Could not delete: ' + error.message); return; }
-    state.cafes = state.cafes.filter(c => c.id !== id);
+    state.cafes = state.cafes.filter(c => String(c.id) !== String(id));
     if (markers[id]) { markerLayer.removeLayer(markers[id]); delete markers[id]; }
     map.closePopup();
     applyFilters(); updateStats(); renderPanel();
@@ -4037,6 +4042,20 @@ function wfLoadDraft(id) {
 function wfSaveDraft(id, d) { try { localStorage.setItem(wfDraftKey(id), JSON.stringify(d)); } catch(e) {} }
 function wfClearDraft(id) { try { localStorage.removeItem(wfDraftKey(id)); } catch(e) {} }
 
+
+// Scout used the status dropdown instead of the form: send it for approval anyway.
+async function wfManualComplete(cafe) {
+  cafe.status = 'In Review';
+  refreshMarker(cafe); map.closePopup(); applyFilters(); renderPanel(); updateStats(); saveState();
+  showToast('⏳ ' + cafe.name + ' sent for review');
+  try {
+    await wfApi('submit', {
+      cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address, borough: cafe.borough, zip: cafe.zip },
+      form: { notes: cafe.notes || '' }, photos: [], scoutName: _wfScoutName, manual: true,
+    });
+  } catch (e) { showToast('⚠ Could not notify the team: ' + e.message); }
+}
+
 // ---------- open / close the form ----------
 // Opens the side panel on desktop, or the bottom drawer on phones (which uses a different class)
 function wfOpenPanel() {
@@ -4080,7 +4099,10 @@ function wfVal(name) {
 function wfText(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
 function wfTimeOpts(sel) {
   let out = '';
-  for (let m = 5 * 60; m <= 23 * 60 + 30; m += 30) {
+  const slots = [];
+  for (let m = 5 * 60; m <= 23 * 60 + 30; m += 30) slots.push(m);   // 5:00 AM … 11:30 PM
+  for (let m = 0; m <= 2 * 60; m += 30) slots.push(m);              // 12:00 AM … 2:00 AM (after midnight)
+  for (const m of slots) {
     const h = Math.floor(m / 60), mm = m % 60;
     const v = String(h).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
     const h12 = ((h + 11) % 12) + 1, ap = h < 12 ? 'AM' : 'PM';
@@ -4151,10 +4173,15 @@ function renderScoutForm(cafe) {
     </div>
 
     <div class="wf-section">
+      <div class="wf-label">Highlight <span class="wf-req">*</span> <span class="wf-hint-inline">(what makes this café unique)</span></div>
+      <textarea id="wf-highlight" rows="2" placeholder="Ex: rooftop seating, house-roasted beans, late hours, a huge communal table…" oninput="wfOnChange()">${escHtml(d.highlight || '')}</textarea>
+    </div>
+
+    <div class="wf-section">
       <div class="wf-label">WiFi? <span class="wf-req">*</span></div>
       ${wfYesNo('wf-wifi', d.wifi)}
       <div id="wf-secured-wrap" class="wf-sub" style="display:${d.wifi==='YES'?'block':'none'}">
-        <div class="wf-label">WiFi secured (password needed)? <span class="wf-req">*</span></div>
+        <div class="wf-label">WiFi secured? <span class="wf-req">*</span> <span class="wf-hint-inline">(check the WiFi Guard app for SECURED)</span></div>
         ${wfYesNo('wf-secured', d.secured)}
       </div>
     </div>
@@ -4219,6 +4246,7 @@ function wfReadDraftFromForm(id) {
   d.weOpen = wfText('wf-h-we-open'); d.weClose = wfText('wf-h-we-close');
   d.weekendRestrict = wfVal('wf-weekend');
   d.environment = wfText('wf-env');
+  d.highlight = wfText('wf-highlight');
   d.wifi = wfVal('wf-wifi');
   d.secured = d.wifi === 'YES' ? wfVal('wf-secured') : 'NO';
   d.outlets = wfVal('wf-outlets'); d.hotFood = wfVal('wf-hotfood'); d.restroom = wfVal('wf-restroom');
@@ -4328,6 +4356,7 @@ function wfValidate(d) {
   if (!d.wdOpen || !d.wdClose || !d.weOpen || !d.weClose) missing.push('hours');
   if (!d.weekendRestrict) missing.push('weekend laptop restrictions');
   if (!d.environment) missing.push('aesthetic / environment');
+  if (!d.highlight) missing.push('highlight');
   if (!d.wifi) missing.push('WiFi');
   if (d.wifi === 'YES' && !d.secured) missing.push('WiFi secured');
   if (!d.outlets) missing.push('outlets');
@@ -4362,6 +4391,7 @@ async function wfSubmit(id) {
       hoursWeekend: `${wfFmtTime(d.weOpen)} – ${wfFmtTime(d.weClose)}`,
       weekendRestrictions: d.weekendRestrict,
       environment: d.environment,
+      highlight: d.highlight,
       wifi: d.wifi, secured: d.secured, outlets: d.outlets, hotFood: d.hotFood, restroom: d.restroom,
       seats: d.seats, seatsType: seatTypes.join(', '),
       anyRestrictions: d.anyRestrict, restrictions: d.restrictions,
@@ -4462,6 +4492,7 @@ async function renderReviewPanel(cafe) {
     <div class="wf-section"><div class="wf-label">Seats</div>
       <select id="rv-seats">${['Few','Some','Many','Ample'].map(v => `<option ${s.seats===v?'selected':''}>${v}</option>`).join('')}</select>
       <input id="rv-seatstype" value="${escHtml(s.seatsType || '')}" placeholder="Seat types" style="margin-top:6px"></div>
+    <div class="wf-section"><div class="wf-label">Highlight (what makes it unique)</div><textarea id="rv-highlight" rows="2">${escHtml(s.highlight || '')}</textarea></div>
     <div class="wf-section"><div class="wf-label">Environment (scout's words)</div><textarea id="rv-env" rows="3">${escHtml(s.environment || '')}</textarea></div>
     <div class="wf-section"><div class="wf-label">Listing description <span class="wf-hint-inline">(what the public sees — edit freely)</span></div><textarea id="rv-desc" rows="4">${escHtml(s.description || s.environment || '')}</textarea></div>
     <div class="wf-section wf-grid3" style="grid-template-columns:1fr 2fr">
@@ -4485,7 +4516,7 @@ function wfReadReview() {
     website: v('rv-website'), hoursWeekday: v('rv-hours-wd'), hoursWeekend: v('rv-hours-we'),
     weekendRestrictions: v('rv-weekend'), wifi: v('rv-wifi'), secured: v('rv-secured'),
     outlets: v('rv-outlets'), hotFood: v('rv-hotfood'), restroom: v('rv-restroom'),
-    seats: v('rv-seats'), seatsType: v('rv-seatstype'), environment: v('rv-env'), description: v('rv-desc'),
+    seats: v('rv-seats'), seatsType: v('rv-seatstype'), environment: v('rv-env'), highlight: v('rv-highlight'), description: v('rv-desc'),
     anyRestrictions: v('rv-anyrestrict'), restrictions: v('rv-restrict'), notes: v('rv-notes'),
     listingPhotoIds: Array.from(document.querySelectorAll('.rv-photo:checked')).map(e => e.value),
   };

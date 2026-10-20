@@ -212,6 +212,7 @@ function handleSubmit_(body, user) {
     HoursWeekend: f.hoursWeekend || '',
     WeekendRestrictions: f.weekendRestrictions || '',
     Environment: f.environment || '',
+    Highlight: f.highlight || '',
     WiFi: f.wifi || '', Secured: f.secured || '', Outlets: f.outlets || '', HotFood: f.hotFood || '', Restroom: f.restroom || '',
     Seats: f.seats || '', SeatsType: f.seatsType || '',
     TimeRestriction: f.anyRestrictions || '', RestrictionAmount: f.restrictions || '',
@@ -225,6 +226,14 @@ function handleSubmit_(body, user) {
   });
 
   var reviewLink = SITE_URL + '?review=' + encodeURIComponent(cafe.id || '');
+  if (body.manual) {
+    postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '⚠️ Marked complete without the form: ' + (cafe.name || ''),
+      '*' + (cafe.name || '') + '* · ' + (cafe.borough || '') + '\n' + (cafe.address || '') + '\n*Scout:* ' + scoutName +
+      ' set this café to Visit Completed from the status menu, so there are no form answers or photos yet.\n' +
+      (f.notes ? '*Notes:* ' + f.notes + '\n' : '') +
+      'Ask them to open it and use 📝 Scout this café, or fill it in yourself on review.\n<' + reviewLink + '|🔎 Open in the scout map>', []);
+    return { row: row, manual: true };
+  }
   var lines = [
     '*' + (cafe.name || 'Café') + '* · ' + (cafe.borough || '') + '\n' + (cafe.address || ''),
     '*Scout:* ' + scoutName + '   *Hours:* M–F ' + f.hoursWeekday + ' · Sat–Sun ' + f.hoursWeekend,
@@ -232,6 +241,7 @@ function handleSubmit_(body, user) {
     '*Seats* ' + f.seats + ' · ' + f.seatsType,
     '*Weekend laptop restrictions:* ' + (f.weekendRestrictions === 'TRUE' ? 'Yes' : 'No') + '   *Other restrictions:* ' + (f.anyRestrictions === 'TRUE' ? f.restrictions : 'None'),
     '*Vibe:* ' + f.environment,
+    '*Highlight:* ' + (f.highlight || ''),
     f.notes ? '*Notes:* ' + f.notes : '',
     photos.length + ' photo/video' + (photos.length === 1 ? '' : 's') + ' · <' + folder.getUrl() + '|Drive folder>',
     '<' + reviewLink + '|🔎 Review & approve in the scout map>'
@@ -268,7 +278,7 @@ function handleGetSubmission_(body, user) {
   return { submission: {
     submittedBy: r.ScoutName || r.SubmittedBy, dateScouted: r.DateScouted, website: r.Website,
     hoursWeekday: r.HoursWeekday, hoursWeekend: r.HoursWeekend, weekendRestrictions: String(r.WeekendRestrictions || ''),
-    environment: r.Environment, description: r.Description,
+    environment: r.Environment, highlight: r.Highlight, description: r.Description,
     wifi: String(r.WiFi || ''), secured: String(r.Secured || ''), outlets: String(r.Outlets || ''), hotFood: String(r.HotFood || ''), restroom: String(r.Restroom || ''),
     seats: r.Seats, seatsType: r.SeatsType, anyRestrictions: String(r.TimeRestriction || ''), restrictions: r.RestrictionAmount, notes: r.Notes,
     photos: photos, listingPhotoIds: listing, folderUrl: r.DriveFolderUrl,
@@ -285,7 +295,7 @@ function handleApprove_(body, user) {
   setCells_(sh, h, row, {
     Status: 'Visit Completed', ReviewStatus: 'Approved',
     Website: f.website || '', HoursWeekday: f.hoursWeekday || '', HoursWeekend: f.hoursWeekend || '',
-    WeekendRestrictions: f.weekendRestrictions || '', Environment: f.environment || '',
+    WeekendRestrictions: f.weekendRestrictions || '', Environment: f.environment || '', Highlight: f.highlight || '',
     Description: f.description || f.environment || '',
     WiFi: f.wifi || '', Secured: f.secured || '', Outlets: f.outlets || '', HotFood: f.hotFood || '', Restroom: f.restroom || '',
     Seats: f.seats || '', SeatsType: f.seatsType || '',
