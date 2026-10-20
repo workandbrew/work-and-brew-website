@@ -11,6 +11,18 @@ const BORO_COLORS = {
 };
 const BOROUGHS = ["All", "Bronx", "Manhattan", "Brooklyn", "Queens"];
 
+// Café list source. The live feed is the café spreadsheet (served by its Apps Script
+// as CSV, completed cafés only). /markers.csv stays as the fallback if the feed is down.
+const MARKERS_FEED_URL = import.meta.env.VITE_MARKERS_FEED_URL || "";
+function fetchMarkersCsv() {
+  const local = () => fetch("/markers.csv").then((r) => r.text());
+  if (!MARKERS_FEED_URL) return local();
+  return fetch(MARKERS_FEED_URL)
+    .then((r) => (r.ok ? r.text() : Promise.reject(new Error("feed " + r.status))))
+    .then((t) => (t && t.indexOf("Name,") === 0 ? t : Promise.reject(new Error("bad feed"))))
+    .catch(() => local());
+}
+
 const CAFE_PHOTOS = {
   "Artizen Cafe":              "/cafes/Website Cafes/Artizen Cafe/IMG_8975.PNG",
   "Avenue Coffee House":       "/cafes/Website Cafes/Avenue Coffee House/IMG_5873.jpg",
@@ -32,8 +44,7 @@ let cachedMarkerData = null;
 let _prefetchPromise = null;
 function prefetchMarkers() {
   if (cachedMarkerData || _prefetchPromise) return;
-  _prefetchPromise = fetch("/markers.csv")
-    .then((res) => res.text())
+  _prefetchPromise = fetchMarkersCsv()
     .then((csvText) => {
       cachedMarkerData = Papa.parse(csvText, { header: true, skipEmptyLines: true }).data;
     })
@@ -130,7 +141,7 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
         .addTo(mapRef.current);
       visibleMarkersRef.current.add(markerIdx);
 
-      const photo = CAFE_PHOTOS[row.Name];
+      const photo = (row.Photo && row.Photo.trim()) || CAFE_PHOTOS[row.Name];
       const boroColor = BORO_COLORS[borough] || "#9E9E9E";
       const popup = new maplibregl.Popup({ offset: 16, maxWidth: "240px", focusAfterOpen: false }).setHTML(`
         <div style="font-family:'Inter',sans-serif;border-radius:12px;overflow:hidden;min-width:200px;">
@@ -193,8 +204,7 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
           if (cachedMarkerData) {
             plotMarkers(cachedMarkerData);
           } else {
-            fetch("/markers.csv")
-              .then((res) => res.text())
+            fetchMarkersCsv()
               .then((csvText) => {
                 const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true }).data;
                 cachedMarkerData = parsed;
