@@ -1171,6 +1171,18 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 .popup-review-btn { display:block; width:100%; background:#fff; color:#C47F2E; border:1.5px solid #C47F2E; border-radius:6px; padding:6px; font-size:0.72rem; font-weight:700; cursor:pointer; margin-top:6px; font-family:'Inter',sans-serif; }
 @media (max-width: 700px) { .wf-grid3 { grid-template-columns:1fr 1fr; } }
 
+
+/* ---------- search suggestions ---------- */
+#search-suggest { position:fixed; z-index:2000; background:#fff; border:1px solid var(--beige); border-radius:10px; box-shadow:0 10px 28px rgba(44,26,14,.22); min-width:260px; max-width:360px; overflow:hidden; display:none; font-family:'Inter',sans-serif; }
+#search-suggest .sg { display:flex; align-items:center; gap:8px; padding:8px 11px; cursor:pointer; border-bottom:1px solid var(--cream); }
+#search-suggest .sg:last-child { border-bottom:none; }
+#search-suggest .sg:hover, #search-suggest .sg.on { background:var(--cream); }
+#search-suggest .sg-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+#search-suggest .sg-name { font-size:0.78rem; font-weight:600; color:var(--brown); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#search-suggest .sg-name b { color:#C47F2E; }
+#search-suggest .sg-addr { font-size:0.65rem; color:#8a7560; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#search-suggest .sg-info { min-width:0; flex:1; }
+#search-suggest .sg-st { font-size:0.6rem; font-weight:700; white-space:nowrap; color:#8a7560; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -3211,7 +3223,76 @@ document.querySelectorAll('.boro-btn').forEach(b => {
 // SEARCH
 // ============================================================
 let searchTimer;
+// ---------- live suggestions under the search box (3-4 best matches) ----------
+let _sgItems = [], _sgIdx = -1;
+function sgBox() {
+  let b = document.getElementById('search-suggest');
+  if (!b) { b = document.createElement('div'); b.id = 'search-suggest'; document.body.appendChild(b); }
+  return b;
+}
+function sgHide() { const b = document.getElementById('search-suggest'); if (b) b.style.display = 'none'; _sgItems = []; _sgIdx = -1; }
+function sgMatches(q) {
+  q = q.toLowerCase();
+  const starts = [], words = [], contains = [];
+  for (const c of state.cafes) {
+    if (c.status === 'Ineligible Cafe') continue;
+    const n = (c.name || '').toLowerCase();
+    if (n.startsWith(q)) starts.push(c);
+    else if (n.split(/\s+/).some(w => w.startsWith(q))) words.push(c);
+    else if (n.includes(q) || (c.address || '').toLowerCase().includes(q)) contains.push(c);
+    if (starts.length >= 4) break;
+  }
+  return starts.concat(words, contains).slice(0, 4);
+}
+function sgHighlight(name, q) {
+  const i = name.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return escHtml(name);
+  return escHtml(name.slice(0, i)) + '<b>' + escHtml(name.slice(i, i + q.length)) + '</b>' + escHtml(name.slice(i + q.length));
+}
+function sgRender(q) {
+  const box = sgBox(), input = document.getElementById('search-input');
+  if (!q || q.length < 2) { sgHide(); return; }
+  _sgItems = sgMatches(q); _sgIdx = -1;
+  if (!_sgItems.length) { sgHide(); return; }
+  box.innerHTML = _sgItems.map((c, i) => `
+    <div class="sg" data-i="${i}" onmousedown="event.preventDefault(); sgPick(${i})">
+      <div class="sg-dot" style="background:${getMarkerColor(c)}"></div>
+      <div class="sg-info"><div class="sg-name">${sgHighlight(c.name, q)}</div><div class="sg-addr">${escHtml(c.address)}${c.borough ? ' · ' + escHtml(c.borough) : ''}</div></div>
+      <span class="sg-st">${c.status === 'Visit Completed' ? '✓ done' : c.status === 'In Review' ? '⏳ review' : ''}</span>
+    </div>`).join('');
+  const r = input.getBoundingClientRect();
+  box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 300)) + 'px';
+  box.style.top = (r.bottom + 6) + 'px';
+  box.style.width = Math.max(260, r.width + 120) + 'px';
+  box.style.display = 'block';
+}
+function sgPick(i) {
+  const c = _sgItems[i]; if (!c) return;
+  const input = document.getElementById('search-input');
+  input.value = c.name; state.searchQuery = c.name;
+  sgHide();
+  applyFilters(); renderPanel();
+  switchToMap(c.id);
+}
+(function () {
+  const input = document.getElementById('search-input');
+  input.setAttribute('autocomplete', 'off');
+  input.addEventListener('keydown', function (e) {
+    if (!_sgItems.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      _sgIdx = e.key === 'ArrowDown' ? (_sgIdx + 1) % _sgItems.length : (_sgIdx - 1 + _sgItems.length) % _sgItems.length;
+      document.querySelectorAll('#search-suggest .sg').forEach((el, i) => el.classList.toggle('on', i === _sgIdx));
+    } else if (e.key === 'Enter') { e.preventDefault(); sgPick(_sgIdx >= 0 ? _sgIdx : 0); }
+    else if (e.key === 'Escape') sgHide();
+  });
+  input.addEventListener('blur', () => setTimeout(sgHide, 150));
+  input.addEventListener('focus', function () { if (this.value.trim()) sgRender(this.value.trim()); });
+  window.addEventListener('resize', sgHide);
+})();
+
 document.getElementById('search-input').addEventListener('input', function() {
+  sgRender(this.value.trim());
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     state.searchQuery = this.value.trim();
