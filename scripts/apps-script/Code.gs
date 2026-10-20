@@ -207,9 +207,10 @@ function handleSubmit_(body, user) {
   var folder = cafeFolder_(cafe);
   var photos = body.photos || [];
   var scoutName = body.scoutName || user.name || user.email;
+  var isCorrection = !!body.correction;
   setCells_(sh, h, row, {
     Status: 'In Review',
-    ReviewStatus: 'In Review',
+    ReviewStatus: isCorrection ? 'Correction' : 'In Review',
     HoursWeekday: f.hoursWeekday || '',
     HoursWeekend: f.hoursWeekend || '',
     WeekendRestrictions: f.weekendRestrictions || '',
@@ -253,7 +254,8 @@ function handleSubmit_(body, user) {
   var images = photos.filter(function (p) { return !p.isVideo; }).slice(0, 4).map(function (p) {
     return { type: 'image', image_url: 'https://lh3.googleusercontent.com/d/' + p.id + '=w800', alt_text: p.name || 'photo' };
   });
-  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '📬 New café submission: ' + (cafe.name || ''), lines.join('\n'), images);
+  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', (isCorrection ? '🔁 RESUBMIT CORRECTION: ' : '📬 New café submission: ') + (cafe.name || ''),
+    (isCorrection ? '_The scout edited and resubmitted this café. Latest version below._\n' : '') + lines.join('\n'), images);
   return { row: row };
 }
 
@@ -297,7 +299,27 @@ function handleApprove_(body, user) {
   var cafe = body.cafe || {}, f = body.fields || {};
   var row = findRow_(sh, h, cafe);
   if (row === -1) throw new Error('This café is not in the spreadsheet.');
+  // Rename photos in Drive to the names chosen on review: "<Café> - <name>.<ext>"
+  var names = f.photoNames || {};
+  var current = getRowObj_(sh, h, row);
+  var photoList = [];
+  try { photoList = JSON.parse(current.PhotoIds || '[]'); } catch (e) {}
+  Object.keys(names).forEach(function (id) {
+    try {
+      var file = DriveApp.getFileById(id);
+      var oldName = file.getName();
+      var extMatch = oldName.match(/\.[A-Za-z0-9]{2,5}$/);
+      var ext = extMatch ? extMatch[0] : '';
+      var label = String(names[id]).replace(/[\/\\:*?"<>|]/g, '').trim();
+      if (!label) return;
+      var prefix = (cafe.name || '').trim();
+      var newName = (prefix && label.toLowerCase().indexOf(prefix.toLowerCase()) !== 0 ? prefix + ' - ' : '') + label + ext;
+      if (newName !== oldName) file.setName(newName);
+      photoList.forEach(function (p) { if (p.id === id) p.name = newName; });
+    } catch (e) {}
+  });
   setCells_(sh, h, row, {
+    PhotoIds: JSON.stringify(photoList),
     Status: 'Visit Completed', ReviewStatus: 'Approved',
     Website: f.website || '', HoursWeekday: f.hoursWeekday || '', HoursWeekend: f.hoursWeekend || '',
     WeekendRestrictions: f.weekendRestrictions || '', Environment: f.environment || '', Highlight: f.highlight || '',

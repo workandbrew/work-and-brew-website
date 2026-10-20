@@ -630,7 +630,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 #panel-body { scrollbar-width: thin; scrollbar-color: var(--beige) transparent; }
 
 /* ============================================================
-   RESPONSIVE — mobile, tablet, laptop
+   RESPONSIVE: mobile, tablet, laptop
    ============================================================ */
 
 /* ── Laptop / large tablet (≤ 1200px) ── */
@@ -1157,6 +1157,9 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 .wf-thumb-video { width:100%; height:100%; display:grid; place-items:center; font-size:0.68rem; font-weight:700; color:#5a4a3f; }
 .wf-thumb-x { position:absolute; top:3px; right:3px; width:20px; height:20px; border-radius:50%; border:none; background:rgba(0,0,0,.6); color:#fff; font-size:0.65rem; cursor:pointer; line-height:1; }
 .wf-thumb-open { position:absolute; bottom:3px; right:3px; width:20px; height:20px; border-radius:50%; background:rgba(0,0,0,.6); color:#fff; font-size:0.7rem; display:grid; place-items:center; text-decoration:none; }
+.wf-thumb-wrap { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.wf-thumb-name { font-size:0.6rem; color:#6e635b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rv-photo-name { font-size:0.62rem !important; padding:3px 5px !important; border-radius:5px !important; }
 .wf-pick { cursor:pointer; }
 .wf-pick input { position:absolute; top:4px; left:4px; width:18px; height:18px; accent-color:#4CAF50; z-index:2; }
 .wf-pick.on { border-color:#4CAF50; box-shadow:0 0 0 2px #4CAF5055; }
@@ -1307,7 +1310,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 <div id="scout-mode-banner">
   <div class="scout-banner-dot" id="scout-banner-dot"></div>
   <span class="scout-banner-text" id="scout-banner-name">Scout Mode</span>
-  <span class="scout-banner-sub">— You're viewing your assigned cafés only</span>
+  <span class="scout-banner-sub">: You're viewing your assigned cafés only</span>
   <a href="?" style="margin-left:auto;font-size:0.7rem;color:rgba(255,255,255,0.4);text-decoration:none;">✕ Exit Scout Mode</a>
 </div>
 
@@ -1440,7 +1443,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 if (typeof L === 'undefined' || typeof bootstrap === 'undefined') {
   document.body.style.cssText = 'display:flex;justify-content:center;align-items:center;height:100vh;background:#F5EDE2;font-family:Inter,sans-serif;color:#2E1A0E;flex-direction:column;gap:12px;text-align:center;padding:20px';
   document.body.innerHTML = '<h2 style="margin:0">⚠️ Map failed to load</h2><p style="color:#7A4A30;max-width:400px">The map requires an internet connection to load its scripts.<br>Please check your connection and refresh the page (Ctrl+R).</p>';
-  throw new Error('Required libraries (Leaflet/Bootstrap) not loaded — check internet connection');
+  throw new Error('Required libraries (Leaflet/Bootstrap) not loaded: check internet connection');
 }
 
 // ============================================================
@@ -1453,7 +1456,7 @@ const PERSON_COLORS = [
   '#D81B60','#9CCC65','#F4511E','#3949AB','#795548'
 ];
 
-// Pre-defined scout home bases — edit coordinates here to adjust pins
+// Pre-defined scout home bases: edit coordinates here to adjust pins
 const HOME_BASE_DEFAULTS = [
   { name: 'Iris',        homeBases: [
     { label: 'Bronx Coverage',        lat: 40.8448, lng: -73.8648 },
@@ -1551,7 +1554,7 @@ async function loadFromSupabase() {
       updateStats();
       renderPanel();
       const completed = state.cafes.filter(c => c.status === 'Visit Completed').length;
-      showToast('☁ Loaded ' + data.length + ' cafes — ' + completed + ' completed');
+      showToast('☁ Loaded ' + data.length + ' cafes: ' + completed + ' completed');
     }
   } catch(e) {
     console.warn('Supabase load failed:', e);
@@ -1615,7 +1618,7 @@ async function sbOnAuthSuccess(user) {
     wfInit(user);
   } catch(e) {
     console.error('Auth success error:', e);
-    showToast('⚠ Load error: ' + e.message + ' — map loaded without latest data');
+    showToast('⚠ Load error: ' + e.message + ': map loaded without latest data');
   } finally {
     clearInterval(barInterval);
     if (loadingBar) loadingBar.style.width = '100%';
@@ -1669,7 +1672,7 @@ function renderBacklogPanel() {
   cafes.sort((a,b) => a.borough.localeCompare(b.borough) || a.name.localeCompare(b.name));
 
   const copyList = () => {
-    const text = cafes.map((c,i) => `${i+1}. ${c.name} — ${c.address} (${c.borough})`).join('\n');
+    const text = cafes.map((c,i) => `${i+1}. ${c.name}: ${c.address} (${c.borough})`).join('\n');
     navigator.clipboard.writeText(text).then(() => showToast('📋 Backlog list copied!')).catch(() => {
       const ta = document.createElement('textarea');
       ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy');
@@ -1679,7 +1682,7 @@ function renderBacklogPanel() {
 
   container.innerHTML = `
     <div class="backlog-header">
-      <h3>📋 Backlog — ${cafes.length} unvisited & unassigned</h3>
+      <h3>📋 Backlog: ${cafes.length} unvisited & unassigned</h3>
       <button class="backlog-copy-btn" onclick="(${copyList.toString()})()">⎘ Copy List</button>
     </div>
     ${cafes.map(c => `
@@ -1855,7 +1858,7 @@ document.getElementById('sb-login-form').addEventListener('submit', async (e) =>
   if (session?.user) {
     await sbOnAuthSuccess(session.user);
   }
-  // If no session, the overlay stays visible — user must log in
+  // If no session, the overlay stays visible: user must log in
 })();
 
 const STORAGE_KEY = 'wab_cafe_map_v4';
@@ -1888,7 +1891,7 @@ function loadState() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return;
     const s = JSON.parse(saved);
-    // Cafes are now loaded from Supabase — skip cafe merging from localStorage
+    // Cafes are now loaded from Supabase: skip cafe merging from localStorage
     if (s.persons) state.persons = s.persons;
     state.persons.forEach((p, i) => {
       const def = HOME_BASE_DEFAULTS[i] || { name: p.name, homeBases: [] };
@@ -2190,7 +2193,7 @@ function onStatusChange(id, val) {
   const reasonRow = document.getElementById('ineligible-reason-row-' + id);
   if (val === 'Ineligible Cafe') {
     if (reasonRow) { reasonRow.style.display = 'block'; }
-    // Don't save yet — wait for the reason to be submitted
+    // Don't save yet: wait for the reason to be submitted
   } else {
     if (reasonRow) { reasonRow.style.display = 'none'; }
     updateStatus(id, val);
@@ -2345,7 +2348,7 @@ function createMarker(cafe) {
   const m = L.marker([cafe.lat, cafe.lng], {
     icon: createMarkerIcon(color)
   });
-  // Bind empty popup — content is built lazily on first open (faster marker creation)
+  // Bind empty popup: content is built lazily on first open (faster marker creation)
   m.bindPopup('', {maxWidth: 280, minWidth: 240});
   m.on('popupopen', () => {
     m.setPopupContent(buildPopupContent(cafe));
@@ -2404,7 +2407,7 @@ function applyFilters() {
     }
   });
 
-  // Remove markers no longer visible (synchronous — instant visual feedback)
+  // Remove markers no longer visible (synchronous: instant visual feedback)
   state.cafes.forEach(cafe => {
     if (markers[cafe.id] && markerLayer.hasLayer(markers[cafe.id]) && !shouldShow.has(cafe.id)) {
       markerLayer.removeLayer(markers[cafe.id]);
@@ -2587,7 +2590,7 @@ function renderScoutAllPanel() {
 
   container.innerHTML = `
     <div style="font-size:0.72rem;color:var(--brown-light);padding:4px 2px 8px;font-weight:600;border-bottom:1px solid var(--beige);margin-bottom:8px">
-      All Assigned — ${totalDone}/${allAssigned.length} completed
+      All Assigned: ${totalDone}/${allAssigned.length} completed
     </div>
     <div style="display:flex;gap:5px;margin-bottom:10px">
       <button onclick="window._scoutAllTab='active';renderScoutAllPanel()"
@@ -2619,7 +2622,7 @@ function copyScoutList() {
   const lines = [`${label} Cafés (${cafes.length})\n${'─'.repeat(30)}`];
   cafes.forEach(c => {
     const person = state.persons[c.assignedTo] || { name: '' };
-    lines.push(`[${person.name || 'Unassigned'}] ${c.name} — ${c.address}`);
+    lines.push(`[${person.name || 'Unassigned'}] ${c.name}: ${c.address}`);
   });
   navigator.clipboard.writeText(lines.join('\n')).then(() => {
     const btn = document.getElementById('scout-copy-btn');
@@ -2649,7 +2652,7 @@ function renderIneligiblePanel() {
 
   container.innerHTML = `
     <div style="font-size:0.72rem;color:#6B7280;padding:4px 2px 10px;font-weight:600;border-bottom:1px solid var(--beige);margin-bottom:8px">
-      ❌ Ineligible Cafés — ${ineligible.length} total
+      ❌ Ineligible Cafés: ${ineligible.length} total
     </div>
     ${Object.entries(byBoro).map(([boro, cafes]) => `
       <div style="font-size:0.63rem;color:#aaa;text-transform:uppercase;letter-spacing:0.07em;font-weight:700;margin:8px 0 4px">${boro}</div>
@@ -2869,7 +2872,7 @@ async function saveHomeBase(idx) {
     if (!state.persons[idx].homeBases) state.persons[idx].homeBases = [];
     state.persons[idx].homeBases.push({ label, lat, lng });
     saveState();
-    // Update chips in-place — don't call renderPanel() which would collapse the card
+    // Update chips in-place: don't call renderPanel() which would collapse the card
     _rebuildHbChips(idx);
     renderHomeBaseMarkers();
     // Hide the form and reset
@@ -2887,7 +2890,7 @@ function removeHomeBase(idx, hbIdx) {
   if (!person || !person.homeBases) return;
   const removed = person.homeBases.splice(hbIdx, 1);
   saveState();
-  // Update chips in-place — don't call renderPanel() which would collapse the card
+  // Update chips in-place: don't call renderPanel() which would collapse the card
   _rebuildHbChips(idx);
   renderHomeBaseMarkers();
   showToast(`🗑 "${removed[0]?.label || 'Starting point'}" removed.`);
@@ -2903,7 +2906,7 @@ function zoomToCafe(id) {
   const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
   map.setView([cafe.lat, cafe.lng], 16);
-  // Ensure marker is visible — switch tabs if needed
+  // Ensure marker is visible: switch tabs if needed
   if (!cafeMatchesTab(cafe)) {
     if (cafe.status === 'Ineligible Cafe') {
       setTab('ineligible');
@@ -2945,7 +2948,7 @@ function copyPersonList(idx) {
     : 'TBD';
   
   let text = `Scout: ${person.name}\nDeadline: ${deadline}\nProgress: ${completedCafes.length}/${total} visited (${pct}%)\n\nTo Visit:\n`;
-  toVisit.forEach((c,i) => { text += `${i+1}. ${c.name} — ${c.address}, ${c.borough}\n`; });
+  toVisit.forEach((c,i) => { text += `${i+1}. ${c.name}: ${c.address}, ${c.borough}\n`; });
   text += `\nCompleted: ${completedCafes.length} cafés ✓`;
   if (completedCafes.length > 0) {
     text += '\n';
@@ -2964,13 +2967,13 @@ function copyPersonList(idx) {
 }
 
 function copyAll() {
-  let text = `Work & Brew — Scout Café List\n${'─'.repeat(32)}\n`;
+  let text = `Work & Brew: Scout Café List\n${'─'.repeat(32)}\n`;
   state.persons.forEach((person, idx) => {
     const assigned = state.cafes.filter(c => c.assignedTo === idx);
     if (assigned.length === 0) return;
     text += `\n${person.name}\n`;
     assigned.forEach((c, i) => {
-      text += `  ${i + 1}. ${c.name} — ${c.borough}\n`;
+      text += `  ${i + 1}. ${c.name}: ${c.borough}\n`;
     });
   });
   navigator.clipboard.writeText(text).then(() => showToast('📋 All lists copied!')).catch(() => {
@@ -3065,7 +3068,7 @@ document.getElementById('parse-gmap-btn').onclick = async function() {
     if (lat) {
       showToast('✅ Auto-filled! Review the details then click Add.');
     } else {
-      showToast('⚠ Couldn\'t find this place — try typing the café name instead');
+      showToast('⚠ Couldn\'t find this place: try typing the café name instead');
     }
   } finally {
     btn.textContent = origText;
@@ -3087,7 +3090,7 @@ document.getElementById('add-cafe-confirm').onclick = async function() {
     const [defLat, defLng] = centroids[boro] || [40.7128,-74.0060];
     document.getElementById('new-cafe-lat').value = defLat;
     document.getElementById('new-cafe-lng').value = defLng;
-    showToast('⚠ Using borough center — paste a Google Maps link for exact location');
+    showToast('⚠ Using borough center: paste a Google Maps link for exact location');
     return;
   }
 
@@ -3398,7 +3401,7 @@ document.getElementById('import-file').onchange = function(e) {
       saveState();
       showToast('⬆ Data imported successfully!');
     } catch(err) {
-      showToast('❌ Import failed — invalid file');
+      showToast('❌ Import failed: invalid file');
     }
   };
   reader.readAsText(file);
@@ -3504,7 +3507,7 @@ function createLocationMarker(lat, lng) {
   locationMarker = L.marker([lat, lng], { icon, zIndexOffset: 9999 })
     .bindPopup(`<div style="font-size:0.8rem;font-family:'Inter',sans-serif;min-width:160px">
       <div style="font-weight:700;margin-bottom:4px">📍 Your Location</div>
-      <div style="color:#555;font-size:0.72rem">Nearby cafés are glowing for 30s — dismissing this pin won't stop the glow.</div>
+      <div style="color:#555;font-size:0.72rem">Nearby cafés are glowing for 30s: dismissing this pin won't stop the glow.</div>
       <button onclick="if(locationMarker)locationMarker.remove();locationMarker=null;"
         style="margin-top:6px;border:none;background:#eee;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:0.7rem">✕ Dismiss Pin</button>
     </div>`, { maxWidth: 200 })
@@ -3651,14 +3654,14 @@ function sortChecklistByLocation(personIdx) {
         </div>`;
       }).join('');
 
-      showToast(`✅ Sorted by distance — closest first!`);
+      showToast(`✅ Sorted by distance: closest first!`);
 
       // Also place a location pin and glow nearby assigned cafes
       createLocationMarker(lat, lng);
       glowNearbyCafes(lat, lng, 1.0, 30000);
     },
     err => {
-      showToast('⚠ Location access denied — try the address lookup instead');
+      showToast('⚠ Location access denied: try the address lookup instead');
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
@@ -3707,7 +3710,7 @@ function setScoutFilter(idx) {
   saveState();
 }
 
-// Locate Me button — use browser geolocation, then glow nearby cafes
+// Locate Me button: use browser geolocation, then glow nearby cafes
 document.getElementById('scout-locate-btn').onclick = function() {
   if (!navigator.geolocation) { showToast('⚠ Geolocation not supported by this browser'); return; }
   showToast('📡 Getting your location…');
@@ -3722,14 +3725,14 @@ document.getElementById('scout-locate-btn').onclick = function() {
       }, 600);
     },
     err => {
-      showToast('⚠ Location access denied — try the address lookup instead');
+      showToast('⚠ Location access denied: try the address lookup instead');
     },
     { enableHighAccuracy: true, timeout: 8000 }
   );
 };
 
 // ============================================================
-// PATCH lookupAddress — glow nearby cafes after finding address
+// PATCH lookupAddress: glow nearby cafes after finding address
 // ============================================================
 // Override the existing lookupAddress with one that also glows
 async function lookupAddress() {
@@ -3779,10 +3782,10 @@ async function lookupAddress() {
       showToast('📍 Found: ' + (data[0].display_name.split(',')[0]));
       input.value = '';
     } else {
-      showToast('⚠ Address not found — try adding the borough name (e.g. Brooklyn)');
+      showToast('⚠ Address not found: try adding the borough name (e.g. Brooklyn)');
     }
   } catch(e) {
-    showToast('⚠ Lookup failed — check internet connection');
+    showToast('⚠ Lookup failed: check internet connection');
   } finally {
     spinner.style.display = 'none';
   }
@@ -3791,7 +3794,7 @@ async function lookupAddress() {
 
 
 // ============================================================
-// URL PARAMETER — SCOUT MODE
+// URL PARAMETER: SCOUT MODE
 // ============================================================
 // Usage: open the file with ?scout=Iris  (matches person name, case-insensitive)
 // This locks the view to Scout View, filtered to that scout,
@@ -3832,7 +3835,7 @@ function applyScoutModeFromURL() {
     if (el) el.style.display = 'none';
   });
 
-  // Completely hide other tabs — scouts should only see Scout View
+  // Completely hide other tabs: scouts should only see Scout View
   document.querySelectorAll('.tab-btn').forEach(b => {
     if (b.dataset.tab !== 'scout') {
       b.style.display = 'none';
@@ -3856,7 +3859,7 @@ function applyScoutModeFromURL() {
 
   renderScoutFilterBar();
   applyFilters();
-  showToast(`🗺 Scout View — ${person.name}'s assigned cafés`);
+  showToast(`🗺 Scout View: ${person.name}'s assigned cafés`);
 }
 
 // ============================================================
@@ -3876,7 +3879,7 @@ function parseGoogleMapsUrl(url) {
   const result = { name: '', lat: null, lng: null, address: '', borough: '' };
   if (!url) return result;
   try {
-    // Extract coordinates — format: /@lat,lng or ?q=lat,lng or &ll=lat,lng
+    // Extract coordinates: format: /@lat,lng or ?q=lat,lng or &ll=lat,lng
     let m = url.match(/@(-?\d+\.?\d+),(-?\d+\.?\d+)/);
     if (!m) m = url.match(/[?&]q=(-?\d+\.?\d+),(-?\d+\.?\d+)/);
     if (!m) m = url.match(/[?&]ll=(-?\d+\.?\d+),(-?\d+\.?\d+)/);
@@ -3885,11 +3888,11 @@ function parseGoogleMapsUrl(url) {
       result.lng = parseFloat(m[2]);
     }
 
-    // Extract place name — format: /maps/place/Name/@
+    // Extract place name: format: /maps/place/Name/@
     const placeMatch = url.match(/\/maps\/place\/([^/@?&]+)/);
     if (placeMatch) {
       const raw = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
-      // Split on comma — first part is name, rest may be address
+      // Split on comma: first part is name, rest may be address
       const parts = raw.split(',').map(s => s.trim());
       result.name = parts[0];
       if (parts.length > 1) {
@@ -4075,7 +4078,7 @@ function init() {
   const listModeBtn = document.getElementById('list-mode-btn');
   if (listModeBtn) listModeBtn.onclick = toggleListMode;
   
-  // Apply filters — markers are lazy-created on demand inside applyFilters,
+  // Apply filters: markers are lazy-created on demand inside applyFilters,
   // so we skip pre-building all 579 at once (much faster initial load)
   applyFilters();
   
@@ -4626,13 +4629,17 @@ async function renderReviewPanel(cafe) {
       <div class="wf-label">${ro ? 'Photos & videos you uploaded' : 'Pick the photos for the listing'} <span class="wf-hint-inline">(${ro ? photos.length : (chosen.size || 0) + ' picked'})</span></div>
       <div class="wf-photo-grid">
         ${photos.length ? photos.map(p => `
+          <div class="wf-thumb-wrap">
           <label class="wf-thumb wf-pick ${chosen.has(p.id) ? 'on' : ''}">
             ${ro ? '' : `<input type="checkbox" class="rv-photo" value="${p.id}" ${chosen.has(p.id) ? 'checked' : ''} onchange="this.closest('.wf-thumb').classList.toggle('on', this.checked)">`}
             ${p.isVideo ? `<div class="wf-thumb-video">▶ video</div>` : `<img src="${p.thumb}" alt="">`}
             <a class="wf-thumb-open" href="${p.url}" target="_blank" title="Open full size">↗</a>
-          </label>`).join('') : '<div class="wf-hint">No photos were uploaded.</div>'}
+          </label>
+          ${ro ? `<div class="wf-thumb-name">${escHtml(wfBaseName(p.name))}</div>`
+               : `<input class="rv-photo-name" data-id="${p.id}" value="${escHtml(wfBaseName(p.name))}" placeholder="Name it (front, seating…)" title="Renames the file in Drive on approve">`}
+          </div>`).join('') : '<div class="wf-hint">No photos were uploaded.</div>'}
       </div>
-      ${s.folderUrl ? `<div class="wf-hint"><a href="${s.folderUrl}" target="_blank">Open Drive folder</a></div>` : ''}
+      ${s.folderUrl ? `<div class="wf-hint"><a href="${s.folderUrl}" target="_blank">Open Drive folder</a>${ro ? '' : ' · ticked photos go public; names you type become the file names in Drive'}</div>` : ''}
     </div>
 
     ${ro ? '' : `<div class="wf-section"><div class="wf-label">Website <span class="wf-hint-inline">(optional, yours to add)</span></div><input id="rv-website" value="${escHtml(s.website || '')}" placeholder="https://"></div>`}
@@ -4672,6 +4679,8 @@ async function renderReviewPanel(cafe) {
   </div>`;
 }
 
+function wfBaseName(n) { return String(n || '').replace(/\.[a-z0-9]{2,5}$/i, ''); }
+
 function wfReadReview() {
   const v = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
   return {
@@ -4682,6 +4691,7 @@ function wfReadReview() {
     anyRestrictions: v('rv-anyrestrict'), restrictions: v('rv-restrict'), notes: v('rv-notes'),
     listingPhotoIds: Array.from(document.querySelectorAll('.rv-photo:checked')).map(e => e.value),
     isChain: !!(document.getElementById('rv-ischain') && document.getElementById('rv-ischain').checked),
+    photoNames: Array.from(document.querySelectorAll('.rv-photo-name')).reduce((m, el) => { const n = el.value.trim(); if (n) m[el.dataset.id] = n; return m; }, {}),
   };
 }
 
