@@ -137,6 +137,8 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   transition: border 0.15s, background 0.15s;
   flex-shrink: 1;
 }
+#status-filter { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18); border-radius: 6px; color: var(--beige-light); padding: 5px 8px; font-size: 0.72rem; font-family: 'Inter', sans-serif; outline: none; max-width: 150px; flex-shrink: 0; }
+#status-filter option { color: #2a2320; }
 #search-input::placeholder { color: rgba(255,255,255,0.35); }
 #search-input:focus { border-color: var(--tan); background: rgba(255,255,255,0.16); }
 
@@ -1251,7 +1253,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
     <div class="stat-chip">Total: <span id="s-total">0</span></div>
     <div class="stat-chip">☕ Small Biz: <span id="s-indie">0</span></div>
     <div class="stat-chip">⛓ Chains: <span id="s-chains">0</span></div>
-    <div class="stat-chip">📍 Multi-Loc: <span id="s-multi">0</span></div>
+    <div class="stat-chip">⭐ Official: <span id="s-official">0</span></div>
     <div class="stat-chip">Unvisited: <span id="s-unvisited">0</span></div>
     <div class="stat-chip">In Progress: <span id="s-inprogress">0</span></div>
     <div class="stat-chip">Completed: <span id="s-completed">0</span></div>
@@ -1274,11 +1276,18 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   <button class="tab-btn active" data-tab="chain">⛓ Chain Cafés</button>
   <button class="tab-btn" data-tab="independent">☕ Independent &amp; Small</button>
   <button class="tab-btn" data-tab="completed">✅ Completed</button>
-  <button class="tab-btn" data-tab="multi">📍 Multiple Locations</button>
+  <button class="tab-btn" data-tab="official">⭐ Official Work &amp; Brew Map</button>
   <button class="tab-btn" data-tab="scout">🗺 Scout View</button>
   <button class="tab-btn" data-tab="ineligible">❌ Ineligible</button>
   <button class="tab-btn" data-tab="review" id="tab-review" style="display:none">🔎 Review</button>
   <div style="margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);height:20px;"></div>
+  <select id="status-filter" title="Filter by status" style="display:none" onchange="setStatusFilter(this.value)">
+    <option value="All">All statuses</option>
+    <option>Unvisited</option><option>Assigned</option><option>In Progress</option><option>Pending Visit</option>
+    <option>In Review</option><option>Visit Completed</option><option>Official Cafe Listing</option>
+    <option>Needs Revisit</option><option>Backlogged Cafe</option><option>Temporarily Unavailable</option>
+    <option>Permanently Closed</option><option>Ineligible Cafe</option>
+  </select>
   <input id="search-input" type="text" placeholder="🔍 Search cafés...">
   <div style="margin-left:2px;border-left:1px solid rgba(255,255,255,0.2);height:20px;flex-shrink:0;"></div>
   <div id="addr-lookup-wrap">
@@ -1863,6 +1872,7 @@ var state = {
   scoutFilter: null,  // index of selected scout in Scout View
   listMode: false,
   listModeTab: 'small',
+  statusFilter: 'All', // approver-only status filter
   formCafeId: null,    // café whose scout form is open in the panel
   reviewCafeId: null,  // café whose submission an approver is reviewing
 };
@@ -1921,6 +1931,7 @@ const homeBaseLayer = L.layerGroup().addTo(map);
 
 function getMarkerColor(cafe) {
   if (cafe.status === 'Visit Completed')        return '#4CAF50';
+  if (cafe.status === 'Official Cafe Listing')   return '#B8860B';
   if (cafe.status === 'In Review')               return '#C47F2E';
   if (cafe.status === 'Temporarily Unavailable') return '#F59E0B';
   if (cafe.status === 'Permanently Closed')      return '#DC2626';
@@ -2051,8 +2062,9 @@ function buildPopupContent(cafe) {
     `<option value="${i}" ${cafe.assignedTo===i?'selected':''}>${p.name}</option>`
   ).join('');
   const isCompleted = cafe.status === 'Visit Completed';
+  const isOfficial = cafe.status === 'Official Cafe Listing';
   const inReview = cafe.status === 'In Review';
-  const canScout = !isCompleted && !inReview && cafe.status !== 'Ineligible Cafe' && cafe.status !== 'Permanently Closed';
+  const canScout = !isCompleted && !isOfficial && !inReview && cafe.status !== 'Ineligible Cafe' && cafe.status !== 'Permanently Closed';
 
   return `<div class="cafe-popup">
     <div style="display:flex;align-items:flex-start;gap:4px">
@@ -2069,7 +2081,10 @@ function buildPopupContent(cafe) {
     ${inReview ? `<div style="font-size:0.75rem;color:#C47F2E;font-weight:700;margin:6px 0 2px">⏳ In review: submitted, waiting for approval</div>
       ${_wfIsApprover ? `<button class="popup-review-btn" onclick="openReview('${cafe.id}')">🔎 Review submission</button>` : ''}` : ''}
     ${cafe.status === 'Needs Revisit' && cafe.notes ? `<div style="font-size:0.7rem;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:5px 7px;margin:4px 0">${escHtml(cafe.notes)}</div>` : ''}
-    ${!isCompleted ? `
+    ${isOfficial ? `
+    <div style="font-size:0.75rem;color:#B8860B;font-weight:700;margin-bottom:6px;">⭐ Official Work &amp; Brew listing: live on the public map</div>
+    ${_wfIsApprover ? `<button class="popup-undo-btn" onclick="wfSetStatus('${cafe.id}','Visit Completed')">↩ Back to Completed</button>` : ''}
+    ` : !isCompleted ? `
     <div class="popup-row">
       <label>Assign to:</label>
       <select id="popup-assign-${cafe.id}" onchange="updateAssign('${cafe.id}',this.value)">
@@ -2084,6 +2099,7 @@ function buildPopupContent(cafe) {
         <option ${cafe.status==='In Progress'?'selected':''}>In Progress</option>
         <option ${cafe.status==='In Review'?'selected':''}>In Review</option>
         <option ${cafe.status==='Visit Completed'?'selected':''}>Visit Completed</option>
+        ${_wfIsApprover ? `<option ${cafe.status==='Official Cafe Listing'?'selected':''}>Official Cafe Listing</option>` : ''}
         <option ${cafe.status==='Temporarily Unavailable'?'selected':''}>Temporarily Unavailable</option>
         <option ${cafe.status==='Permanently Closed'?'selected':''}>Permanently Closed</option>
         <option ${cafe.status==='Needs Revisit'?'selected':''}>Needs Revisit</option>
@@ -2105,6 +2121,7 @@ function buildPopupContent(cafe) {
       </button>
     </div>` : `
     <div style="font-size:0.75rem;color:#4CAF50;font-weight:700;margin-bottom:6px;">✅ Visit Completed</div>
+    ${_wfIsApprover ? `<button class="popup-scout-btn" style="background:#B8860B" onclick="wfSetStatus('${cafe.id}','Official Cafe Listing')">⭐ Make official (publish to public map)</button>` : ''}
     <button class="popup-undo-btn" onclick="undoCompleted('${cafe.id}')">↩ Undo Completed</button>
     `}
     <a class="popup-dir-btn" href="https://www.google.com/maps/dir/?api=1&destination=${dirAddr}" target="_blank">🗺 Get Directions</a>
@@ -2128,8 +2145,12 @@ function updateStatus(id, val) {
   const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
   // A scout marking a café complete by hand still goes through review first.
-  if (val === 'Visit Completed' && !_wfIsApprover && cafe.status !== 'Visit Completed') {
+  if ((val === 'Visit Completed' || val === 'Official Cafe Listing') && !_wfIsApprover && cafe.status !== 'Visit Completed') {
     wfManualComplete(cafe);
+    return;
+  }
+  if (val === 'Official Cafe Listing' && _wfIsApprover && cafe.status !== 'Official Cafe Listing') {
+    wfSetStatus(cafe.id, 'Official Cafe Listing');
     return;
   }
   cafe.status = val;
@@ -2330,9 +2351,10 @@ function createMarker(cafe) {
 function cafeMatchesTab(cafe) {
   const tab = state.activeTab;
   if (tab === 'ineligible') return cafe.status === 'Ineligible Cafe';
-  if (tab === 'independent') return !cafe.isChain && !cafe.isMultiLoc && cafe.status !== 'Visit Completed' && cafe.status !== 'Ineligible Cafe';
-  if (tab === 'chain') return cafe.isChain && !cafe.isMultiLoc && cafe.status !== 'Visit Completed' && cafe.status !== 'Ineligible Cafe';
-  if (tab === 'multi') return cafe.isMultiLoc && cafe.status !== 'Visit Completed' && cafe.status !== 'Ineligible Cafe';
+  const doneish = cafe.status === 'Visit Completed' || cafe.status === 'Official Cafe Listing' || cafe.status === 'Ineligible Cafe';
+  if (tab === 'independent') return !cafe.isChain && !doneish;
+  if (tab === 'chain') return cafe.isChain && !doneish;
+  if (tab === 'official') return cafe.status === 'Official Cafe Listing';
   if (tab === 'completed') return cafe.status === 'Visit Completed';
   if (tab === 'review') return cafe.status === 'In Review';
   if (tab === 'scout') {
@@ -2345,6 +2367,12 @@ function cafeMatchesTab(cafe) {
     return cafe.assignedTo === state.scoutFilter;
   }
   return true;
+}
+
+// Approver-only status filter (toolbar dropdown). 'All' = no filter.
+function cafeMatchesStatus(cafe) {
+  if (!state.statusFilter || state.statusFilter === 'All') return true;
+  return (cafe.status || 'Unvisited') === state.statusFilter;
 }
 
 function cafeMatchesBoro(cafe) {
@@ -2365,7 +2393,7 @@ function applyFilters() {
   // Diff-based update: only add/remove changed markers (smoother, no full-clear flash)
   const shouldShow = new Set();
   state.cafes.forEach(cafe => {
-    if (cafeMatchesTab(cafe) && cafeMatchesBoro(cafe) && cafeMatchesSearch(cafe)) {
+    if (cafeMatchesTab(cafe) && cafeMatchesBoro(cafe) && cafeMatchesStatus(cafe) && cafeMatchesSearch(cafe)) {
       shouldShow.add(cafe.id);
     }
   });
@@ -2415,8 +2443,8 @@ function updateStats() {
   document.getElementById('s-total').textContent = total;
   document.getElementById('s-indie').textContent = indie;
   document.getElementById('s-chains').textContent = chains;
-  const sMulti = document.getElementById('s-multi');
-  if (sMulti) sMulti.textContent = multi;
+  const sOfficial = document.getElementById('s-official');
+  if (sOfficial) sOfficial.textContent = state.cafes.filter(c => c.status === 'Official Cafe Listing').length;
   document.getElementById('s-unvisited').textContent = unvisited;
   document.getElementById('s-inprogress').textContent = inProgress;
   document.getElementById('s-completed').textContent = completed;
@@ -2653,6 +2681,7 @@ function renderPanel() {
   }
   if (state.activeTab === 'review') { renderReviewList(); return; }
   if (state.activeTab === 'completed') { renderCompletedPanel(); return; }
+  if (state.activeTab === 'official') { renderOfficialPanel(); return; }
 
   // Ineligible tab
   if (state.activeTab === 'ineligible') {
@@ -2874,6 +2903,10 @@ function zoomToCafe(id) {
       setTab('ineligible');
     } else if (cafe.status === 'Visit Completed') {
       setTab('completed');
+    } else if (cafe.status === 'Official Cafe Listing') {
+      setTab('official');
+    } else if (cafe.status === 'In Review' && _wfIsApprover) {
+      setTab('review');
     } else if (cafe.isChain) {
       setTab('chain');
     } else {
@@ -3300,7 +3333,7 @@ document.getElementById('search-input').addEventListener('input', function() {
     renderPanel();
     // Auto-pan map to first matching cafe
     if (state.searchQuery && !state.listMode) {
-      const firstMatch = state.cafes.find(c => cafeMatchesTab(c) && cafeMatchesBoro(c) && cafeMatchesSearch(c));
+      const firstMatch = state.cafes.find(c => cafeMatchesTab(c) && cafeMatchesBoro(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c));
       if (firstMatch) {
         map.flyTo([firstMatch.lat, firstMatch.lng], Math.max(map.getZoom(), 14), { duration: 0.7, easeLinearity: 0.5 });
       }
@@ -3892,6 +3925,7 @@ function renderListMode() {
 
   const STATUS_COLORS = {
     'Visit Completed': '#4caf50',
+    'Official Cafe Listing': '#B8860B',
     'In Review': '#C47F2E',
     'In Progress': '#2196F3',
     'Pending Visit': '#6366F1',
@@ -3910,7 +3944,7 @@ function renderListMode() {
     /* chain */               return (c.isChain || c.isMultiLoc) && c.status !== 'Ineligible Cafe';
   };
 
-  const matching = state.cafes.filter(c => typeFilter(c) && cafeMatchesBoro(c) && cafeMatchesSearch(c));
+  const matching = state.cafes.filter(c => typeFilter(c) && cafeMatchesBoro(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c));
 
   // For ineligible tab: sort alphabetically. For others: incomplete first, done at bottom.
   const sorted = tab === 'ineligible'
@@ -4105,6 +4139,13 @@ function wfDetectRole(user) {
   _wfScoutName = scoutParam || meta.full_name || meta.name || (byEmail && byEmail.name) || email;
   const tab = document.getElementById('tab-review');
   if (tab) tab.style.display = _wfIsApprover ? '' : 'none';
+  const sf = document.getElementById('status-filter');
+  if (sf) sf.style.display = _wfIsApprover ? '' : 'none';
+}
+
+function setStatusFilter(v) {
+  state.statusFilter = v || 'All';
+  applyFilters(); renderPanel();
 }
 
 function wfInit(user) {
@@ -4646,15 +4687,49 @@ function renderCompletedPanel() {
   const done = state.cafes.filter(c => c.status === 'Visit Completed' && cafeMatchesBoro(c) && (!q || c.name.toLowerCase().includes(q) || c.address.toLowerCase().includes(q)))
     .sort((a, b) => a.name.localeCompare(b.name));
   container.innerHTML = `
-    <div class="wf-eyebrow" style="margin-bottom:6px">Completed · ${done.length}</div>
+    <div class="wf-eyebrow" style="margin-bottom:6px">Completed · ${done.length}${_wfIsApprover ? ' · tap ⭐ to make a café official' : ''}</div>
     ${done.length ? done.map(c => {
       const person = (c.assignedTo !== null && c.assignedTo !== undefined) ? state.persons[c.assignedTo] : null;
       return `<div class="checklist-item" onclick="zoomToCafe('${c.id}')" style="cursor:pointer">
         <div class="cl-status-dot" style="background:#4caf50"></div>
         <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.name)}</div><div class="cl-cafe-addr">${escHtml(c.address)}</div></div>
         ${person ? `<span style="font-size:0.65rem;font-weight:600;color:${person.color};white-space:nowrap">${escHtml(person.name)}</span>` : ''}
+        ${_wfIsApprover ? `<button class="cl-nav-btn" style="background:#B8860B;color:#fff;border-color:#B8860B" title="Make official" onclick="event.stopPropagation(); wfSetStatus('${c.id}','Official Cafe Listing')">⭐</button>` : ''}
       </div>`; }).join('')
     : '<div class="wf-hint" style="text-align:center;padding:20px 0">No completed cafés match.</div>'}`;
+}
+
+function renderOfficialPanel() {
+  const container = document.getElementById('persons-container');
+  const q = (state.searchQuery || '').toLowerCase();
+  const rows = state.cafes.filter(c => c.status === 'Official Cafe Listing' && cafeMatchesBoro(c) && (!q || c.name.toLowerCase().includes(q) || c.address.toLowerCase().includes(q)))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  container.innerHTML = `
+    <div class="wf-eyebrow" style="margin-bottom:6px">⭐ Official Work &amp; Brew Map · ${rows.length} live on the public site</div>
+    ${rows.length ? rows.map(c => `<div class="checklist-item" onclick="zoomToCafe('${c.id}')" style="cursor:pointer">
+        <div class="cl-status-dot" style="background:#B8860B"></div>
+        <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.name)}</div><div class="cl-cafe-addr">${escHtml(c.address)}${c.borough ? ' · ' + escHtml(c.borough) : ''}</div></div>
+        ${_wfIsApprover ? `<button class="cl-nav-btn" title="Back to Completed" onclick="event.stopPropagation(); wfSetStatus('${c.id}','Visit Completed')">↩</button>` : ''}
+      </div>`).join('')
+    : '<div class="wf-hint" style="text-align:center;padding:20px 0">Nothing official yet. Approve cafés in the Review tab, then tap ⭐ in Completed.</div>'}`;
+}
+
+// Approver status change that also updates the spreadsheet (and the public map feed)
+async function wfSetStatus(id, status) {
+  const cafe = wfFindCafe(id);
+  if (!cafe) return;
+  if (!_wfIsApprover) { showToast('Only approvers can change this'); return; }
+  const prev = cafe.status;
+  cafe.status = status;
+  refreshMarker(cafe); map.closePopup(); applyFilters(); renderPanel(); updateStats(); saveState();
+  try {
+    await wfApi('setStatus', { cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address }, status, by: (_sbUser && _sbUser.email) || '' });
+    showToast(status === 'Official Cafe Listing' ? '⭐ ' + cafe.name + ' is now on the public map' : '↩ ' + cafe.name + ' moved to ' + status);
+  } catch (e) {
+    cafe.status = prev;
+    refreshMarker(cafe); applyFilters(); renderPanel(); updateStats(); saveState();
+    showToast('⚠ Could not update the spreadsheet: ' + e.message);
+  }
 }
 
 </script>
@@ -4669,6 +4744,7 @@ function renderCompletedPanel() {
     <option>Upcoming</option>
     <option>Pending Visit</option>
     <option>Visit Completed</option>
+    <option>Official Cafe Listing</option>
     <option>Needs Revisit</option>
     <option>Temporarily Unavailable</option>
     <option>Permanently Closed</option>
