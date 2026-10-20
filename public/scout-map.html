@@ -4036,13 +4036,23 @@ function wfSaveDraft(id, d) { try { localStorage.setItem(wfDraftKey(id), JSON.st
 function wfClearDraft(id) { try { localStorage.removeItem(wfDraftKey(id)); } catch(e) {} }
 
 // ---------- open / close the form ----------
+// Opens the side panel on desktop, or the bottom drawer on phones (which uses a different class)
+function wfOpenPanel() {
+  const panel = document.getElementById('panel');
+  const toggle = document.getElementById('panel-toggle');
+  if (!panel) return;
+  state.panelOpen = true;
+  const isMobile = window.innerWidth <= 768;
+  panel.classList.remove('collapsed');
+  if (isMobile) panel.classList.add('panel-open');
+  if (toggle) toggle.textContent = isMobile ? '▼' : '▶';
+}
 function openScoutForm(id) {
   const cafe = state.cafes.find(c => c.id === id);
   if (!cafe) return;
   state.formCafeId = id;
   state.reviewCafeId = null;
-  const panel = document.getElementById('panel');
-  if (panel) { panel.classList.remove('collapsed'); state.panelOpen = true; }
+  wfOpenPanel();
   map.closePopup();
   renderPanel();
   const body = document.getElementById('panel-body');
@@ -4379,8 +4389,7 @@ function openReview(id) {
   if (!_wfIsApprover) { showToast('Only approvers can review submissions'); return; }
   state.reviewCafeId = id;
   state.formCafeId = null;
-  const panel = document.getElementById('panel');
-  if (panel) { panel.classList.remove('collapsed'); state.panelOpen = true; }
+  wfOpenPanel();
   map.closePopup();
   map.setView([cafe.lat, cafe.lng], 15);
   renderPanel();
