@@ -2625,12 +2625,12 @@ function renderPanel() {
 
   // Scout workflow: an open café form or review takes over the panel
   if (state.formCafeId) {
-    const c = state.cafes.find(x => x.id === state.formCafeId);
+    const c = state.cafes.find(x => String(x.id) === String(state.formCafeId));
     if (c) { renderScoutForm(c); return; }
     state.formCafeId = null;
   }
   if (state.reviewCafeId) {
-    const c = state.cafes.find(x => x.id === state.reviewCafeId);
+    const c = state.cafes.find(x => String(x.id) === String(state.reviewCafeId));
     if (c) { renderReviewPanel(c); return; }
     state.reviewCafeId = null;
   }
@@ -3989,6 +3989,8 @@ let _wfIsApprover = false;
 let _wfScoutName = '';
 let _wfUploading = false;
 
+function wfFindCafe(id) { return state.cafes.find(c => String(c.id) === String(id)); }
+
 function wfApiReady() { return SCOUT_API_URL && !SCOUT_API_URL.startsWith('REPLACE'); }
 
 async function wfApi(action, payload) {
@@ -4048,7 +4050,7 @@ function wfOpenPanel() {
   if (toggle) toggle.textContent = isMobile ? '▼' : '▶';
 }
 function openScoutForm(id) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = wfFindCafe(id);
   if (!cafe) return;
   state.formCafeId = id;
   state.reviewCafeId = null;
@@ -4253,7 +4255,7 @@ function wfFileToBase64(file) {
 }
 
 async function wfUploadFiles(id, fileList) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = wfFindCafe(id);
   const files = Array.from(fileList || []);
   const input = document.getElementById('wf-file');
   if (!cafe || !files.length) return;
@@ -4307,7 +4309,7 @@ function wfRemovePhoto(id, idx) {
 
 // ---------- address flag ----------
 async function wfFlagAddress(id) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = wfFindCafe(id);
   const note = wfText('wf-addr-note');
   if (!cafe) return;
   if (!note) { showToast('Tell us what\'s wrong with the address first'); return; }
@@ -4339,7 +4341,7 @@ function wfValidate(d) {
 }
 
 async function wfSubmit(id) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = wfFindCafe(id);
   if (!cafe) return;
   const d = wfReadDraftFromForm(id);
   wfSaveDraft(id, d);
@@ -4384,7 +4386,7 @@ async function wfSubmit(id) {
 
 // ---------- review (approvers only) ----------
 function openReview(id) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = wfFindCafe(id);
   if (!cafe) { showToast('⚠ Café not found on this map'); return; }
   if (!_wfIsApprover) { showToast('Only approvers can review submissions'); return; }
   state.reviewCafeId = id;
@@ -4490,7 +4492,7 @@ function wfReadReview() {
 }
 
 async function wfApprove(id) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = wfFindCafe(id);
   if (!cafe) return;
   const fields = wfReadReview();
   const err = document.getElementById('rv-error');
@@ -4509,7 +4511,7 @@ async function wfApprove(id) {
 }
 
 async function wfSendBack(id) {
-  const cafe = state.cafes.find(c => c.id === id);
+  const cafe = wfFindCafe(id);
   if (!cafe) return;
   const note = (document.getElementById('rv-sendback') || {}).value || '';
   const err = document.getElementById('rv-error');
