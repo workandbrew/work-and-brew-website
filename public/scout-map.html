@@ -2085,7 +2085,8 @@ function buildPopupContent(cafe) {
     </div>
     <div class="popup-addr">${cafe.address}</div>
     ${inReview ? `<div style="font-size:0.75rem;color:#C47F2E;font-weight:700;margin:6px 0 2px">⏳ In review: submitted, waiting for approval</div>
-      ${_wfIsApprover ? `<button class="popup-review-btn" onclick="openReview('${cafe.id}')">🔎 Review submission</button>` : ''}` : ''}
+      <button class="popup-review-btn" onclick="openReview('${cafe.id}')">${_wfIsApprover ? '🔎 Review submission' : '👁 View my submission'}</button>` : ''}
+    ${(isCompleted || isOfficial || cafe.status === 'Needs Revisit') ? `<button class="popup-review-btn" onclick="openReview('${cafe.id}')">👁 View submission</button>` : ''}
     ${cafe.status === 'Needs Revisit' && cafe.notes ? `<div style="font-size:0.7rem;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:5px 7px;margin:4px 0">${escHtml(cafe.notes)}</div>` : ''}
     ${isOfficial ? `
     <div style="font-size:0.75rem;color:#B8860B;font-weight:700;margin-bottom:6px;">⭐ Official Work &amp; Brew listing: live on the public map</div>
@@ -4573,7 +4574,6 @@ async function wfSubmit(id) {
 function openReview(id) {
   const cafe = wfFindCafe(id);
   if (!cafe) { showToast('⚠ Café not found on this map'); return; }
-  if (!_wfIsApprover) { showToast('Only approvers can review submissions'); return; }
   state.reviewCafeId = id;
   state.formCafeId = null;
   wfOpenPanel();
@@ -4607,25 +4607,27 @@ async function renderReviewPanel(cafe) {
     container.innerHTML = `<div class="wf-form"><button class="wf-back" onclick="closeScoutForm()">← Back</button><div class="wf-error">⚠ ${escHtml(e.message)}</div></div>`;
     return;
   }
-  if (state.reviewCafeId !== cafe.id) return;
+  if (String(state.reviewCafeId) !== String(cafe.id)) return;
+  const ro = !_wfIsApprover; // scouts get a read-only view of what was submitted
+  const dis = ro ? 'disabled' : '';
   const photos = s.photos || [];
   const chosen = new Set(s.listingPhotoIds || []);
-  const yn = (id, v) => `<select id="${id}"><option ${v==='YES'?'selected':''}>YES</option><option ${v==='NO'?'selected':''}>NO</option></select>`;
-  const tf = (id, v) => `<select id="${id}"><option ${v==='TRUE'?'selected':''}>TRUE</option><option ${v==='FALSE'?'selected':''}>FALSE</option></select>`;
+  const yn = (id, v) => `<select id="${id}" ${dis}><option ${v==='YES'?'selected':''}>YES</option><option ${v==='NO'?'selected':''}>NO</option></select>`;
+  const tf = (id, v) => `<select id="${id}" ${dis}><option ${v==='TRUE'?'selected':''}>TRUE</option><option ${v==='FALSE'?'selected':''}>FALSE</option></select>`;
   container.innerHTML = `
   <div class="wf-form">
     <button class="wf-back" onclick="closeScoutForm()">← Back</button>
-    <div class="wf-eyebrow">Review · submitted by ${escHtml(s.submittedBy || '?')} · ${escHtml(s.dateScouted || '')}</div>
+    <div class="wf-eyebrow">${ro ? 'Your submission' : 'Review'} · submitted by ${escHtml(s.submittedBy || '?')} · ${escHtml(s.dateScouted || '')} · status: ${escHtml(cafe.status || '')}</div>
     <div class="wf-title">${escHtml(cafe.name)}</div>
     <div class="wf-addr">${escHtml(cafe.address)}</div>
     ${s.addressFlag === 'reported' ? `<div class="wf-flag-badge">⚠ Address flagged: ${escHtml(s.addressFlagNote || '')}</div>` : ''}
 
     <div class="wf-section">
-      <div class="wf-label">Pick the photos for the listing <span class="wf-hint-inline">(${chosen.size || 0} picked)</span></div>
+      <div class="wf-label">${ro ? 'Photos & videos you uploaded' : 'Pick the photos for the listing'} <span class="wf-hint-inline">(${ro ? photos.length : (chosen.size || 0) + ' picked'})</span></div>
       <div class="wf-photo-grid">
         ${photos.length ? photos.map(p => `
           <label class="wf-thumb wf-pick ${chosen.has(p.id) ? 'on' : ''}">
-            <input type="checkbox" class="rv-photo" value="${p.id}" ${chosen.has(p.id) ? 'checked' : ''} onchange="this.closest('.wf-thumb').classList.toggle('on', this.checked)">
+            ${ro ? '' : `<input type="checkbox" class="rv-photo" value="${p.id}" ${chosen.has(p.id) ? 'checked' : ''} onchange="this.closest('.wf-thumb').classList.toggle('on', this.checked)">`}
             ${p.isVideo ? `<div class="wf-thumb-video">▶ video</div>` : `<img src="${p.thumb}" alt="">`}
             <a class="wf-thumb-open" href="${p.url}" target="_blank" title="Open full size">↗</a>
           </label>`).join('') : '<div class="wf-hint">No photos were uploaded.</div>'}
@@ -4633,9 +4635,9 @@ async function renderReviewPanel(cafe) {
       ${s.folderUrl ? `<div class="wf-hint"><a href="${s.folderUrl}" target="_blank">Open Drive folder</a></div>` : ''}
     </div>
 
-    <div class="wf-section"><div class="wf-label">Website <span class="wf-hint-inline">(optional, yours to add)</span></div><input id="rv-website" value="${escHtml(s.website || '')}" placeholder="https://"></div>
+    ${ro ? '' : `<div class="wf-section"><div class="wf-label">Website <span class="wf-hint-inline">(optional, yours to add)</span></div><input id="rv-website" value="${escHtml(s.website || '')}" placeholder="https://"></div>`}
     <div class="wf-section"><div class="wf-label">Hours</div>
-      <input id="rv-hours-wd" value="${escHtml(s.hoursWeekday || '')}" placeholder="Mon to Fri"><input id="rv-hours-we" value="${escHtml(s.hoursWeekend || '')}" placeholder="Sat to Sun" style="margin-top:6px"></div>
+      <input id="rv-hours-wd" value="${escHtml(s.hoursWeekday || '')}" placeholder="Mon to Fri" ${dis}><input id="rv-hours-we" value="${escHtml(s.hoursWeekend || '')}" placeholder="Sat to Sun" style="margin-top:6px" ${dis}></div>
     <div class="wf-section wf-grid3">
       <div><div class="wf-label">Weekend restrictions</div>${tf('rv-weekend', s.weekendRestrictions)}</div>
       <div><div class="wf-label">WiFi</div>${yn('rv-wifi', s.wifi)}</div>
@@ -4645,27 +4647,28 @@ async function renderReviewPanel(cafe) {
       <div><div class="wf-label">Restroom</div>${yn('rv-restroom', s.restroom)}</div>
     </div>
     <div class="wf-section"><div class="wf-label">Seats</div>
-      <select id="rv-seats">${['Few','Some','Many','Ample'].map(v => `<option ${s.seats===v?'selected':''}>${v}</option>`).join('')}</select>
-      <input id="rv-seatstype" value="${escHtml(s.seatsType || '')}" placeholder="Seat types" style="margin-top:6px"></div>
-    <div class="wf-section"><div class="wf-label">Highlight (what makes it unique)</div><textarea id="rv-highlight" rows="2">${escHtml(s.highlight || '')}</textarea></div>
-    <div class="wf-section"><div class="wf-label">Environment (scout's words)</div><textarea id="rv-env" rows="3">${escHtml(s.environment || '')}</textarea></div>
-    <div class="wf-section"><div class="wf-label">Listing description <span class="wf-hint-inline">(what the public sees: edit freely)</span></div><textarea id="rv-desc" rows="4">${escHtml(s.description || s.environment || '')}</textarea></div>
+      <select id="rv-seats" ${dis}>${['Few','Some','Many','Ample'].map(v => `<option ${s.seats===v?'selected':''}>${v}</option>`).join('')}</select>
+      <input id="rv-seatstype" value="${escHtml(s.seatsType || '')}" placeholder="Seat types" style="margin-top:6px" ${dis}></div>
+    <div class="wf-section"><div class="wf-label">Highlight (what makes it unique)</div><textarea id="rv-highlight" rows="2" ${dis}>${escHtml(s.highlight || '')}</textarea></div>
+    <div class="wf-section"><div class="wf-label">Environment${ro ? '' : " (scout's words)"}</div><textarea id="rv-env" rows="3" ${dis}>${escHtml(s.environment || '')}</textarea></div>
+    ${ro ? '' : `<div class="wf-section"><div class="wf-label">Listing description <span class="wf-hint-inline">(what the public sees: edit freely)</span></div><textarea id="rv-desc" rows="4">${escHtml(s.description || s.environment || '')}</textarea></div>`}
     <div class="wf-section wf-grid3" style="grid-template-columns:1fr 2fr">
       <div><div class="wf-label">Any restrictions</div>${tf('rv-anyrestrict', s.anyRestrictions)}</div>
-      <div><div class="wf-label">Restriction details</div><input id="rv-restrict" value="${escHtml(s.restrictions || '')}"></div>
+      <div><div class="wf-label">Restriction details</div><input id="rv-restrict" value="${escHtml(s.restrictions || '')}" ${dis}></div>
     </div>
-    <div class="wf-section"><div class="wf-label">Scout notes</div><textarea id="rv-notes" rows="3">${escHtml(s.notes || '')}</textarea></div>
+    <div class="wf-section"><div class="wf-label">${ro ? 'Your notes' : 'Scout notes'}</div><textarea id="rv-notes" rows="3" ${dis}>${escHtml(s.notes || '')}</textarea></div>
 
     <div class="wf-section">
-      <label class="wf-chip" style="justify-content:flex-start;${s.chainFlag === 'TRUE' ? 'border-color:#6366F1;background:#eef2ff' : ''}"><input type="checkbox" id="rv-ischain" ${(s.chainFlag === 'TRUE' || s.isChain === 'TRUE') ? 'checked' : ''}>⛓ Chain café (moves to the Chain tab on approve)</label>
-      ${s.chainFlag === 'TRUE' ? '<div class="wf-hint">The scout flagged this as a chain. Untick if they were wrong.</div>' : ''}
+      <label class="wf-chip" style="justify-content:flex-start;${s.chainFlag === 'TRUE' ? 'border-color:#6366F1;background:#eef2ff' : ''}"><input type="checkbox" id="rv-ischain" ${(s.chainFlag === 'TRUE' || s.isChain === 'TRUE') ? 'checked' : ''} ${dis}>⛓ Chain café${ro ? '' : ' (moves to the Chain tab on approve)'}</label>
+      ${!ro && s.chainFlag === 'TRUE' ? '<div class="wf-hint">The scout flagged this as a chain. Untick if they were wrong.</div>' : ''}
     </div>
+    ${ro ? `<div class="wf-hint">${cafe.status === 'In Review' ? 'Waiting for the team to review. You\'ll hear back in Slack if anything needs fixing.' : cafe.status === 'Needs Revisit' ? 'This was sent back. Open the café card to see the note, then use 📝 Scout this café to resubmit.' : 'This submission has been reviewed.'}</div>` : `
     <div class="wf-section"><div class="wf-label">Send back note <span class="wf-hint-inline">(only if sending back)</span></div><textarea id="rv-sendback" rows="2" placeholder="What should the scout fix or add?"></textarea></div>
     <div id="rv-error" class="wf-error" style="display:none"></div>
     <div class="wf-row-btns">
       <button class="wf-btn-sm" onclick="wfSendBack('${cafe.id}')">↩ Send back</button>
       <button id="rv-approve" class="wf-submit" style="flex:2;margin:0" onclick="wfApprove('${cafe.id}')">✅ Approve &amp; publish</button>
-    </div>
+    </div>`}
   </div>`;
 }
 
