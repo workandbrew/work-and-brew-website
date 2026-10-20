@@ -2054,7 +2054,6 @@ function buildPopupContent(cafe) {
               onmouseout="this.style.borderColor='#d1d5db';this.style.color='#888'">✏️</button>
     </div>
     <div class="popup-addr">${cafe.address}</div>
-    ${canScout ? `<button class="popup-scout-btn" onclick="openScoutForm('${cafe.id}')">📝 Scout this café</button>` : ''}
     ${inReview ? `<div style="font-size:0.75rem;color:#C47F2E;font-weight:700;margin:6px 0 2px">⏳ In review — submitted, waiting for approval</div>
       ${_wfIsApprover ? `<button class="popup-review-btn" onclick="openReview('${cafe.id}')">🔎 Review submission</button>` : ''}` : ''}
     ${cafe.status === 'Needs Revisit' && cafe.notes ? `<div style="font-size:0.7rem;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:5px 7px;margin:4px 0">${escHtml(cafe.notes)}</div>` : ''}
@@ -2097,7 +2096,8 @@ function buildPopupContent(cafe) {
     <button class="popup-undo-btn" onclick="undoCompleted('${cafe.id}')">↩ Undo Completed</button>
     `}
     <a class="popup-dir-btn" href="https://www.google.com/maps/dir/?api=1&destination=${dirAddr}" target="_blank">🗺 Get Directions</a>
-    <button class="popup-del-btn" onclick="deleteCafe('${cafe.id}')">🗑 Remove from map</button>
+    ${canScout ? `<button class="popup-scout-btn" onclick="openScoutForm('${cafe.id}')">📝 Scout this café</button>` : ''}
+    ${_wfIsApprover ? `<button class="popup-del-btn" onclick="deleteCafe('${cafe.id}')">🗑 Remove from map</button>` : ''}
     ${!cafe.isChain && !cafe.isMultiLoc ? `<button class="popup-chain-btn" onclick="markAsChain('${cafe.id}')">⛓ This is a chain café (move to Chain tab)</button>` : ''}
   </div>`;
 }
@@ -3306,6 +3306,7 @@ function showToast(msg) {
 // DELETE CAFE
 // ============================================================
 async function deleteCafe(id) {
+  if (!_wfIsApprover) { showToast('Only Denisse, David or Armando can remove a café'); return; }
   const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
   if (!confirm('Remove "' + cafe.name + '" permanently from Supabase?\nThis cannot be undone.')) return;
