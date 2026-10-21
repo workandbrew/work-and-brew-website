@@ -1376,7 +1376,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 <div id="toolbar">
   <button id="tabs-toggle" type="button" onclick="toggleTabs()"><span id="tabs-toggle-label">Tabs</span><span class="tt-caret">▾</span></button>
   <button class="tab-btn active" data-tab="chain"><span class="tl">⛓ Chain Cafés</span><span class="ts">⛓ Chains</span></button>
-  <button class="tab-btn" data-tab="independent"><span class="tl">☕ Independent &amp; Small</span><span class="ts">☕ Indie</span></button>
+  <button class="tab-btn" data-tab="independent"><span class="tl">☕ Main Map</span><span class="ts">☕ Main Map</span></button>
   <button class="tab-btn" data-tab="completed"><span class="tl">✅ Completed</span><span class="ts">✅ Done</span></button>
   <button class="tab-btn" data-tab="official"><span class="tl">⭐ Official Work &amp; Brew Map</span><span class="ts">⭐ Official</span></button>
   <button class="tab-btn" data-tab="scout"><span class="tl">🗺 Assigned Cafés</span><span class="ts">🗺 Assigned</span></button>
@@ -2024,7 +2024,7 @@ const map = L.map('map', {
 // Base map: MapTiler (same style + key as the public homepage map). The key is locked to
 // workandbrew.app in MapTiler Cloud; add localhost there to preview locally.
 const MAPTILER_KEY = 'tbEv3wZ9aVds3Li1QruH';
-L.tileLayer('https://api.maptiler.com/maps/basic-v2/512/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, {
+L.tileLayer('https://api.maptiler.com/maps/basic-v2/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, {
   attribution: '© <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>',
   maxZoom: 19,
   tileSize: 512, zoomOffset: -1,   // half the tile requests of 256px tiles
@@ -2503,7 +2503,7 @@ function cafeMatchesTab(cafe) {
   const tab = state.activeTab;
   if (tab === 'ineligible') return cafe.status === 'Ineligible Cafe';
   const doneish = cafe.status === 'Visit Completed' || cafe.status === 'Official Cafe Listing' || cafe.status === 'Ineligible Cafe';
-  if (tab === 'independent') return !cafe.isChain && cafe.status !== 'Ineligible Cafe'; // everything indie, done ones included
+  if (tab === 'independent') return cafe.status !== 'Ineligible Cafe'; // Main Map: every café, done or not
   if (tab === 'edits') return true; // every café, so changes can be sent for any of them
   if (tab === 'chain') return cafe.isChain && !doneish;
   if (tab === 'official') return cafe.status === 'Official Cafe Listing';
@@ -4324,11 +4324,15 @@ function wfDetectRole(user) {
   _wfScoutName = scoutParam || meta.full_name || meta.name || (byEmail && byEmail.name) || email;
   const tab = document.getElementById('tab-review');
   if (tab) tab.style.display = _wfIsApprover ? '' : 'none';
+  const cab = document.getElementById('copy-all-btn');
+  if (cab) cab.style.display = _wfIsApprover ? '' : 'none'; // admin tool: copies every scout's list as text
   // Logging in picks you in the Scout dropdown with every status showing, so the Assigned tab is yours
-  if (!scoutParam && byEmail && !_wfIsApprover) {
-    state.scoutFilter = state.persons.indexOf(byEmail);
+  if (!scoutParam && !_wfIsApprover) {
+    // A scout logging in lands on Assigned Cafés, filtered to their own name with every status showing
+    if (byEmail) state.scoutFilter = state.persons.indexOf(byEmail);
     state.statusFilter = 'All';
     renderScoutFilterBar();
+    if (typeof setTab === 'function') setTab('scout');
   }
   wfSyncFilterBar();
   if (typeof renderHomeBaseMarkers === 'function') renderHomeBaseMarkers(); // re-draw so approvers get long-press-to-move
