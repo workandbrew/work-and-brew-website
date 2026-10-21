@@ -32,7 +32,7 @@ var DEFAULT_APPROVERS = ['denissemedinaflores@gmail.com', 'davidatorres123@gmail
 var EXTRA_COLUMNS = [
   'ReviewStatus', 'Website', 'HoursWeekday', 'HoursWeekend', 'WeekendRestrictions', 'Environment',
   'SeatsType', 'Notes', 'DateScouted', 'SubmittedBy', 'PhotoIds', 'ListingPhotoIds', 'DriveFolderUrl',
-  'AddressFlag', 'AddressFlagNote', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted', 'HoursByDay'
+  'AddressFlag', 'AddressFlagNote', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted', 'HoursByDay', 'PrevStatus'
 ];
 
 // ------------------------------------------------------------ entry points
@@ -46,6 +46,10 @@ function doPost(e) {
       case 'removeUpload':  out = handleRemoveUpload_(body, user); break;
       case 'submit':        out = handleSubmit_(body, user); break;
       case 'flagAddress':   out = handleFlagAddress_(body, user); break;
+      case 'suggestCafe':   out = handleSuggestCafe_(body, user); break;
+      case 'listSuggestions':   out = handleListSuggestions_(body, user); break;
+      case 'approveSuggestion': out = handleApproveSuggestion_(body, user); break;
+      case 'rejectSuggestion':  out = handleRejectSuggestion_(body, user); break;
       case 'getSubmission': out = handleGetSubmission_(body, user); break;
       case 'approve':       out = handleApprove_(body, user); break;
       case 'sendBack':      out = handleSendBack_(body, user); break;
@@ -216,9 +220,15 @@ function handleSubmit_(body, user) {
   var photos = body.photos || [];
   var scoutName = body.scoutName || user.name || user.email;
   var isCorrection = !!body.correction;
+  var isEdit = !!body.editRequest;
+  var before = getRowObj_(sh, h, row);
+  var prevStatus = String(before.Status || '');
+  // An edit to a live or completed café remembers where it came from so Approve can put it back
+  var keepPrev = isEdit && (prevStatus === 'Official Cafe Listing' || prevStatus === 'Visit Completed');
   setCells_(sh, h, row, {
     Status: 'In Review',
-    ReviewStatus: isCorrection ? 'Correction' : 'In Review',
+    PrevStatus: keepPrev ? prevStatus : '',
+    ReviewStatus: isEdit ? 'Edits' : isCorrection ? 'Correction' : 'In Review',
     HoursWeekday: f.hoursWeekday || '',
     HoursWeekend: f.hoursWeekend || '',
     HoursByDay: f.hoursByDay || '',
@@ -266,8 +276,9 @@ function handleSubmit_(body, user) {
   var images = photos.filter(function (p) { return !p.isVideo; }).slice(0, 4).map(function (p) {
     return { type: 'image', image_url: 'https://lh3.googleusercontent.com/d/' + p.id + '=w800', alt_text: p.name || 'photo' };
   });
-  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', (isCorrection ? '🔁 RESUBMIT CORRECTION: ' : '📬 New café submission: ') + (cafe.name || ''),
-    (isCorrection ? '_The scout edited and resubmitted this café. Latest version below._\n' : '') + lines.join('\n'), images);
+  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', (isEdit ? '✏️ CAFÉ EDITS NEED REVIEW: ' : isCorrection ? '🔁 RESUBMIT CORRECTION: ' : '📬 New café submission: ') + (cafe.name || ''),
+    (isEdit ? '_A scout says something changed at this café (was: ' + (prevStatus || 'n/a') + '). Approve to update the listing' + (keepPrev ? ' and it goes back to ' + prevStatus : '') + '._\n'
+      : isCorrection ? '_The scout edited and resubmitted this café. Latest version below._\n' : '') + lines.join('\n'), images);
   return { row: row };
 }
 
@@ -279,6 +290,86 @@ function handleFlagAddress_(body, user) {
   postSlack_('SLACK_ADDRESS_WEBHOOK', '📍 Address or name flagged: ' + (cafe.name || ''),
     '*' + (cafe.name || '') + '*\nListed as: ' + (cafe.address || '') + '\n*Scout says:* ' + (body.note || '') + '\n_From: ' + (body.scoutName || user.email) + '_\n' +
     'Fix the name or address with the ✏️ button on the café in the scout map, then clear the flag in the sheet (AddressFlag column).', []);
+  return {};
+}
+
+// ------------------------------------------------------------ café suggestions
+// A scout found a café that is not on the map. It waits on the "Café Suggestions" tab until an
+// approver accepts it from the Review tab; only then does it join the main sheet (yellow row) and the map.
+var SUGGEST_SHEET = 'Café Suggestions';
+var SUGGEST_COLS = ['SuggestedAt', 'SuggestedBy', 'Name', 'Address', 'Borough', 'Type', 'Latitude', 'Longitude', 'Decision', 'DecidedBy', 'DecidedAt', 'Note'];
+function suggestSheet_() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sh = ss.getSheetByName(SUGGEST_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(SUGGEST_SHEET);
+    sh.getRange(1, 1, 1, SUGGEST_COLS.length).setValues([SUGGEST_COLS]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+function handleSuggestCafe_(body, user) {
+  var c = body.cafe || {};
+  if (!c.name) throw new Error('Café name is required.');
+  var who = body.scoutName || user.email;
+  var sh = suggestSheet_();
+  sh.appendRow([now_(), who, c.name, c.address || '', c.borough || '', c.type || '', c.lat || '', c.lng || '', 'Pending', '', '', '']);
+  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '🆕 NEW CAFÉ SUGGESTION: ' + c.name,
+    '*This is a new café suggestion, not a visit form.* It is NOT on the map yet.\n*' + c.name + '*\n' +
+    (c.address || '') + (c.borough ? ', ' + c.borough : '') + '\nType: ' + (c.type || '') + '\n_Suggested by ' + who + '_\n' +
+    '<' + SITE_URL + '?suggestions=1|🔎 Approve or reject it in the Review tab of the scout map>', []);
+  return {};
+}
+function handleListSuggestions_(body, user) {
+  requireApprover_(user);
+  var sh = suggestSheet_(), last = sh.getLastRow(), out = [];
+  if (last < 2) return { suggestions: out };
+  var vals = sh.getRange(2, 1, last - 1, SUGGEST_COLS.length).getValues();
+  vals.forEach(function (v, i) {
+    if (String(v[8]) !== 'Pending') return;
+    out.push({ row: i + 2, at: v[0], by: v[1], name: v[2], address: v[3], borough: v[4], type: v[5], lat: v[6], lng: v[7] });
+  });
+  return { suggestions: out };
+}
+function handleApproveSuggestion_(body, user) {
+  requireApprover_(user);
+  var ssh = suggestSheet_(), r = Number(body.row);
+  if (!r || r < 2) throw new Error('Bad suggestion row');
+  var v = ssh.getRange(r, 1, 1, SUGGEST_COLS.length).getValues()[0];
+  if (String(v[8]) !== 'Pending') throw new Error('This suggestion was already handled.');
+  var c = { name: v[2], address: v[3], borough: v[4], type: v[5], lat: v[6], lng: v[7] };
+  var sh = sheet_(), h = ensureColumns_(sh);
+  var last = sh.getLastRow(), maxNum = 0;
+  if (last >= 2 && h.Number) {
+    sh.getRange(2, h.Number, last - 1, 1).getValues().forEach(function (x) {
+      var n = parseInt(String(x[0]).replace(/[^0-9]/g, ''), 10);
+      if (n > maxNum) maxNum = n;
+    });
+  }
+  c.number = '#' + (maxNum + 1);
+  var zipM = String(c.address || '').match(/\b(1[0-9]{4})\b/);
+  c.zip = zipM ? zipM[1] : '';
+  var row = last + 1;
+  setCells_(sh, h, row, {
+    Number: c.number, Name: c.name, isChain: 'FALSE', Address: c.address, Borough: c.borough,
+    Zipcode: c.zip, Latitude: c.lat || '', Longitude: c.lng || '', Status: 'Unvisited',
+    AssignedTo: '', ConfirmedQualifies: '', Source: 'Scout suggestion: ' + (c.type || '') + ' (by ' + v[1] + ')',
+    SubmittedBy: v[1], SubmittedAt: v[0]
+  });
+  sh.getRange(row, 1, 1, sh.getLastColumn()).setBackground('#fff59d'); // yellow = new café from a scout
+  ssh.getRange(r, 9, 1, 3).setValues([['Approved', user.email, now_()]]);
+  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '✅ New café approved: ' + c.name,
+    '*' + c.name + '* is now on the scout map and in the spreadsheet as ' + c.number + ' (yellow row). Approved by ' + user.email + '.', []);
+  return { cafe: c };
+}
+function handleRejectSuggestion_(body, user) {
+  requireApprover_(user);
+  var ssh = suggestSheet_(), r = Number(body.row);
+  if (!r || r < 2) throw new Error('Bad suggestion row');
+  var v = ssh.getRange(r, 1, 1, SUGGEST_COLS.length).getValues()[0];
+  ssh.getRange(r, 9, 1, 4).setValues([['Rejected', user.email, now_(), body.note || '']]);
+  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '✕ Café suggestion not added: ' + v[2],
+    '*' + v[2] + '* (' + (v[3] || '') + ') was not added by ' + user.email + '.' + (body.note ? '\n_' + body.note + '_' : ''), []);
   return {};
 }
 
@@ -330,9 +421,10 @@ function handleApprove_(body, user) {
       photoList.forEach(function (p) { if (p.id === id) p.name = newName; });
     } catch (e) {}
   });
+  var backTo = String(current.PrevStatus || '') === 'Official Cafe Listing' ? 'Official Cafe Listing' : 'Visit Completed';
   setCells_(sh, h, row, {
     PhotoIds: JSON.stringify(photoList),
-    Status: 'Visit Completed', ReviewStatus: 'Approved',
+    Status: backTo, ReviewStatus: 'Approved', PrevStatus: '',
     Website: f.website || '', HoursWeekday: f.hoursWeekday || '', HoursWeekend: f.hoursWeekend || '',
     WeekendRestrictions: f.weekendRestrictions || '', Environment: f.environment || '', Highlight: f.highlight || '',
     Description: f.description || f.environment || '',
@@ -345,8 +437,8 @@ function handleApprove_(body, user) {
   });
   CacheService.getScriptCache().remove('markers_csv');
   postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '✅ Approved: ' + (cafe.name || ''),
-    '*' + (cafe.name || '') + '* is live on the public map with ' + (f.listingPhotoIds || []).length + ' photo(s). Approved by ' + user.email + '.', []);
-  return {};
+    '*' + (cafe.name || '') + '* approved with ' + (f.listingPhotoIds || []).length + ' photo(s), now ' + backTo + '. Approved by ' + user.email + '.', []);
+  return { status: backTo };
 }
 
 function handleSendBack_(body, user) {

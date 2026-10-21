@@ -91,44 +91,52 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 /* TAB + FILTER BAR */
 #toolbar {
   background: var(--brown);
-  padding: 0 18px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-wrap: wrap;
   z-index: 999;
   position: relative;
-  height: 44px;
+  min-height: 52px;
   border-bottom: 1px solid rgba(0,0,0,0.12);
 }
 #toolbar::-webkit-scrollbar { display: none; }
 .tab-btn {
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: rgba(255,255,255,0.5);
-  border-radius: 0;
-  padding: 0 4px;
-  height: 44px;
-  font-size: 0.75rem;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.82);
+  border-radius: 999px;
+  padding: 0 14px;
+  height: 36px;
+  font-size: 0.76rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s, color 0.15s, transform 0.1s, box-shadow 0.15s;
   white-space: nowrap;
   letter-spacing: 0.01em;
   flex-shrink: 0;
+  font-family: 'Inter', sans-serif;
+  touch-action: manipulation;
 }
-.tab-btn.active { border-bottom-color: var(--tan); color: var(--beige-light); }
-.tab-btn .ts, #mob-filters-btn { display: none; }
+.tab-btn:hover:not(.active) { background: rgba(255,255,255,0.14); color: #fff; }
+.tab-btn:active { transform: scale(0.97); }
+.tab-btn.active { background: var(--tan); color: var(--brown); border-color: var(--tan); font-weight: 700; box-shadow: 0 2px 10px rgba(0,0,0,0.25); }
+.tab-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+#tabs-toggle { display: none; }
+#addr-lookup-wrap, .boro-btn, #boro-filter-sep, #toolbar > div[style*="border-left"] { display: none !important; }
+.tab-btn .ts, #btn-add-cafe .ts { display: none; }
+#btn-add-cafe { background: var(--accent); border-color: var(--accent); }
+#btn-add-cafe:hover { background: #a3542a; border-color: #a3542a; }
+.sg-note { background: #fff4e5; border: 1px solid #f3c48a; color: #7a4a12; border-radius: 8px; padding: 8px 10px; font-size: 0.78rem; line-height: 1.35; margin-bottom: 12px; }
+.sg-note b { color: #9a4a0a; }
 #bulk-action-bar { display: none; position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 1200; background: var(--brown); color: var(--beige-light); padding: 8px 12px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.3); align-items: center; gap: 8px; font-size: 0.8rem; font-family: 'Inter', sans-serif; max-width: calc(100vw - 24px); flex-wrap: wrap; }
 #bulk-action-bar.visible { display: flex; }
 #bulk-action-bar select, #bulk-action-bar button { font-family: 'Inter', sans-serif; font-size: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); padding: 6px 10px; background: rgba(255,255,255,0.1); color: var(--beige-light); min-height: 36px; }
 #bulk-action-bar button { cursor: pointer; }
-.tab-btn:hover:not(.active) { color: rgba(255,255,255,0.8); }
 
 #search-input {
+  height: 36px; border-radius: 999px; margin-left: auto;
   background: rgba(255,255,255,0.1);
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 6px;
@@ -624,7 +632,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 .cafe-marker-icon {
   border-radius: 50%;
   border: 2px solid rgba(255,255,255,0.9);
-  box-shadow: 0 2px 7px rgba(0,0,0,0.28);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.35);
   transition: transform 0.13s;
   display: flex; align-items: center; justify-content: center;
   overflow: visible;
@@ -771,33 +779,33 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   #header { height: auto !important; min-height: 48px; padding: 6px 10px !important; gap: 8px !important; flex-wrap: nowrap; flex-shrink: 0; }
   #header h1 { font-size: 0.8rem; }
   #stats-bar { display: none !important; }
-  #btn-add-cafe { padding: 8px 12px !important; font-size: 0.78rem !important; margin-left: auto; }
+  #btn-add-cafe { padding: 8px 10px !important; font-size: 0.78rem !important; margin-left: auto; }
+  #btn-add-cafe .tl { display: none; } #btn-add-cafe .ts { display: inline; }
   #btn-sync-cloud { padding: 8px 10px !important; font-size: 0.78rem !important; }
 
-  /* Toolbar: fixed grid, nothing scrolls sideways */
+  /* Toolbar: collapsible tabs (one button shows the current tab), search underneath */
   #toolbar {
     display: grid !important;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px; height: auto !important; padding: 8px 8px 8px !important;
+    gap: 6px; min-height: 0; height: auto !important; padding: 8px !important;
     overflow: visible !important; flex-shrink: 0; touch-action: manipulation;
   }
-  #toolbar > div[style*="border-left"], #boro-filter-sep { display: none !important; }
-  .tab-btn { display: block; width: 100%; min-width: 0; height: 36px !important; min-height: 36px !important; padding: 0 4px !important; font-size: 0.72rem !important; line-height: 1.1; border: 1.5px solid rgba(255,255,255,0.22) !important; border-radius: 10px !important; color: rgba(255,255,255,0.82) !important; background: rgba(255,255,255,0.06) !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tab-btn.active { background: var(--tan) !important; color: var(--brown) !important; border-color: var(--tan) !important; font-weight: 700; }
+  #tabs-toggle { display: flex; align-items: center; justify-content: space-between; grid-column: 1 / -1; height: 42px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color: #fff; font: 700 0.9rem 'Inter', sans-serif; padding: 0 14px; touch-action: manipulation; }
+  #tabs-toggle .tt-caret { font-size: 0.9rem; opacity: 0.7; transition: transform 0.2s; }
+  #toolbar.tabs-open #tabs-toggle { background: var(--tan); color: var(--brown); border-color: var(--tan); }
+  #toolbar.tabs-open #tabs-toggle .tt-caret { transform: rotate(180deg); }
+  .tab-btn { display: none; width: 100%; min-width: 0; height: 40px !important; padding: 0 4px !important; font-size: 0.74rem !important; line-height: 1.1; border-radius: 12px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #toolbar.tabs-open .tab-btn { display: block; }
   .tab-btn .tl { display: none; } .tab-btn .ts { display: inline; }
-  #search-input { grid-column: 1 / 4; width: 100% !important; min-width: 0 !important; height: 40px; font-size: 16px !important; padding: 6px 12px !important; }
-  #mob-filters-btn { display: block; grid-column: 4 / 5; height: 40px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); font: 600 0.74rem 'Inter', sans-serif; padding: 0 4px; white-space: nowrap; }
-  #mob-filters-btn.on { background: var(--tan); color: var(--brown); border-color: var(--tan); }
-  #addr-lookup-wrap, .boro-btn, #list-mode-btn { display: none !important; }
-  #toolbar.filters-open #addr-lookup-wrap { display: flex !important; grid-column: 1 / -1; }
-  #addr-lookup-input { flex: 1; height: 40px; font-size: 16px !important; width: auto; }
-  #addr-lookup-btn { min-height: 40px; padding: 0 14px; }
-  #toolbar.filters-open .boro-btn { display: block !important; width: 100%; min-width: 0; font-size: 0.74rem !important; padding: 0 4px !important; min-height: 36px !important; border-radius: 10px; overflow: hidden; text-overflow: ellipsis; }
-  #toolbar.filters-open #list-mode-btn { display: block !important; width: 100%; min-height: 36px; font-size: 0.74rem; margin: 0; padding: 0 4px; border: 1.5px solid rgba(255,255,255,0.22); border-radius: 10px; background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
-  #toolbar.filters-open #list-mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #search-input { grid-column: 1 / -1; width: 100% !important; min-width: 0 !important; height: 42px; font-size: 16px !important; padding: 6px 14px !important; margin: 0; }
+  #list-mode-btn { display: none !important; }
   #scout-mode-banner { flex-wrap: wrap; }
   #scout-filter-bar { flex-wrap: wrap; gap: 6px; padding: 6px 8px; flex-shrink: 0; }
-  #scout-filter-select, #status-filter { font-size: 16px !important; height: 40px; flex: 1 1 40%; min-width: 0; }
+  #scout-filter-select, #status-filter { font-size: 16px !important; height: 42px; flex: 1 1 100%; min-width: 0; border-radius: 10px; }
+  #scout-filter-bar .scout-filter-label { flex: 0 0 auto; min-width: 52px; }
+  #scout-filter-bar { display: grid !important; grid-template-columns: auto 1fr; align-items: center; column-gap: 8px; row-gap: 6px; }
+  #scout-filter-bar:not(.visible) { display: none !important; }
+  #scout-locate-btn { grid-column: 1 / -1; min-height: 40px; }
   #main { flex: 1 1 auto !important; min-height: 0 !important; height: auto !important; }
 
   /* Inputs at 16px so iOS never auto-zooms */
@@ -817,7 +825,8 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   .checklist-item { padding: 10px 6px; }
   .cl-cafe-name { font-size: 0.9rem; } .cl-cafe-addr { font-size: 0.75rem; }
   .cl-nav-btn { min-height: 36px; display: inline-flex; align-items: center; }
-  #panel { height: 70vh; max-height: 70vh; }
+  #panel { height: 72vh; max-height: 72vh; z-index: 1000; }
+  #panel-footer { display: none !important; }
   #panel-body { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
   .leaflet-control-zoom a { width: 38px !important; height: 38px !important; line-height: 38px !important; font-size: 20px !important; }
 }
@@ -1185,8 +1194,8 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 
 /* ---------- Scout workflow v2: in-panel form + review ---------- */
 .wf-form { display:flex; flex-direction:column; gap:10px; padding:2px 2px 16px; font-family:'Inter',sans-serif; }
-.wf-back { align-self:flex-start; background:none; border:none; color:var(--brown-light); font-size:0.72rem; font-weight:600; cursor:pointer; padding:2px 0; font-family:inherit; }
-.wf-back:hover { color:var(--brown); }
+.wf-back { align-self:flex-end; background:var(--brown); border:none; color:#fff; font-size:0.74rem; font-weight:700; cursor:pointer; padding:7px 14px; border-radius:999px; font-family:inherit; min-height:34px; box-shadow:0 2px 8px rgba(44,26,14,0.22); margin-bottom:-4px; touch-action:manipulation; }
+.wf-back:hover { background:var(--brown-mid); }
 .wf-eyebrow { font-size:0.62rem; letter-spacing:.08em; text-transform:uppercase; color:var(--brown-light); font-weight:700; }
 .wf-title { font-size:1.05rem; font-weight:700; color:var(--brown); line-height:1.2; }
 .wf-addr { font-size:0.74rem; color:#5a4a3f; margin-top:-6px; }
@@ -1360,22 +1369,22 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
     <div class="stat-chip" style="background:#1b3a5c">🗺 Assigned: <span id="s-assigned">0</span></div>
   </div>
   <button id="copy-all-btn">📋 Copy All</button>
-  <button id="btn-sync-cloud" onclick="manualSync()" title="Sync to Cloud" style="display:none;flex-shrink:0;white-space:nowrap;font-size:0.72rem;padding:6px 12px;border-radius:8px;border:none;background:#1b3a2e;color:#a3e4b0;cursor:pointer;font-family:Inter,sans-serif;font-weight:600;">☁ <span class="sync-txt">Sync</span></button>
-  <button id="btn-add-cafe">+ Add Café</button>
+  <button id="btn-add-cafe" title="Suggest a café that is not on the map yet"><span class="tl">🆕 Found a new café?</span><span class="ts">🆕 New café?</span></button>
 </div>
 
 <!-- TAB + FILTER BAR -->
 <div id="toolbar">
+  <button id="tabs-toggle" type="button" onclick="toggleTabs()"><span id="tabs-toggle-label">Tabs</span><span class="tt-caret">▾</span></button>
   <button class="tab-btn active" data-tab="chain"><span class="tl">⛓ Chain Cafés</span><span class="ts">⛓ Chains</span></button>
   <button class="tab-btn" data-tab="independent"><span class="tl">☕ Independent &amp; Small</span><span class="ts">☕ Indie</span></button>
   <button class="tab-btn" data-tab="completed"><span class="tl">✅ Completed</span><span class="ts">✅ Done</span></button>
   <button class="tab-btn" data-tab="official"><span class="tl">⭐ Official Work &amp; Brew Map</span><span class="ts">⭐ Official</span></button>
   <button class="tab-btn" data-tab="scout"><span class="tl">🗺 Assigned Cafés</span><span class="ts">🗺 Assigned</span></button>
+  <button class="tab-btn" data-tab="edits"><span class="tl">✏️ Edit Changes</span><span class="ts">✏️ Edits</span></button>
   <button class="tab-btn" data-tab="ineligible"><span class="tl">❌ Ineligible</span><span class="ts">❌ Inelig.</span></button>
   <button class="tab-btn" data-tab="review" id="tab-review" style="display:none">🔎 Review</button>
   <div style="margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);height:20px;"></div>
   <input id="search-input" type="text" placeholder="🔍 Search cafés...">
-  <button id="mob-filters-btn" type="button" onclick="document.getElementById('toolbar').classList.toggle('filters-open');this.classList.toggle('on')">⚙ Filters</button>
   <div style="margin-left:2px;border-left:1px solid rgba(255,255,255,0.2);height:20px;flex-shrink:0;"></div>
   <div id="addr-lookup-wrap">
     <input id="addr-lookup-input" type="text" placeholder="📍 Jump to address…">
@@ -1402,17 +1411,17 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 
 <!-- SCOUT FILTER BAR -->
 <div id="scout-filter-bar">
-  <span class="scout-filter-label">View by scout:</span>
-  <select id="scout-filter-select" onchange="setScoutFilter(this.value==='all'?null:parseInt(this.value))">
-    <option value="all">All Scouts</option>
-  </select>
-  <span class="scout-filter-label" id="status-filter-label" style="display:none">Status:</span>
-  <select id="status-filter" title="Filter by status" style="display:none" onchange="setStatusFilter(this.value)">
+  <span class="scout-filter-label" id="status-filter-label">Status:</span>
+  <select id="status-filter" title="Filter by status" onchange="setStatusFilter(this.value)">
     <option value="All">All statuses</option>
     <option>Unvisited</option><option>Assigned</option><option>In Progress</option><option>Pending Visit</option>
     <option>In Review</option><option>Visit Completed</option><option>Official Cafe Listing</option>
     <option>Needs Revisit</option><option>Backlogged Cafe</option><option>Temporarily Unavailable</option>
     <option>Permanently Closed</option><option>Ineligible Cafe</option>
+  </select>
+  <span class="scout-filter-label" id="scout-filter-label">Scout:</span>
+  <select id="scout-filter-select" onchange="setScoutFilter(this.value==='all'?null:parseInt(this.value))">
+    <option value="all">All Scouts</option>
   </select>
   <button id="scout-locate-btn">📍 Locate Me &amp; Glow Nearby</button>
   <span id="scout-glow-countdown"></span>
@@ -1446,33 +1455,25 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">+ Add Café</h5>
+        <h5 class="modal-title">🆕 Suggest a new café</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
+        <div class="sg-note"><b>NEW SUGGESTION</b>, not a regular visit. Use this for a café that is not on the map yet and is small biz or independently owned. The team approves it first, then it shows up on the map.</div>
         <div class="mb-3">
-          <label>Google Maps Link <small class="text-muted">or just type the café name</small></label>
-          <input type="text" id="gmap-url-inp" placeholder="Paste Google Maps link OR type café name…">
-          <button class="btn btn-sm mt-2" style="background:var(--gold);color:#fff;border-radius:8px;font-size:0.75rem;" id="parse-gmap-btn">✨ Auto-fill</button>
+          <label>Google Maps link <small class="text-muted">or café name</small></label>
+          <input type="text" id="gmap-url-inp" placeholder="Paste link or type the name…">
+          <button class="btn btn-sm mt-2" style="background:var(--accent);color:#fff;border-radius:8px;font-size:0.8rem;font-weight:700;padding:7px 14px;" id="parse-gmap-btn">✨ Find it</button>
         </div>
         <div class="mb-2">
-          <label>Café Name</label>
+          <label>Café name</label>
           <input type="text" id="new-cafe-name" placeholder="Name">
         </div>
         <div class="mb-2">
           <label>Address</label>
-          <input type="text" id="new-cafe-addr" placeholder="Address">
+          <input type="text" id="new-cafe-addr" placeholder="Street, borough">
         </div>
-        <div class="row mb-2">
-          <div class="col">
-            <label>Latitude</label>
-            <input type="number" id="new-cafe-lat" placeholder="40.7128" step="0.0001">
-          </div>
-          <div class="col">
-            <label>Longitude</label>
-            <input type="number" id="new-cafe-lng" placeholder="-74.0060" step="0.0001">
-          </div>
-        </div>
+        <input type="hidden" id="new-cafe-lat"><input type="hidden" id="new-cafe-lng">
         <div class="row mb-2">
           <div class="col">
             <label>Borough</label>
@@ -1486,15 +1487,16 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
           <div class="col">
             <label>Type</label>
             <select id="new-cafe-type">
-              <option value="independent">Independent</option>
-              <option value="chain">Chain</option>
+              <option value="Small biz">Small biz</option>
+              <option value="Independent">Independent</option>
+              <option value="Additional location">Additional location of existing</option>
             </select>
           </div>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm" id="add-cafe-confirm">Add to Map</button>
+        <button type="button" class="btn btn-primary btn-sm" id="add-cafe-confirm">Send suggestion</button>
       </div>
     </div>
   </div>
@@ -2009,15 +2011,26 @@ function saveState() {
 const map = L.map('map', {
   center: [40.7128, -73.9060],
   zoom: 11,
-  zoomControl: true
+  zoomControl: true,
+  // Smoother on phones: markers are hidden during the zoom animation instead of being
+  // re-positioned one by one every frame, and wheel/pinch zoom is less twitchy
+  markerZoomAnimation: false,
+  zoomSnap: 0.5,
+  wheelPxPerZoomLevel: 90,
+  inertiaDeceleration: 2500,
+  tapHold: false
 });
 
 // Base map: MapTiler (same style + key as the public homepage map). The key is locked to
 // workandbrew.app in MapTiler Cloud; add localhost there to preview locally.
 const MAPTILER_KEY = 'tbEv3wZ9aVds3Li1QruH';
-L.tileLayer('https://api.maptiler.com/maps/basic-v2/256/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, {
+L.tileLayer('https://api.maptiler.com/maps/basic-v2/512/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, {
   attribution: '© <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>',
   maxZoom: 19,
+  tileSize: 512, zoomOffset: -1,   // half the tile requests of 256px tiles
+  updateWhenZooming: false,
+  updateWhenIdle: L.Browser.mobile,
+  keepBuffer: 4,
   crossOrigin: true
 }).addTo(map);
 
@@ -2205,7 +2218,7 @@ function buildPopupContent(cafe) {
 
   return `<div class="cafe-popup">
     <div style="display:flex;align-items:flex-start;gap:4px">
-      <h4 style="flex:1;margin:0 0 3px">${cafe.name}${cafe.isNew ? '<span class="new-badge">🆕</span>' : ''}
+      <h4 style="flex:1;margin:0 0 3px">${cafe.name}${cafe.isNew ? '<span class="new-badge" title="Added from a scout suggestion">🆕 NEW</span>' : ''}
         <span class="boro-badge" style="background:${borColor}">${cafe.borough}</span>
         ${cafe.isChain ? '<span class="chain-badge">chain</span>' : ''}
       </h4>
@@ -2490,7 +2503,8 @@ function cafeMatchesTab(cafe) {
   const tab = state.activeTab;
   if (tab === 'ineligible') return cafe.status === 'Ineligible Cafe';
   const doneish = cafe.status === 'Visit Completed' || cafe.status === 'Official Cafe Listing' || cafe.status === 'Ineligible Cafe';
-  if (tab === 'independent') return !cafe.isChain && !doneish;
+  if (tab === 'independent') return !cafe.isChain && cafe.status !== 'Ineligible Cafe'; // everything indie, done ones included
+  if (tab === 'edits') return true; // every café, so changes can be sent for any of them
   if (tab === 'chain') return cafe.isChain && !doneish;
   if (tab === 'official') return cafe.status === 'Official Cafe Listing';
   if (tab === 'completed') return cafe.status === 'Visit Completed';
@@ -2507,7 +2521,14 @@ function cafeMatchesTab(cafe) {
   return true;
 }
 
-// Approver-only status filter (toolbar dropdown). 'All' = no filter.
+// Scout dropdown (filter bar). On the Assigned tab the tab logic already handles it.
+function cafeMatchesScout(cafe) {
+  if (state.activeTab === 'scout') return true;
+  if (state.scoutFilter === null || state.scoutFilter === undefined) return true;
+  return cafe.assignedTo === state.scoutFilter;
+}
+
+// Status filter (filter bar dropdown). 'All' = no filter.
 function cafeMatchesStatus(cafe) {
   if (!state.statusFilter || state.statusFilter === 'All') return true;
   return (cafe.status || 'Unvisited') === state.statusFilter;
@@ -2531,7 +2552,7 @@ function applyFilters() {
   // Diff-based update: only add/remove changed markers (smoother, no full-clear flash)
   const shouldShow = new Set();
   state.cafes.forEach(cafe => {
-    if (cafeMatchesTab(cafe) && cafeMatchesBoro(cafe) && cafeMatchesStatus(cafe) && cafeMatchesSearch(cafe)) {
+    if (cafeMatchesTab(cafe) && cafeMatchesBoro(cafe) && cafeMatchesScout(cafe) && cafeMatchesStatus(cafe) && cafeMatchesSearch(cafe)) {
       shouldShow.add(cafe.id);
     }
   });
@@ -2818,6 +2839,7 @@ function renderPanel() {
     state.reviewCafeId = null;
   }
   if (state.activeTab === 'review') { renderReviewList(); return; }
+  if (state.activeTab === 'edits') { renderEditsPanel(); return; }
   if (state.activeTab === 'completed') { renderCompletedPanel(); return; }
   if (state.activeTab === 'official') { renderOfficialPanel(); return; }
 
@@ -3195,7 +3217,7 @@ document.getElementById('parse-gmap-btn').onclick = async function() {
     if (borough) document.getElementById('new-cafe-boro').value = borough;
 
     if (lat) {
-      showToast('✅ Auto-filled! Review the details then click Add.');
+      showToast('✅ Found it! Check the details, then send.');
     } else {
       showToast('⚠ Couldn\'t find this place: try typing the café name instead');
     }
@@ -3208,67 +3230,63 @@ document.getElementById('parse-gmap-btn').onclick = async function() {
 document.getElementById('add-cafe-confirm').onclick = async function() {
   const name = document.getElementById('new-cafe-name').value.trim();
   const addr = document.getElementById('new-cafe-addr').value.trim();
-  const lat  = parseFloat(document.getElementById('new-cafe-lat').value);
-  const lng  = parseFloat(document.getElementById('new-cafe-lng').value);
+  let lat  = parseFloat(document.getElementById('new-cafe-lat').value);
+  let lng  = parseFloat(document.getElementById('new-cafe-lng').value);
   const boro = document.getElementById('new-cafe-boro').value;
   const type = document.getElementById('new-cafe-type').value;
 
-  if (!name) { showToast('Enter a café name'); return; }
-  if (isNaN(lat) || isNaN(lng)) {
-    const centroids = { Manhattan:[40.7831,-73.9712], Brooklyn:[40.6782,-73.9442], Queens:[40.7282,-73.7949], Bronx:[40.8448,-73.8648] };
-    const [defLat, defLng] = centroids[boro] || [40.7128,-74.0060];
-    document.getElementById('new-cafe-lat').value = defLat;
-    document.getElementById('new-cafe-lng').value = defLng;
-    showToast('⚠ Using borough center: paste a Google Maps link for exact location');
-    return;
-  }
+  if (!name) { showToast('Enter the café name'); return; }
+  if (!addr) { showToast('Enter the address'); return; }
+  const dup = state.cafes.find(c => c.name.toLowerCase().trim() === name.toLowerCase() && c.borough === boro);
+  if (dup && !confirm('"' + dup.name + '" is already on the map in ' + boro + '. Send anyway?')) return;
 
   const btn = document.getElementById('add-cafe-confirm');
-  btn.disabled = true; btn.textContent = 'Saving…';
+  btn.disabled = true; btn.textContent = 'Sending…';
   try {
-    const { data, error } = await sb.from('cafes').insert({
-      name, address: addr || name + ', ' + boro,
-      borough: boro, latitude: lat, longitude: lng,
-      status: 'Unvisited', source: 'user-added'
-    }).select('id').single();
-    if (error) { showToast('⚠ Could not add café: ' + error.message); return; }
-
-    const newCafe = {
-      id: data.id, number: '', name, address: addr || name + ', ' + boro,
-      borough: boro, zip: '', lat, lng,
-      isChain: type === 'chain', isNew: true,
-      status: 'Unvisited', assignedTo: null, assignedToName: null,
-      description: '', notes: '', wifi: null, outlets: null, restroom: null,
-      seats: '', timeRestrict: false, restrictNote: '', scoutName: ''
-    };
-    state.cafes.push(newCafe);
-    createMarker(newCafe);
-
-    const targetTab = type === 'chain' ? 'chain' : 'independent';
-    if (state.activeTab !== targetTab) {
-      state.activeTab = targetTab;
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === targetTab));
+    if (isNaN(lat) || isNaN(lng)) {
+      // Scouts never see coordinates: find them from the address, fall back to the borough center
+      const found = await sgGeocode(addr, boro);
+      if (found) { lat = found[0]; lng = found[1]; }
+      else {
+        const centroids = { Manhattan:[40.7831,-73.9712], Brooklyn:[40.6782,-73.9442], Queens:[40.7282,-73.7949], Bronx:[40.8448,-73.8648] };
+        [lat, lng] = centroids[boro] || [40.7128,-74.0060];
+      }
     }
-    applyFilters(); updateStats(); renderPanel();
+    // Nothing touches the map or the spreadsheet yet: the team approves it first (Review tab / Slack)
+    await wfApi('suggestCafe', { cafe: { name, address: addr, borough: boro, lat, lng, type }, scoutName: _wfScoutName || '' });
 
     const modal = bootstrap.Modal.getInstance(document.getElementById('addCafeModal'));
-    modal.hide();
+    if (modal) modal.hide();
     ['gmap-url-inp','new-cafe-name','new-cafe-addr','new-cafe-lat','new-cafe-lng'].forEach(id => {
       document.getElementById(id).value = '';
     });
-    map.flyTo([lat, lng], 16, { duration: 0.8 });
-    setTimeout(() => markers[data.id]?.openPopup(), 900);
-    showToast('✅ ' + name + ' added!');
+    showToast('🆕 Suggestion sent! The team will check ' + name + ' and add it to the map once approved.');
+    if (_wfIsApprover && state.activeTab === 'review') renderPanel();
   } catch(e) {
     showToast('⚠ Error: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = 'Add to Map';
+    btn.disabled = false; btn.textContent = 'Send suggestion';
   }
 };
 
 document.getElementById('btn-add-cafe').onclick = function() {
-  requireAdmin(() => new bootstrap.Modal(document.getElementById('addCafeModal')).show());
+  new bootstrap.Modal(document.getElementById('addCafeModal')).show();
 };
+
+// Address → coordinates for scout suggestions (no coordinates shown to scouts)
+async function sgGeocode(addr, boro) {
+  try {
+    const hasNY = /new york|bronx|brooklyn|queens|manhattan|ny\b/i.test(addr);
+    const q = encodeURIComponent(addr + (hasNY ? '' : ', ' + boro + ', New York'));
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=us&viewbox=-74.26,40.49,-73.68,40.93&bounded=1`,
+      { headers: { 'User-Agent': 'WorkAndBrew-CafeMap/2.0 (cafe-scouting)' } }
+    );
+    const data = await res.json();
+    if (data && data.length) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+  } catch (e) {}
+  return null;
+}
 
 // ============================================================
 // PANEL TOGGLE
@@ -3320,22 +3338,35 @@ function setTab(tab) {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
   const bar = document.getElementById('scout-filter-bar');
-  if (tab === 'scout') {
-    bar.classList.add('visible');
-    renderScoutFilterBar();
-    setTimeout(() => { if (typeof map !== 'undefined') map.invalidateSize(); }, 100);
-  } else {
-    bar.classList.remove('visible');
-  }
+  bar.classList.add('visible');
+  renderScoutFilterBar();
+  state.formCafeId = null; state.reviewCafeId = null;
   wfSyncFilterBar();
   applyFilters();
   renderPanel();
   saveState();
+  updateTabsToggle();
+  document.getElementById('toolbar').classList.remove('tabs-open');
+  setTimeout(() => { if (typeof map !== 'undefined') map.invalidateSize(); }, 150);
+}
+
+// Phones: the tab row collapses to one button showing the current tab
+function toggleTabs() {
+  const tb = document.getElementById('toolbar');
+  tb.classList.toggle('tabs-open');
+  setTimeout(() => { if (typeof map !== 'undefined') map.invalidateSize(); }, 150);
+}
+function updateTabsToggle() {
+  const lbl = document.getElementById('tabs-toggle-label');
+  const active = document.querySelector('.tab-btn.active');
+  if (!lbl || !active) return;
+  const short = active.querySelector('.ts');
+  lbl.textContent = short ? short.textContent : active.textContent.trim();
 }
 let adminUnlocked = false;
 
 function requireAdmin(callback) {
-  if (adminUnlocked) { callback(); return; }
+  if (adminUnlocked || (typeof _wfIsApprover !== 'undefined' && _wfIsApprover)) { callback(); return; }
   const modal = document.getElementById('adminPasswordModal');
   const bsModal = new bootstrap.Modal(modal);
   document.getElementById('admin-pw-input').value = '';
@@ -3356,15 +3387,18 @@ function requireAdmin(callback) {
   bsModal.show();
 }
 
+// Logged-in scouts can use Assigned, Indie and Edit Changes; the admin tabs still ask for the password
+const OPEN_TABS = ['scout', 'independent', 'edits'];
 document.querySelectorAll('.tab-btn').forEach(b => {
   b.onclick = () => {
-    if (b.dataset.tab === 'scout') {
+    if (OPEN_TABS.includes(b.dataset.tab)) {
       setTab(b.dataset.tab);
     } else {
       requireAdmin(() => setTab(b.dataset.tab));
     }
   };
 });
+updateTabsToggle();
 
 // ============================================================
 // BOROUGH FILTER
@@ -3472,7 +3506,7 @@ document.getElementById('search-input').addEventListener('input', function() {
     renderPanel();
     // Auto-pan map to first matching cafe
     if (state.searchQuery && !state.listMode) {
-      const firstMatch = state.cafes.find(c => cafeMatchesTab(c) && cafeMatchesBoro(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c));
+      const firstMatch = state.cafes.find(c => cafeMatchesTab(c) && cafeMatchesBoro(c) && cafeMatchesScout(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c));
       if (firstMatch) {
         map.flyTo([firstMatch.lat, firstMatch.lng], Math.max(map.getZoom(), 14), { duration: 0.7, easeLinearity: 0.5 });
       }
@@ -3959,7 +3993,7 @@ function applyScoutModeFromURL() {
   }
 
   // Hide admin-only elements
-  ['btn-add-cafe','copy-all-btn','btn-export','btn-import'].forEach(id => {
+  ['copy-all-btn','btn-export','btn-import'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -4290,10 +4324,12 @@ function wfDetectRole(user) {
   _wfScoutName = scoutParam || meta.full_name || meta.name || (byEmail && byEmail.name) || email;
   const tab = document.getElementById('tab-review');
   if (tab) tab.style.display = _wfIsApprover ? '' : 'none';
-  const sf = document.getElementById('status-filter');
-  if (sf) sf.style.display = _wfIsApprover ? '' : 'none';
-  const sfl = document.getElementById('status-filter-label');
-  if (sfl) sfl.style.display = _wfIsApprover ? '' : 'none';
+  // Logging in picks you in the Scout dropdown with every status showing, so the Assigned tab is yours
+  if (!scoutParam && byEmail && !_wfIsApprover) {
+    state.scoutFilter = state.persons.indexOf(byEmail);
+    state.statusFilter = 'All';
+    renderScoutFilterBar();
+  }
   wfSyncFilterBar();
   if (typeof renderHomeBaseMarkers === 'function') renderHomeBaseMarkers(); // re-draw so approvers get long-press-to-move
 }
@@ -4304,12 +4340,13 @@ function wfSyncFilterBar() {
   const bar = document.getElementById('scout-filter-bar');
   if (!bar) return;
   const onScout = state.activeTab === 'scout';
-  if (_wfIsApprover && !onScout) bar.classList.add('visible');
-  ['scout-filter-select', 'scout-locate-btn', 'scout-glow-countdown'].forEach(id => {
+  bar.classList.add('visible');
+  // Status + Scout dropdowns on every tab; Locate Me only on Assigned
+  ['scout-locate-btn', 'scout-glow-countdown'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = onScout ? '' : 'none';
   });
-  const lbl = document.querySelector('#scout-filter-bar .scout-filter-label:not(#status-filter-label)');
-  if (lbl) lbl.style.display = onScout ? '' : 'none';
+  const sf = document.getElementById('status-filter');
+  if (sf) sf.value = state.statusFilter || 'All';
   setTimeout(() => { if (typeof map !== 'undefined') map.invalidateSize(); }, 100);
 }
 
@@ -4325,6 +4362,7 @@ function wfInit(user) {
   if (reviewId && _wfIsApprover) {
     setTimeout(() => openReview(reviewId), 400);
   }
+  if (params.get('suggestions') && _wfIsApprover) setTimeout(() => setTab('review'), 400);
 }
 
 // ---------- drafts (per café, on this device only) ----------
@@ -4405,10 +4443,18 @@ async function wfEditSubmission(id) {
   openScoutForm(id);
 }
 
-function closeScoutForm() {
+function closeScoutForm(toMap) {
   state.formCafeId = null;
   state.reviewCafeId = null;
   renderPanel();
+  // "Back to map" on a phone also slides the drawer down so the map is actually visible
+  if (toMap && window.innerWidth <= 768) {
+    const panel = document.getElementById('panel'), toggle = document.getElementById('panel-toggle');
+    state.panelOpen = false;
+    if (panel) { panel.classList.remove('panel-open'); panel.classList.add('collapsed'); }
+    if (toggle) toggle.textContent = '▲';
+    setTimeout(() => map.invalidateSize(), 300);
+  }
 }
 
 // ---------- small html helpers ----------
@@ -4493,8 +4539,9 @@ function renderScoutForm(cafe) {
 
   container.innerHTML = `
   <div class="wf-form">
-    <button class="wf-back" onclick="closeScoutForm()">← Back to list</button>
-    <div class="wf-eyebrow">${d.correction ? '✏️ Editing your submission · resubmits as a correction' : 'Assigned to you · ' + escHtml(cafe.status || 'Unvisited')}</div>
+    <button class="wf-back" onclick="closeScoutForm(true)">🗺 Back to map</button>
+    <div class="wf-eyebrow">${d.editRequest ? '✏️ Café edit · ' + escHtml(cafe.status || '') : d.correction ? '✏️ Editing your submission · resubmits as a correction' : 'Assigned to you · ' + escHtml(cafe.status || 'Unvisited')}</div>
+    ${d.editRequest ? '<div class="sg-note"><b>CAFÉ EDIT</b>: update only what changed, then send. The listing stays as is until the team approves.</div>' : ''}
     <div class="wf-title">${escHtml(cafe.name)}</div>
     <div class="wf-addr">${wfMapsLink(cafe.address, cafe.name)}</div>
     ${flagged
@@ -4591,7 +4638,7 @@ function renderScoutForm(cafe) {
 
     <div class="wf-meta">Scout: <b>${escHtml(_wfScoutName || 'unknown')}</b> · Date: filled in on submit (${today})</div>
     <div id="wf-error" class="wf-error" style="display:none"></div>
-    <button id="wf-submit" class="wf-submit ${d.videosTexted ? '' : 'faded'}" onclick="wfSubmit('${cafe.id}')">${d.correction ? 'Resubmit correction' : 'Submit café for review'}</button>
+    <button id="wf-submit" class="wf-submit ${d.videosTexted ? '' : 'faded'}" onclick="wfSubmit('${cafe.id}')">${d.editRequest ? 'Send edits for review' : d.correction ? 'Resubmit correction' : 'Submit café for review'}</button>
     ${d.videosTexted ? '' : '<div class="wf-hint" style="text-align:center">Tap <b>Sent?</b> above once you\'ve texted your videos to unlock Submit.</div>'}
     <div class="wf-hint" style="text-align:center">Your answers save on this device as you go.</div>
   </div>`;
@@ -4735,8 +4782,8 @@ async function wfFlagAddress(id) {
 // ---------- submit ----------
 function wfValidate(d) {
   const missing = [];
-  if (!(d.photos || []).length) missing.push('at least one photo');
-  if (!d.videosTexted) missing.push('confirm you texted your videos (tap Sent?)');
+  if (!(d.photos || []).length && !d.editRequest) missing.push('at least one photo');
+  if (!d.videosTexted && !d.editRequest) missing.push('confirm you texted your videos (tap Sent?)');
   if (!d.everyOpen || !d.everyClose) missing.push('everyday hours');
   if ((d.hoursEx || []).some(e => !e.closed && (!e.o || !e.c))) missing.push('times on each special-hours row (or mark it closed)');
   if (!d.weekendRestrict) missing.push('weekend laptop restrictions');
@@ -4790,16 +4837,18 @@ async function wfSubmit(id) {
       form, photos: (d.photos || []).map(p => ({ id: p.id, name: p.name, isVideo: !!p.isVideo })),
       scoutName: _wfScoutName,
       correction: !!d.correction,
+      editRequest: !!d.editRequest,
     });
+    if (d.editRequest) cafe.prevStatus = cafe.status;
     cafe.status = 'In Review';
     wfForgetSubmission(id);
     wfClearDraft(id);
     state.formCafeId = null;
     refreshMarker(cafe);
     applyFilters(); renderPanel(); updateStats(); saveState();
-    showToast(d.correction ? '🔁 Correction sent to the team.' : '✅ Sent for review. We\'ll ping you if anything\'s missing.');
+    showToast(d.editRequest ? '✏️ Edits sent to the team for review.' : d.correction ? '🔁 Correction sent to the team.' : '✅ Sent for review. We\'ll ping you if anything\'s missing.');
   } catch (e) {
-    btn.disabled = false; btn.textContent = d.correction ? 'Resubmit correction' : 'Submit café for review';
+    btn.disabled = false; btn.textContent = d.editRequest ? 'Send edits for review' : d.correction ? 'Resubmit correction' : 'Submit café for review';
     err.style.display = 'block'; err.textContent = '⚠ ' + e.message;
   }
 }
@@ -4816,10 +4865,67 @@ function openReview(id) {
   renderPanel();
 }
 
+let _sgPending = null;
+async function sgLoadPending() {
+  try { const r = await wfApi('listSuggestions', {}); _sgPending = r.suggestions || []; }
+  catch (e) { _sgPending = []; }
+  if (state.activeTab === 'review' && !state.formCafeId && !state.reviewCafeId) renderReviewList();
+}
+function renderSuggestionsBlock() {
+  if (_sgPending === null) { sgLoadPending(); return '<div class="wf-hint" style="margin-bottom:10px">Checking for new café suggestions…</div>'; }
+  if (!_sgPending.length) return '';
+  return `<div class="wf-eyebrow" style="margin-bottom:6px">🆕 New café suggestions · ${_sgPending.length}</div>
+    ${_sgPending.map(sg => `
+      <div class="checklist-item" style="flex-wrap:wrap;background:#fff8dc;border-left:4px solid #e0b000;border-radius:8px;margin-bottom:6px">
+        <div class="cl-info" style="flex:1 1 100%"><div class="cl-cafe-name">${escHtml(sg.name)}</div>
+          <div class="cl-cafe-addr">${wfMapsLink(sg.address, sg.name)}${sg.borough ? ' · ' + escHtml(sg.borough) : ''}</div>
+          <div class="cl-cafe-addr">${escHtml(sg.type || '')} · suggested by ${escHtml(sg.by || '')} ${escHtml(sg.at || '')}</div></div>
+        <div style="display:flex;gap:6px;width:100%;margin-top:6px">
+          <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60" onclick="sgApprove('${sg.row}')">✅ Approve &amp; add to map</button>
+          <button class="wf-btn-sm" style="flex:1" onclick="sgReject('${sg.row}')">✕ Reject</button>
+        </div>
+      </div>`).join('')}
+    <div style="height:10px"></div>`;
+}
+async function sgApprove(row) {
+  const sg = (_sgPending || []).find(x => String(x.row) === String(row));
+  if (!sg) return;
+  showToast('⏳ Adding ' + sg.name + '…');
+  try {
+    const r = await wfApi('approveSuggestion', { row: Number(row), by: (_sbUser && _sbUser.email) || '' });
+    const c = r.cafe;
+    const { data, error } = await sb.from('cafes').insert({
+      name: c.name, address: c.address, borough: c.borough, latitude: c.lat, longitude: c.lng,
+      number: c.number, status: 'Unvisited', source: 'scout-suggestion: ' + (c.type || '')
+    }).select('id').single();
+    if (error) throw new Error(error.message);
+    const newCafe = { id: data.id, number: c.number, name: c.name, address: c.address, borough: c.borough, zip: c.zip || '', lat: c.lat, lng: c.lng,
+      isChain: false, isNew: true, suggestType: c.type, status: 'Unvisited', assignedTo: null, assignedToName: null,
+      description: '', notes: '', wifi: null, outlets: null, restroom: null, seats: '', timeRestrict: false, restrictNote: '', scoutName: '' };
+    state.cafes.push(newCafe); createMarker(newCafe);
+    _sgPending = _sgPending.filter(x => String(x.row) !== String(row));
+    applyFilters(); updateStats(); renderPanel();
+    map.flyTo([c.lat, c.lng], 16, { duration: 0.8 });
+    showToast('🆕 ' + c.name + ' added as ' + c.number + ' (highlighted yellow in the sheet)');
+  } catch (e) { showToast('⚠ ' + e.message); }
+}
+async function sgReject(row) {
+  const sg = (_sgPending || []).find(x => String(x.row) === String(row));
+  if (!sg) return;
+  const why = prompt('Why is ' + sg.name + ' not a fit? (optional, goes to Slack)') ;
+  if (why === null) return;
+  try {
+    await wfApi('rejectSuggestion', { row: Number(row), note: why, by: (_sbUser && _sbUser.email) || '' });
+    _sgPending = _sgPending.filter(x => String(x.row) !== String(row));
+    renderPanel(); showToast('Suggestion closed');
+  } catch (e) { showToast('⚠ ' + e.message); }
+}
+
 function renderReviewList() {
   const container = document.getElementById('persons-container');
   const rows = state.cafes.filter(c => c.status === 'In Review');
   container.innerHTML = `
+    ${_wfIsApprover ? renderSuggestionsBlock() : ''}
     <div class="wf-eyebrow" style="margin-bottom:6px">Waiting for approval · ${rows.length}</div>
     ${rows.length ? rows.map(c => `
       <div class="checklist-item" onclick="openReview('${c.id}')" style="cursor:pointer">
@@ -4832,12 +4938,12 @@ function renderReviewList() {
 
 async function renderReviewPanel(cafe) {
   const container = document.getElementById('persons-container');
-  container.innerHTML = `<div class="wf-form"><button class="wf-back" onclick="closeScoutForm()">← Back</button><div class="wf-title">${escHtml(cafe.name)}</div><div class="wf-hint">Loading submission…</div></div>`;
+  container.innerHTML = `<div class="wf-form"><button class="wf-back" onclick="closeScoutForm(true)">🗺 Back to map</button><div class="wf-title">${escHtml(cafe.name)}</div><div class="wf-hint">Loading submission…</div></div>`;
   let s;
   try {
     s = await wfGetSubmission(cafe);
   } catch (e) {
-    container.innerHTML = `<div class="wf-form"><button class="wf-back" onclick="closeScoutForm()">← Back</button><div class="wf-error">⚠ ${escHtml(e.message)}</div></div>`;
+    container.innerHTML = `<div class="wf-form"><button class="wf-back" onclick="closeScoutForm(true)">🗺 Back to map</button><div class="wf-error">⚠ ${escHtml(e.message)}</div></div>`;
     return;
   }
   if (String(state.reviewCafeId) !== String(cafe.id)) return;
@@ -4849,7 +4955,7 @@ async function renderReviewPanel(cafe) {
   const tf = (id, v) => `<select id="${id}" ${dis}><option ${v==='TRUE'?'selected':''}>TRUE</option><option ${v==='FALSE'?'selected':''}>FALSE</option></select>`;
   container.innerHTML = `
   <div class="wf-form">
-    <button class="wf-back" onclick="closeScoutForm()">← Back</button>
+    <button class="wf-back" onclick="closeScoutForm(true)">🗺 Back to map</button>
     <div class="wf-eyebrow">${ro ? 'Your submission' : 'Review'}</div>
     <div class="wf-head">
       <div class="wf-head-txt">
@@ -4949,8 +5055,9 @@ async function wfApprove(id) {
   if (!fields.listingPhotoIds.length && document.querySelectorAll('.rv-photo').length) { err.style.display = 'block'; err.textContent = 'Pick at least one photo for the listing.'; return; }
   const btn = document.getElementById('rv-approve'); btn.disabled = true; btn.textContent = 'Publishing…';
   try {
-    await wfApi('approve', { cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address }, fields, approvedBy: (_sbUser && _sbUser.email) || '' });
-    cafe.status = 'Visit Completed';
+    const r = await wfApi('approve', { cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address }, fields, approvedBy: (_sbUser && _sbUser.email) || '' });
+    cafe.status = (r && r.status) || 'Visit Completed';
+    cafe.prevStatus = null;
     wfForgetSubmission(id);
     cafe.isChain = !!fields.isChain;
     state.reviewCafeId = null;
@@ -5011,6 +5118,57 @@ function renderOfficialPanel() {
         ${_wfIsApprover ? `<button class="cl-nav-btn" title="Back to Completed" onclick="event.stopPropagation(); wfSetStatus('${c.id}','Visit Completed')">↩</button>` : ''}
       </div>`).join('')
     : '<div class="wf-hint" style="text-align:center;padding:20px 0">Nothing official yet. Approve cafés in the Review tab, then tap ⭐ in Completed.</div>'}`;
+}
+
+// ---------- Edit Changes tab: any café, send what changed for review ----------
+function renderEditsPanel() {
+  const container = document.getElementById('persons-container');
+  const q = (state.searchQuery || '').toLowerCase();
+  const rows = state.cafes.filter(c => cafeMatchesScout(c) && cafeMatchesStatus(c) && (!q || c.name.toLowerCase().includes(q) || c.address.toLowerCase().includes(q)))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const shown = q ? rows : rows.slice(0, 60);
+  container.innerHTML = `
+    <div class="wf-eyebrow" style="margin-bottom:4px">✏️ Edit Changes · ${rows.length} cafés</div>
+    <div class="wf-hint" style="margin-bottom:8px">Something changed at a café (hours, WiFi, seats, closed…)? Find it, update the form, and send it. The team reviews it before the listing changes.</div>
+    ${shown.map(c => `<div class="checklist-item" onclick="wfStartEditRequest('${c.id}')" style="cursor:pointer">
+        <div class="cl-status-dot" style="background:${getMarkerColor(c)}"></div>
+        <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.name)}</div><div class="cl-cafe-addr">${escHtml(c.address)}${c.status ? ' · ' + escHtml(c.status) : ''}</div></div>
+        <span style="font-size:0.65rem;color:var(--accent);font-weight:700;white-space:nowrap">Edit →</span>
+      </div>`).join('')}
+    ${rows.length > shown.length ? `<div class="wf-hint" style="text-align:center;padding:10px 0">Showing ${shown.length} of ${rows.length}. Type in Search to find a café.</div>` : ''}
+    ${!rows.length ? '<div class="wf-hint" style="text-align:center;padding:20px 0">No café matches.</div>' : ''}`;
+}
+
+// Open the form for any café, prefilled with the latest answers when there are some, and mark it as an edit request
+async function wfStartEditRequest(id) {
+  const cafe = wfFindCafe(id);
+  if (!cafe) return;
+  let sub = null;
+  try { sub = await wfGetSubmission(cafe); } catch (e) { sub = null; }
+  let d = wfLoadDraft(id);
+  if (sub && (sub.hoursWeekday || sub.wifi || sub.environment)) {
+    const toHHMM = t => { const m = String(t || '').match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i); if (!m) return ''; let h = +m[1] % 12; if (/pm/i.test(m[3])) h += 12; return String(h).padStart(2,'0') + ':' + m[2]; };
+    const splitHours = str => { const parts = String(str || '').split(/\s+to\s+|\s*[-\u2013]\s*/); return [toHHMM(parts[0]), toHHMM(parts[1])]; };
+    let everyOpen = '', everyClose = '', hoursEx = [];
+    try { const hb = JSON.parse(sub.hoursByDay || ''); everyOpen = hb.every[0] || ''; everyClose = hb.every[1] || ''; hoursEx = hb.ex || []; }
+    catch (e) { const [a, b] = splitHours(sub.hoursWeekday); everyOpen = a; everyClose = b; }
+    const types = String(sub.seatsType || '').split(',').map(x => x.trim()).filter(Boolean);
+    const other = types.find(t => /^other:/i.test(t));
+    d = {
+      cafeId: id,
+      photos: (sub.photos || []).map(p => ({ id: p.id, name: p.name, thumb: p.thumb, url: p.url, isVideo: !!p.isVideo })),
+      folderUrl: sub.folderUrl, everyOpen, everyClose, hoursEx,
+      weekendRestrict: sub.weekendRestrictions || '', environment: sub.environment || '', highlight: sub.highlight || '',
+      wifi: sub.wifi || '', secured: sub.secured || '', outlets: sub.outlets || '', hotFood: sub.hotFood || '', restroom: sub.restroom || '',
+      seats: sub.seats || '', seatTypes: types.filter(t => SEAT_TYPES.includes(t)), seatOther: other ? other.replace(/^other:\s*/i, '') : '',
+      anyRestrict: sub.anyRestrictions || '', restrictions: sub.restrictions || '', notes: sub.notes || '',
+      isChain: sub.chainFlag === 'TRUE' || sub.isChain === 'TRUE', videosTexted: true,
+    };
+  }
+  d.editRequest = true; d.correction = false; d.videosTexted = true;
+  wfSaveDraft(id, d);
+  openScoutForm(id);
+  map.setView([cafe.lat, cafe.lng], 15);
 }
 
 // Approver status change that also updates the spreadsheet (and the public map feed)
