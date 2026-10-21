@@ -9,6 +9,7 @@
  *   POST submit        → writes the scout's answers to the sheet, pings #cafe-submissions
  *   POST flagAddress   → marks the address as reported, pings #address-corrections
  *   POST getSubmission → returns a submission for the review screen
+ *   POST saveReview    → approver saves edits without approving (status unchanged)
  *   POST approve       → finalizes the row (Status = Visit Completed), pings Slack
  *   POST sendBack      → Status = Needs Revisit, pings Slack with the note
  *   POST removeUpload  → trashes a file the scout removed before submitting
@@ -52,6 +53,7 @@ function doPost(e) {
       case 'rejectSuggestion':  out = handleRejectSuggestion_(body, user); break;
       case 'getSubmission': out = handleGetSubmission_(body, user); break;
       case 'approve':       out = handleApprove_(body, user); break;
+      case 'saveReview':    out = handleSaveReview_(body, user); break;
       case 'sendBack':      out = handleSendBack_(body, user); break;
       case 'setStatus':     out = handleSetStatus_(body, user); break;
       default: throw new Error('Unknown action: ' + body.action);
@@ -495,6 +497,46 @@ function handleApprove_(body, user) {
   postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '✅ Approved: ' + (cafe.name || ''),
     '*' + (cafe.name || '') + '* approved with ' + (f.listingPhotoIds || []).length + ' photo(s), now ' + backTo + '. Approved by ' + user.email + '.', []);
   return { status: backTo };
+}
+
+// Approvers save edits to a café's details (e.g. adding the website) without approving it or changing its status
+function handleSaveReview_(body, user) {
+  requireApprover_(user);
+  var sh = sheet_(), h = ensureColumns_(sh);
+  var cafe = body.cafe || {}, f = body.fields || {};
+  var row = findRow_(sh, h, cafe);
+  if (row === -1) throw new Error('This café is not in the spreadsheet.');
+  var names = f.photoNames || {};
+  var current = getRowObj_(sh, h, row);
+  var photoList = [];
+  try { photoList = JSON.parse(current.PhotoIds || '[]'); } catch (e) {}
+  Object.keys(names).forEach(function (id) {
+    try {
+      var file = DriveApp.getFileById(id);
+      var oldName = file.getName();
+      var extMatch = oldName.match(/\.[A-Za-z0-9]{2,5}$/);
+      var ext = extMatch ? extMatch[0] : '';
+      var label = String(names[id]).replace(/[\/\\:*?"<>|]/g, '').trim();
+      if (!label) return;
+      var prefix = (cafe.name || '').trim();
+      var newName = (prefix && label.toLowerCase().indexOf(prefix.toLowerCase()) !== 0 ? prefix + ' - ' : '') + label + ext;
+      if (newName !== oldName) file.setName(newName);
+      photoList.forEach(function (p) { if (p.id === id) p.name = newName; });
+    } catch (e) {}
+  });
+  setCells_(sh, h, row, {
+    PhotoIds: JSON.stringify(photoList),
+    Website: f.website || '', HoursWeekday: f.hoursWeekday || '', HoursWeekend: f.hoursWeekend || '',
+    WeekendRestrictions: f.weekendRestrictions || '', Environment: f.environment || '', Highlight: f.highlight || '',
+    Description: f.description || f.environment || '',
+    WiFi: f.wifi || '', Secured: f.secured || '', Outlets: f.outlets || '', HotFood: f.hotFood || '', Restroom: f.restroom || '',
+    Seats: f.seats || '', SeatsType: f.seatsType || '',
+    TimeRestriction: f.anyRestrictions || '', RestrictionAmount: f.restrictions || '', Notes: f.notes || '',
+    ListingPhotoIds: JSON.stringify(f.listingPhotoIds || []),
+    isChain: f.isChain ? 'TRUE' : 'FALSE'
+  });
+  CacheService.getScriptCache().remove('markers_csv');
+  return {};
 }
 
 function handleSendBack_(body, user) {

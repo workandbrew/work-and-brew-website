@@ -127,6 +127,9 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 #addr-lookup-wrap, .boro-btn, #boro-filter-sep, #toolbar > div[style*="border-left"] { display: none !important; }
 .tab-btn .ts, #btn-add-cafe .ts { display: none; }
 #btn-add-cafe { background: var(--accent); border-color: var(--accent); }
+#btn-logout { background: transparent; color: var(--brown); border: 2px solid var(--brown); border-radius: 7px; padding: 6px 12px; font-size: 0.75rem; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0; font-family: 'Inter', sans-serif; transition: background 0.18s, color 0.18s; }
+#btn-logout:hover { background: var(--brown); color: var(--beige-light); }
+@media (max-width: 768px) { #btn-logout { padding: 8px 10px; font-size: 0.78rem; } }
 #btn-add-cafe:hover { background: #a3542a; border-color: #a3542a; }
 .sg-note { background: #fff4e5; border: 1px solid #f3c48a; color: #7a4a12; border-radius: 8px; padding: 8px 10px; font-size: 0.78rem; line-height: 1.35; margin-bottom: 12px; }
 .sg-note b { color: #9a4a0a; }
@@ -1326,7 +1329,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 #main { flex: 1 1 auto !important; min-height: 0 !important; height: auto !important; }
 #toolbar { gap: 8px; padding: 8px 16px; }
 #search-input { width: clamp(150px, 22vw, 260px); }
-.wf-rush { border-top: 1px dashed var(--tan); padding-top: 12px; margin-top: 4px; }
+.wf-rush { border-bottom: 1px dashed var(--tan); padding-bottom: 12px; margin-bottom: 10px; }
 
 /* Tablets and small laptops (769px to 1100px): same pills, tighter header, narrower side panel */
 @media (min-width: 769px) and (max-width: 1100px) {
@@ -1467,6 +1470,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   </div>
   <button id="copy-all-btn">📋 Copy All</button>
   <button id="btn-add-cafe" title="Suggest a café that is not on the map yet"><span class="tl">Found a new café?</span><span class="ts">New café?</span></button>
+  <button id="btn-logout" type="button" title="Log out of the scout map">Log out</button>
 </div>
 
 <!-- TAB + FILTER BAR -->
@@ -1995,6 +1999,12 @@ document.getElementById('sb-login-form').addEventListener('submit', async (e) =>
   // If no session, the overlay stays visible: user must log in
 })();
 
+document.getElementById('btn-logout').onclick = async function() {
+  this.disabled = true; this.textContent = 'Logging out';
+  try { await sb.auth.signOut(); } catch (e) {}
+  location.reload(); // no session left, so the login screen shows
+};
+
 const STORAGE_KEY = 'wab_cafe_map_v4';
 
 // ============================================================
@@ -2141,7 +2151,12 @@ function createHomeBaseIcon(color, initial) {
 
 function renderHomeBaseMarkers() {
   homeBaseLayer.clearLayers();
+  // Starting points only show on Main Map and Assigned Cafés, to keep the other maps clear.
+  // On Assigned with a scout picked, only that scout's starting points show.
+  if (state.activeTab !== 'independent' && state.activeTab !== 'scout') return;
+  const onlyScout = (state.activeTab === 'scout' && state.scoutFilter !== null && state.scoutFilter !== undefined) ? state.scoutFilter : null;
   state.persons.forEach((person, idx) => {
+    if (onlyScout !== null && idx !== onlyScout) return;
     if (!person.homeBases || person.homeBases.length === 0) return;
     const initial = person.name ? person.name.charAt(0).toUpperCase() : String(idx + 1);
     person.homeBases.forEach((hb, hbIdx) => {
@@ -2568,10 +2583,10 @@ function cafeMatchesTab(cafe) {
 }
 
 // Scout dropdown (filter bar). On the Assigned tab the tab logic already handles it.
-const SCOUT_FILTER_TABS = ['completed', 'scout', 'edits'];
-// Cafés that can have changes sent for them: submitted and approved (completed), or published
+const SCOUT_FILTER_TABS = ['completed', 'scout']; // Edit Changes always lists every completed café
+// Cafés that can have changes sent for them: completed cafés only
 function wfEditable(cafe) {
-  return cafe.status === 'Visit Completed' || cafe.status === 'Official Cafe Listing';
+  return cafe.status === 'Visit Completed';
 }
 function cafeMatchesScout(cafe) {
   if (!SCOUT_FILTER_TABS.includes(state.activeTab)) return true; // other tabs show everyone's cafés
@@ -3240,6 +3255,7 @@ function ncHeaderHtml(d) {
   const nc = d.nc || {};
   const opts = (arr, cur, ph) => `<option value="">${ph}</option>` + arr.map(x => `<option value="${escHtml(x)}" ${cur === x ? 'selected' : ''}>${escHtml(x)}</option>`).join('');
   return `
+    ${ncRushHtml()}
     <div class="wf-eyebrow">New café you found</div>
     <div class="sg-note"><b>NEW CAFE SUBMISSION</b>: for a café that is not on the map yet and is small biz or independently owned. Fill it out like any visit. The team approves it before it goes on the map.</div>
     <div class="wf-section">
@@ -3269,7 +3285,7 @@ function ncRushHtml() {
   return `
     <div class="wf-section wf-rush">
       <div class="wf-label">In a rush?</div>
-      <div class="wf-hint">Just tell us where you found it (name, plus the address or the Google Maps link above). Someone else will scout it later.</div>
+      <div class="wf-hint">Just tell us where you found it: fill in the name, the address or Google Maps link, and the borough below, then tap this. Someone else will scout it later.</div>
       <button class="wf-btn-sm" style="width:100%" onclick="ncQuickSend()">Send the location only</button>
     </div>`;
 }
@@ -3451,6 +3467,7 @@ function setTab(tab) {
   state.formCafeId = null; state.reviewCafeId = null;
   wfSyncFilterBar();
   applyFilters();
+  renderHomeBaseMarkers();
   renderPanel();
   saveState();
   updateTabsToggle();
@@ -3970,7 +3987,7 @@ function renderScoutFilterBar() {
   const applies = SCOUT_FILTER_TABS.includes(state.activeTab);
   sel.disabled = !applies;
   sel.style.opacity = applies ? '' : '0.45';
-  sel.title = applies ? '' : 'Scout filter works on Completed, Assigned and Edit Changes';
+  sel.title = applies ? '' : 'Scout filter works on Completed and Assigned Cafés';
   sel.value = (!applies || state.scoutFilter === null) ? 'all' : String(state.scoutFilter);
 
   // Restore handler after DOM settles
@@ -3981,6 +3998,7 @@ function setScoutFilter(idx) {
   state.scoutFilter = idx;
   renderScoutFilterBar();
   applyFilters();
+  renderHomeBaseMarkers();
   renderPanel();
   saveState();
 }
@@ -4821,7 +4839,6 @@ function renderScoutForm(cafe) {
     <button id="wf-submit" class="wf-submit ${d.videosTexted ? '' : 'faded'}" onclick="wfSubmit('${cafe.id}')">${isNew ? 'Submit new café for review' : d.editRequest ? 'Send edits for review' : d.correction ? 'Resubmit correction' : 'Submit café for review'}</button>
     ${d.videosTexted ? '' : '<div class="wf-hint" style="text-align:center">Tap <b>Sent?</b> above once you\'ve texted your videos to unlock Submit.</div>'}
     <div class="wf-hint" style="text-align:center">Your answers save on this device as you go.</div>
-    ${isNew ? ncRushHtml() : ''}
   </div>`;
 }
 
@@ -5218,6 +5235,7 @@ async function renderReviewPanel(cafe) {
     ${ro ? `<div class="wf-hint">${cafe.status === 'In Review' ? 'Waiting for the team to review. You\'ll hear back in Slack if anything needs fixing.' : cafe.status === 'Needs Revisit' ? 'This was sent back. Open the café card to see the note, then use 📝 Scout this café to resubmit.' : 'This submission has been reviewed.'}</div>` : `
     <div class="wf-section"><div class="wf-label">Send back note <span class="wf-hint-inline">(only if sending back)</span></div><textarea id="rv-sendback" rows="2" placeholder="What should the scout fix or add?"></textarea></div>
     <div id="rv-error" class="wf-error" style="display:none"></div>
+    <button id="rv-save" class="wf-btn-sm" style="width:100%;margin-bottom:8px;border-color:#27AE60;color:#1e8e4e;font-weight:700" onclick="wfSaveReview('${cafe.id}')">Save changes (does not approve or submit)</button>
     <div class="wf-row-btns">
       <button class="wf-btn-sm" onclick="wfSendBack('${cafe.id}')">↩ Send back</button>
       <button id="rv-approve" class="wf-submit" style="flex:2;margin:0" onclick="wfApprove('${cafe.id}')">✅ Approve &amp; publish</button>
@@ -5267,6 +5285,28 @@ async function wfApprove(id) {
   } catch (e) {
     btn.disabled = false; btn.textContent = '✅ Approve & publish';
     err.style.display = 'block'; err.textContent = '⚠ ' + e.message;
+  }
+}
+
+// Approvers only: save edits to a submission (website, hours, photo picks, etc.) without approving or sending it anywhere
+async function wfSaveReview(id) {
+  const cafe = wfFindCafe(id);
+  if (!cafe || !_wfIsApprover) return;
+  const fields = wfReadReview();
+  const err = document.getElementById('rv-error');
+  const btn = document.getElementById('rv-save');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving'; }
+  try {
+    await wfApi('saveReview', { cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address }, fields, by: (_sbUser && _sbUser.email) || '' });
+    cafe.isChain = !!fields.isChain;
+    wfForgetSubmission(id);
+    if (err) err.style.display = 'none';
+    showToast('Saved. ' + cafe.name + ' is still ' + cafe.status + '.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Saved. Save changes again anytime'; }
+    applyFilters(); saveState();
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save changes (does not approve or submit)'; }
+    if (err) { err.style.display = 'block'; err.textContent = e.message; }
   }
 }
 
@@ -5330,7 +5370,7 @@ function renderEditsPanel() {
   const shown = q ? rows : rows.slice(0, 60);
   container.innerHTML = `
     <div class="wf-eyebrow" style="margin-bottom:4px">✏️ Edit Changes · ${rows.length} cafés</div>
-    <div class="wf-hint" style="margin-bottom:8px">Something changed at a café (hours, WiFi, seats, closed…)? Only cafés that were submitted and approved, or are complete, show here. Find it, update the form, and send it. The team reviews it before the listing changes.</div>
+    <div class="wf-hint" style="margin-bottom:8px">Something changed at a café (hours, WiFi, seats, closed…)? Only completed cafés show here. Find it, update the form, and send it. The team reviews it before the listing changes.</div>
     ${shown.map(c => `<div class="checklist-item" onclick="wfStartEditRequest('${c.id}')" style="cursor:pointer">
         <div class="cl-status-dot" style="background:${getMarkerColor(c)}"></div>
         <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.name)}</div><div class="cl-cafe-addr">${escHtml(c.address)}${c.status ? ' · ' + escHtml(c.status) : ''}</div></div>
