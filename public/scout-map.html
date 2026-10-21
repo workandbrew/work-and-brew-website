@@ -1345,6 +1345,17 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   .leaflet-control-zoom a { width: 38px !important; height: 38px !important; line-height: 38px !important; }
 }
 
+/* Tablets: all tabs on ONE line (short labels, shared evenly), everything else on a second line */
+@media (min-width: 769px) and (max-width: 1100px) {
+  #toolbar { flex-wrap: wrap !important; height: auto !important; overflow: visible !important; row-gap: 8px; padding: 8px 12px !important; align-items: center; }
+  #toolbar .tab-btn { flex: 1 1 0; min-width: 0; padding: 0 6px; font-size: 0.78rem; justify-content: center; text-align: center; white-space: nowrap; }
+  #toolbar .tab-btn .tl { display: none; }
+  #toolbar .tab-btn .ts { display: inline; }
+  /* the little divider after the tabs becomes the line break */
+  #toolbar > #tab-review + div[style*="border-left"] { display: block !important; flex: 0 0 100% !important; width: 100% !important; height: 0 !important; border: 0 !important; margin: 0 !important; }
+  #toolbar #search-input { flex: 1 1 220px; }
+}
+
 /* iPad portrait and similar (769px to 900px): give the map more room */
 @media (min-width: 769px) and (max-width: 900px) {
   :root { --panel-w: 280px; }
@@ -1352,9 +1363,29 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 }
 
 /* Laptops and desktops */
+#stats-bar { flex: 1 1 0; min-width: 0; overflow: hidden; }
+.stat-chip { flex-shrink: 0; }
 @media (min-width: 1101px) {
   .stat-chip { font-size: 0.7rem; }
   #header { flex-wrap: nowrap; overflow: hidden; }
+}
+/* Smaller laptops: show fewer header chips so none are cut off */
+@media (min-width: 1101px) and (max-width: 1599px) { #stats-bar .stat-chip:nth-child(n+10) { display: none; } }
+@media (min-width: 1101px) and (max-width: 1300px) { #stats-bar .stat-chip:nth-child(n+9) { display: none; } }
+
+/* Laptops under 1600px: tabs on one line (full names), search and List on the line below */
+@media (min-width: 1101px) and (max-width: 1599px) {
+  #toolbar { flex-wrap: wrap !important; height: auto !important; overflow: visible !important; row-gap: 8px; padding: 8px 16px !important; align-items: center; }
+  #toolbar > #tab-review + div[style*="border-left"] { display: block !important; flex: 0 0 100% !important; width: 100% !important; height: 0 !important; border: 0 !important; margin: 0 !important; }
+  #toolbar #search-input { flex: 1 1 260px; max-width: 480px; width: auto; }
+}
+
+/* Large tablets in portrait and small tablets (601px to 768px): filters side by side instead of stacked */
+@media (min-width: 601px) and (max-width: 768px) {
+  #scout-filter-bar { grid-template-columns: auto 1fr auto 1fr !important; }
+  #scout-filter-bar #scout-near-btn, #scout-filter-bar #scout-locate-btn { grid-column: span 2 !important; }
+  #scout-filter-select, #status-filter { flex: 1 1 auto; }
+  #toolbar #search-input { grid-column: 1 / -1; }
 }
 </style>
 </head>
@@ -2538,9 +2569,9 @@ function cafeMatchesTab(cafe) {
 
 // Scout dropdown (filter bar). On the Assigned tab the tab logic already handles it.
 const SCOUT_FILTER_TABS = ['completed', 'scout', 'edits'];
-// Cafés that can have changes sent for them: submitted (in review), completed, or published
+// Cafés that can have changes sent for them: submitted and approved (completed), or published
 function wfEditable(cafe) {
-  return cafe.status === 'In Review' || cafe.status === 'Visit Completed' || cafe.status === 'Official Cafe Listing';
+  return cafe.status === 'Visit Completed' || cafe.status === 'Official Cafe Listing';
 }
 function cafeMatchesScout(cafe) {
   if (!SCOUT_FILTER_TABS.includes(state.activeTab)) return true; // other tabs show everyone's cafés
@@ -5299,7 +5330,7 @@ function renderEditsPanel() {
   const shown = q ? rows : rows.slice(0, 60);
   container.innerHTML = `
     <div class="wf-eyebrow" style="margin-bottom:4px">✏️ Edit Changes · ${rows.length} cafés</div>
-    <div class="wf-hint" style="margin-bottom:8px">Something changed at a café (hours, WiFi, seats, closed…)? Only submitted and completed cafés show here. Find it, update the form, and send it. The team reviews it before the listing changes.</div>
+    <div class="wf-hint" style="margin-bottom:8px">Something changed at a café (hours, WiFi, seats, closed…)? Only cafés that were submitted and approved, or are complete, show here. Find it, update the form, and send it. The team reviews it before the listing changes.</div>
     ${shown.map(c => `<div class="checklist-item" onclick="wfStartEditRequest('${c.id}')" style="cursor:pointer">
         <div class="cl-status-dot" style="background:${getMarkerColor(c)}"></div>
         <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.name)}</div><div class="cl-cafe-addr">${escHtml(c.address)}${c.status ? ' · ' + escHtml(c.status) : ''}</div></div>
