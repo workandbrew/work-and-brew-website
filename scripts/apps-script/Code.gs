@@ -294,10 +294,14 @@ function handleFlagAddress_(body, user) {
 }
 
 // ------------------------------------------------------------ café suggestions
-// A scout found a café that is not on the map. It waits on the "Café Suggestions" tab until an
-// approver accepts it from the Review tab; only then does it join the main sheet (yellow row) and the map.
+// A scout found a café that is not on the map. Two kinds:
+//   Full  = a complete café form (photos, hours, everything) for a café that is not in the database yet
+//   Quick = only the location ("in a rush"), for someone else to scout later
+// Both wait on the "Café Suggestions" tab until an approver accepts them from the Review tab. Only then
+// do they join the main sheet (yellow row) and the map. A Full one lands in In Review so the usual
+// review and publish step follows; a Quick one lands as Unvisited.
 var SUGGEST_SHEET = 'Café Suggestions';
-var SUGGEST_COLS = ['SuggestedAt', 'SuggestedBy', 'Name', 'Address', 'Borough', 'Type', 'Latitude', 'Longitude', 'Decision', 'DecidedBy', 'DecidedAt', 'Note'];
+var SUGGEST_COLS = ['SuggestedAt', 'SuggestedBy', 'Name', 'Address', 'Borough', 'Type', 'Latitude', 'Longitude', 'Decision', 'DecidedBy', 'DecidedAt', 'Note', 'Kind', 'MapsLink', 'FormJson', 'PhotoIds'];
 function suggestSheet_() {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var sh = ss.getSheetByName(SUGGEST_SHEET);
@@ -305,19 +309,50 @@ function suggestSheet_() {
     sh = ss.insertSheet(SUGGEST_SHEET);
     sh.getRange(1, 1, 1, SUGGEST_COLS.length).setValues([SUGGEST_COLS]).setFontWeight('bold');
     sh.setFrozenRows(1);
+    return sh;
+  }
+  // an older version of this tab may have fewer columns: add the missing headers
+  var have = sh.getLastColumn();
+  if (have < SUGGEST_COLS.length) {
+    sh.getRange(1, have + 1, 1, SUGGEST_COLS.length - have).setValues([SUGGEST_COLS.slice(have)]).setFontWeight('bold');
   }
   return sh;
 }
 function handleSuggestCafe_(body, user) {
-  var c = body.cafe || {};
+  var c = body.cafe || {}, f = body.form || {};
   if (!c.name) throw new Error('Café name is required.');
+  var full = !!body.full;
   var who = body.scoutName || user.email;
+  var photos = body.photos || [];
   var sh = suggestSheet_();
-  sh.appendRow([now_(), who, c.name, c.address || '', c.borough || '', c.type || '', c.lat || '', c.lng || '', 'Pending', '', '', '']);
-  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '🆕 NEW CAFÉ SUGGESTION: ' + c.name,
-    '*This is a new café suggestion, not a visit form.* It is NOT on the map yet.\n*' + c.name + '*\n' +
-    (c.address || '') + (c.borough ? ', ' + c.borough : '') + '\nType: ' + (c.type || '') + '\n_Suggested by ' + who + '_\n' +
-    '<' + SITE_URL + '?suggestions=1|🔎 Approve or reject it in the Review tab of the scout map>', []);
+  sh.appendRow([now_(), who, c.name, c.address || '', c.borough || '', c.type || '', c.lat || '', c.lng || '', 'Pending', '', '', '',
+    full ? 'Full' : 'Quick', body.mapsLink || '', full ? JSON.stringify(f) : '', full ? JSON.stringify(photos) : '']);
+  var link = '<' + SITE_URL + '?suggestions=1|Approve or reject it in the Review tab of the scout map>';
+  if (full) {
+    var folder = cafeFolder_({ name: c.name });
+    var lines = [
+      '*' + c.name + '* · ' + (c.borough || '') + '\n' + (c.address || '') + '\nType: ' + (c.type || '') + (body.mapsLink ? ' · <' + body.mapsLink + '|Google Maps>' : ''),
+      '*Scout:* ' + who + '\n*Hours:* ' + (f.hoursWeekday || '') + '; ' + (f.hoursWeekend || ''),
+      '*WiFi* ' + f.wifi + (f.wifi === 'YES' ? ' (secured ' + f.secured + ')' : '') + '  ·  *Outlets* ' + f.outlets + '  ·  *Hot food* ' + f.hotFood + '  ·  *Restroom* ' + f.restroom,
+      '*Seats* ' + f.seats + ' · ' + f.seatsType,
+      '*Weekend laptop restrictions:* ' + (f.weekendRestrictions === 'TRUE' ? 'Yes' : 'No') + '   *Other restrictions:* ' + (f.anyRestrictions === 'TRUE' ? f.restrictions : 'None'),
+      '*Vibe:* ' + (f.environment || ''),
+      '*Highlight:* ' + (f.highlight || ''),
+      f.notes ? '*Notes:* ' + f.notes : '',
+      photos.length + ' photo/video' + (photos.length === 1 ? '' : 's') + ' · <' + folder.getUrl() + '|Drive folder>',
+      link
+    ].filter(String);
+    var images = photos.filter(function (p) { return !p.isVideo; }).slice(0, 4).map(function (p) {
+      return { type: 'image', image_url: 'https://lh3.googleusercontent.com/d/' + p.id + '=w800', alt_text: p.name || 'photo' };
+    });
+    postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'NEW CAFE SUBMISSION (not on the map yet): ' + c.name,
+      '_A scout found a café that is not in the database. Approve it to add it to the map and the sheet._\n' + lines.join('\n'), images);
+  } else {
+    postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'NEW CAFE LEAD (quick, not scouted yet): ' + c.name,
+      '*A scout was in a rush and only sent the location.* Someone else needs to scout it later. It is NOT on the map yet.\n*' + c.name + '*\n' +
+      (c.address || '') + (c.borough ? ', ' + c.borough : '') + (c.type ? '\nType: ' + c.type : '') +
+      (body.mapsLink ? '\n<' + body.mapsLink + '|Google Maps link>' : '') + '\n_Found by ' + who + '_\n' + link, []);
+  }
   return {};
 }
 function handleListSuggestions_(body, user) {
@@ -327,7 +362,9 @@ function handleListSuggestions_(body, user) {
   var vals = sh.getRange(2, 1, last - 1, SUGGEST_COLS.length).getValues();
   vals.forEach(function (v, i) {
     if (String(v[8]) !== 'Pending') return;
-    out.push({ row: i + 2, at: v[0], by: v[1], name: v[2], address: v[3], borough: v[4], type: v[5], lat: v[6], lng: v[7] });
+    var pc = 0;
+    try { pc = JSON.parse(v[15] || '[]').length; } catch (e) {}
+    out.push({ row: i + 2, at: v[0], by: v[1], name: v[2], address: v[3], borough: v[4], type: v[5], lat: v[6], lng: v[7], kind: v[12] || 'Quick', mapsLink: v[13] || '', photoCount: pc });
   });
   return { suggestions: out };
 }
@@ -337,7 +374,8 @@ function handleApproveSuggestion_(body, user) {
   if (!r || r < 2) throw new Error('Bad suggestion row');
   var v = ssh.getRange(r, 1, 1, SUGGEST_COLS.length).getValues()[0];
   if (String(v[8]) !== 'Pending') throw new Error('This suggestion was already handled.');
-  var c = { name: v[2], address: v[3], borough: v[4], type: v[5], lat: v[6], lng: v[7] };
+  var full = String(v[12]) === 'Full';
+  var c = { name: v[2], address: v[3], borough: v[4], type: v[5], lat: v[6], lng: v[7], kind: full ? 'Full' : 'Quick', status: full ? 'In Review' : 'Unvisited' };
   var sh = sheet_(), h = ensureColumns_(sh);
   var last = sh.getLastRow(), maxNum = 0;
   if (last >= 2 && h.Number) {
@@ -350,16 +388,34 @@ function handleApproveSuggestion_(body, user) {
   var zipM = String(c.address || '').match(/\b(1[0-9]{4})\b/);
   c.zip = zipM ? zipM[1] : '';
   var row = last + 1;
-  setCells_(sh, h, row, {
+  var cells = {
     Number: c.number, Name: c.name, isChain: 'FALSE', Address: c.address, Borough: c.borough,
-    Zipcode: c.zip, Latitude: c.lat || '', Longitude: c.lng || '', Status: 'Unvisited',
+    Zipcode: c.zip, Latitude: c.lat || '', Longitude: c.lng || '', Status: c.status,
     AssignedTo: '', ConfirmedQualifies: '', Source: 'Scout suggestion: ' + (c.type || '') + ' (by ' + v[1] + ')',
     SubmittedBy: v[1], SubmittedAt: v[0]
-  });
+  };
+  if (full) {
+    var f = {}, photos = [];
+    try { f = JSON.parse(v[14] || '{}'); } catch (e) {}
+    try { photos = JSON.parse(v[15] || '[]'); } catch (e) {}
+    var folder = cafeFolder_({ name: c.name });
+    var form = {
+      ReviewStatus: 'New cafe', HoursWeekday: f.hoursWeekday || '', HoursWeekend: f.hoursWeekend || '', HoursByDay: f.hoursByDay || '',
+      WeekendRestrictions: f.weekendRestrictions || '', Environment: f.environment || '', Highlight: f.highlight || '',
+      WiFi: f.wifi || '', Secured: f.secured || '', Outlets: f.outlets || '', HotFood: f.hotFood || '', Restroom: f.restroom || '',
+      Seats: f.seats || '', SeatsType: f.seatsType || '', TimeRestriction: f.anyRestrictions || '', RestrictionAmount: f.restrictions || '',
+      Notes: f.notes || '', ChainFlag: f.chainFlag === 'TRUE' ? 'reported' : '', ScoutName: v[1],
+      DateScouted: today_(), VideosTexted: f.videosTexted === 'TRUE' ? 'TRUE' : 'FALSE',
+      PhotoIds: JSON.stringify(photos), DriveFolderUrl: folder.getUrl()
+    };
+    Object.keys(form).forEach(function (k) { cells[k] = form[k]; });
+  }
+  setCells_(sh, h, row, cells);
   sh.getRange(row, 1, 1, sh.getLastColumn()).setBackground('#fff59d'); // yellow = new café from a scout
   ssh.getRange(r, 9, 1, 3).setValues([['Approved', user.email, now_()]]);
-  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '✅ New café approved: ' + c.name,
-    '*' + c.name + '* is now on the scout map and in the spreadsheet as ' + c.number + ' (yellow row). Approved by ' + user.email + '.', []);
+  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'New café approved: ' + c.name,
+    '*' + c.name + '* is now on the scout map and in the spreadsheet as ' + c.number + ' (yellow row). Approved by ' + user.email + '.' +
+    (full ? '\nIt is in the Review tab now, ready to publish.' : '\nIt is Unvisited, ready to assign to a scout.'), []);
   return { cafe: c };
 }
 function handleRejectSuggestion_(body, user) {
@@ -368,7 +424,7 @@ function handleRejectSuggestion_(body, user) {
   if (!r || r < 2) throw new Error('Bad suggestion row');
   var v = ssh.getRange(r, 1, 1, SUGGEST_COLS.length).getValues()[0];
   ssh.getRange(r, 9, 1, 4).setValues([['Rejected', user.email, now_(), body.note || '']]);
-  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '✕ Café suggestion not added: ' + v[2],
+  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'Café suggestion not added: ' + v[2],
     '*' + v[2] + '* (' + (v[3] || '') + ') was not added by ' + user.email + '.' + (body.note ? '\n_' + body.note + '_' : ''), []);
   return {};
 }
