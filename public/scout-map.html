@@ -1356,7 +1356,8 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   #toolbar .tab-btn .ts { display: inline; }
   /* the little divider after the tabs becomes the line break */
   #toolbar > #tab-review + div[style*="border-left"] { display: block !important; flex: 0 0 100% !important; width: 100% !important; height: 0 !important; border: 0 !important; margin: 0 !important; }
-  #toolbar #search-input { flex: 1 1 220px; }
+  #toolbar #search-input { flex: 0 1 380px; width: 380px; max-width: 100%; margin-left: 0 !important; }
+  #toolbar #list-mode-btn { margin-left: 4px !important; }
 }
 
 /* iPad portrait and similar (769px to 900px): give the map more room */
@@ -1380,7 +1381,8 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 @media (min-width: 1101px) and (max-width: 1599px) {
   #toolbar { flex-wrap: wrap !important; height: auto !important; overflow: visible !important; row-gap: 8px; padding: 8px 16px !important; align-items: center; }
   #toolbar > #tab-review + div[style*="border-left"] { display: block !important; flex: 0 0 100% !important; width: 100% !important; height: 0 !important; border: 0 !important; margin: 0 !important; }
-  #toolbar #search-input { flex: 1 1 260px; max-width: 480px; width: auto; }
+  #toolbar #search-input { flex: 0 1 420px; width: 420px; max-width: 100%; margin-left: 0 !important; }
+  #toolbar #list-mode-btn { margin-left: 4px !important; }
 }
 
 /* Large tablets in portrait and small tablets (601px to 768px): filters side by side instead of stacked */
