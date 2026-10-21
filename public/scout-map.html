@@ -1357,13 +1357,19 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   /* the little divider after the tabs becomes the line break */
   #toolbar > #tab-review + div[style*="border-left"] { display: block !important; flex: 0 0 100% !important; width: 100% !important; height: 0 !important; border: 0 !important; margin: 0 !important; }
   #toolbar #search-input { flex: 0 1 380px; width: 380px; max-width: 100%; margin-left: 0 !important; }
-  #toolbar #list-mode-btn { margin-left: 4px !important; }
 }
 
 /* iPad portrait and similar (769px to 900px): give the map more room */
 @media (min-width: 769px) and (max-width: 900px) {
   :root { --panel-w: 280px; }
   #header h1 { font-size: 0.85rem; }
+}
+
+/* Status and Scout sit next to the search bar on wide screens; List goes to the far end of that line */
+#wide-filters { display: none; align-items: center; gap: 8px; flex-shrink: 0; }
+@media (min-width: 1024px) {
+  #wide-filters { display: flex; }
+  #toolbar #list-mode-btn { margin-left: auto !important; }
 }
 
 /* Laptops and desktops */
@@ -1378,11 +1384,10 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 @media (min-width: 1101px) and (max-width: 1300px) { #stats-bar .stat-chip:nth-child(n+9) { display: none; } }
 
 /* Laptops under 1600px: tabs on one line (full names), search and List on the line below */
-@media (min-width: 1101px) and (max-width: 1599px) {
+@media (min-width: 1101px) and (max-width: 1899px) {
   #toolbar { flex-wrap: wrap !important; height: auto !important; overflow: visible !important; row-gap: 8px; padding: 8px 16px !important; align-items: center; }
   #toolbar > #tab-review + div[style*="border-left"] { display: block !important; flex: 0 0 100% !important; width: 100% !important; height: 0 !important; border: 0 !important; margin: 0 !important; }
   #toolbar #search-input { flex: 0 1 420px; width: 420px; max-width: 100%; margin-left: 0 !important; }
-  #toolbar #list-mode-btn { margin-left: 4px !important; }
 }
 
 /* Large tablets in portrait and small tablets (601px to 768px): filters side by side instead of stacked */
@@ -1501,6 +1506,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   <button class="boro-btn" data-boro="Brooklyn">Brooklyn</button>
   <button class="boro-btn" data-boro="Queens">Queens</button>
   <div style="margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);height:20px;flex-shrink:0;"></div>
+  <div id="wide-filters"></div>
   <button id="list-mode-btn" title="Toggle list view">☰ List</button>
 </div>
 
@@ -1999,6 +2005,24 @@ document.getElementById('sb-login-form').addEventListener('submit', async (e) =>
     await sbOnAuthSuccess(session.user);
   }
   // If no session, the overlay stays visible: user must log in
+})();
+
+// Wide screens (1024px and up): the Status and Scout dropdowns move up next to the search bar
+(function () {
+  const mq = window.matchMedia('(min-width: 1024px)');
+  function place() {
+    const wide = document.getElementById('wide-filters'), bar = document.getElementById('scout-filter-bar');
+    if (!wide || !bar) return;
+    const parts = ['status-filter-label', 'status-filter', 'scout-filter-label', 'scout-filter-select'].map(id => document.getElementById(id));
+    if (mq.matches) { parts.forEach(el => el && wide.appendChild(el)); }
+    else { const first = bar.firstChild; parts.forEach(el => el && bar.insertBefore(el, document.getElementById('scout-near-btn'))); }
+    if (typeof state !== 'undefined' && state && typeof wfSyncFilterBar === 'function') wfSyncFilterBar();
+    setTimeout(() => { try { map.invalidateSize(); } catch (e) {} }, 120);
+  }
+  window.wfPlaceFilters = place;
+  (mq.addEventListener ? mq.addEventListener('change', place) : mq.addListener(place));
+  document.addEventListener('DOMContentLoaded', place);
+  place();
 })();
 
 document.getElementById('btn-logout').onclick = async function() {
@@ -4532,6 +4556,8 @@ function wfSyncFilterBar() {
   if (!bar) return;
   const onScout = state.activeTab === 'scout';
   bar.classList.add('visible');
+  const isWide = window.matchMedia('(min-width: 1024px)').matches;
+  bar.style.display = (isWide && !onScout) ? 'none' : '';
   // Status + Scout dropdowns on every tab; Locate Me only on Assigned
   ['scout-near-btn', 'scout-locate-btn', 'scout-glow-countdown'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = onScout ? '' : 'none';
