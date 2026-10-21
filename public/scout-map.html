@@ -805,7 +805,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   #scout-filter-bar .scout-filter-label { flex: 0 0 auto; min-width: 52px; }
   #scout-filter-bar { display: grid !important; grid-template-columns: auto 1fr; align-items: center; column-gap: 8px; row-gap: 6px; }
   #scout-filter-bar:not(.visible) { display: none !important; }
-  #scout-locate-btn { grid-column: 1 / -1; min-height: 40px; }
+  #scout-locate-btn, #scout-near-btn { grid-column: 1 / -1; min-height: 40px; margin-left: 0 !important; }
   #main { flex: 1 1 auto !important; min-height: 0 !important; height: auto !important; }
 
   /* Inputs at 16px so iOS never auto-zooms */
@@ -1169,6 +1169,33 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   flex-shrink: 0;
 }
 #scout-locate-btn:hover { background: rgba(66,133,244,0.35); color: #afd0ff; }
+#scout-near-btn {
+  background: rgba(39,174,96,0.2);
+  border: 1.5px solid rgba(39,174,96,0.55);
+  color: #7fe0a6;
+  border-radius: 20px;
+  padding: 3px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+  transition: all 0.15s;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+#scout-near-btn:hover { background: rgba(39,174,96,0.35); color: #b6f2cd; }
+#scout-near-btn + #scout-locate-btn { margin-left: 0; }
+.near-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.near-head .nh-title { flex:1; font-weight:800; font-size:0.85rem; color:var(--espresso, #2c1810); }
+.near-item { display:flex; align-items:center; gap:10px; padding:10px; margin-bottom:6px; background:#fff; border:1px solid var(--tan, #e4d6c3); border-radius:10px; }
+.near-item.done { opacity:0.55; }
+.near-rank { width:26px; height:26px; border-radius:50%; background:#27AE60; color:#fff; font-size:0.75rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.near-info { flex:1; min-width:0; cursor:pointer; }
+.near-name { font-weight:700; font-size:0.82rem; }
+.near-sub { font-size:0.7rem; color:#8a7a6a; }
+.near-dist { font-size:0.75rem; font-weight:800; color:#1e8e4e; white-space:nowrap; }
+.near-go { background:#27AE60; color:#fff; text-decoration:none; font-weight:700; font-size:0.72rem; padding:8px 12px; border-radius:8px; white-space:nowrap; min-height:36px; display:inline-flex; align-items:center; }
 #scout-glow-countdown {
   font-size: 0.68rem; color: #FFD700; font-weight: 700;
   white-space: nowrap; flex-shrink: 0; display: none;
@@ -1414,13 +1441,13 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 <!-- TAB + FILTER BAR -->
 <div id="toolbar">
   <button id="tabs-toggle" type="button" onclick="toggleTabs()"><span id="tabs-toggle-label">Tabs</span><span class="tt-caret">▾</span></button>
-  <button class="tab-btn active" data-tab="chain"><span class="tl">⛓ Chain Cafés</span><span class="ts">⛓ Chains</span></button>
-  <button class="tab-btn" data-tab="independent"><span class="tl">☕ Main Map</span><span class="ts">☕ Main Map</span></button>
+  <button class="tab-btn active" data-tab="independent"><span class="tl">☕ Main Map</span><span class="ts">☕ Main Map</span></button>
   <button class="tab-btn" data-tab="completed"><span class="tl">✅ Completed</span><span class="ts">✅ Done</span></button>
   <button class="tab-btn" data-tab="official"><span class="tl">⭐ Official Work &amp; Brew Map</span><span class="ts">⭐ Official</span></button>
   <button class="tab-btn" data-tab="scout"><span class="tl">🗺 Assigned Cafés</span><span class="ts">🗺 Assigned</span></button>
   <button class="tab-btn" data-tab="edits"><span class="tl">✏️ Edit Changes</span><span class="ts">✏️ Edits</span></button>
   <button class="tab-btn" data-tab="ineligible"><span class="tl">❌ Ineligible</span><span class="ts">❌ Inelig.</span></button>
+  <button class="tab-btn" data-tab="chain"><span class="tl">⛓ Chain Cafés</span><span class="ts">⛓ Chains</span></button>
   <button class="tab-btn" data-tab="review" id="tab-review" style="display:none">🔎 Review</button>
   <div style="margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);height:20px;"></div>
   <input id="search-input" type="text" placeholder="🔍 Search cafés...">
@@ -1462,6 +1489,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   <select id="scout-filter-select" onchange="setScoutFilter(this.value==='all'?null:parseInt(this.value))">
     <option value="all">All Scouts</option>
   </select>
+  <button id="scout-near-btn" title="Lists your assigned cafés from closest to farthest, with directions">Sort by distance</button>
   <button id="scout-locate-btn">📍 Locate Me &amp; Glow Nearby</button>
   <span id="scout-glow-countdown"></span>
 </div>
@@ -1949,7 +1977,7 @@ var state = {
     color: PERSON_COLORS[i],
     homeBases: HOME_BASE_DEFAULTS[i].homeBases
   })),
-  activeTab: 'chain',
+  activeTab: 'independent',
   boroughFilter: 'All',
   searchQuery: '',
   panelOpen: true,
@@ -2490,8 +2518,8 @@ function cafeMatchesTab(cafe) {
   const tab = state.activeTab;
   if (tab === 'ineligible') return cafe.status === 'Ineligible Cafe';
   const doneish = cafe.status === 'Visit Completed' || cafe.status === 'Official Cafe Listing' || cafe.status === 'Ineligible Cafe';
-  if (tab === 'independent') return cafe.status !== 'Ineligible Cafe'; // Main Map: every café, done or not
-  if (tab === 'edits') return true; // every café, so changes can be sent for any of them
+  if (tab === 'independent') return true; // Main Map: every café in the database, any status
+  if (tab === 'edits') return wfEditable(cafe); // Edit Changes: submitted and completed cafés only
   if (tab === 'chain') return cafe.isChain && !doneish;
   if (tab === 'official') return cafe.status === 'Official Cafe Listing';
   if (tab === 'completed') return cafe.status === 'Visit Completed';
@@ -2509,7 +2537,13 @@ function cafeMatchesTab(cafe) {
 }
 
 // Scout dropdown (filter bar). On the Assigned tab the tab logic already handles it.
+const SCOUT_FILTER_TABS = ['completed', 'scout', 'edits'];
+// Cafés that can have changes sent for them: submitted (in review), completed, or published
+function wfEditable(cafe) {
+  return cafe.status === 'In Review' || cafe.status === 'Visit Completed' || cafe.status === 'Official Cafe Listing';
+}
 function cafeMatchesScout(cafe) {
+  if (!SCOUT_FILTER_TABS.includes(state.activeTab)) return true; // other tabs show everyone's cafés
   if (state.activeTab === 'scout') return true;
   if (state.scoutFilter === null || state.scoutFilter === undefined) return true;
   return cafe.assignedTo === state.scoutFilter;
@@ -3902,7 +3936,11 @@ function renderScoutFilterBar() {
   });
 
   // Sync selected value
-  sel.value = state.scoutFilter === null ? 'all' : String(state.scoutFilter);
+  const applies = SCOUT_FILTER_TABS.includes(state.activeTab);
+  sel.disabled = !applies;
+  sel.style.opacity = applies ? '' : '0.45';
+  sel.title = applies ? '' : 'Scout filter works on Completed, Assigned and Edit Changes';
+  sel.value = (!applies || state.scoutFilter === null) ? 'all' : String(state.scoutFilter);
 
   // Restore handler after DOM settles
   requestAnimationFrame(() => { sel.onchange = savedHandler; });
@@ -3914,6 +3952,55 @@ function setScoutFilter(idx) {
   applyFilters();
   renderPanel();
   saveState();
+}
+
+// Sort by distance button: nearest-first list of the scout's cafés, with distance and Google Maps directions
+let _nearLoc = null;
+document.getElementById('scout-near-btn').onclick = function() { showNearestList(); };
+function showNearestList(useCached) {
+  if (useCached && _nearLoc) { renderNearestList(_nearLoc.lat, _nearLoc.lng); return; }
+  if (!navigator.geolocation) { showToast('Location is not supported on this browser'); return; }
+  showToast('Getting your location');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      _nearLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      renderNearestList(_nearLoc.lat, _nearLoc.lng);
+      createLocationMarker(_nearLoc.lat, _nearLoc.lng);
+    },
+    () => showToast('Location is blocked. Allow location for this site in your browser settings, then try again.'),
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+function renderNearestList(lat, lng) {
+  const idx = state.scoutFilter;
+  let list = state.cafes.filter(c => c.assignedTo !== null && c.assignedTo !== undefined && c.status !== 'Ineligible Cafe' && c.lat && c.lng
+    && (idx === null || idx === undefined || c.assignedTo === idx));
+  const who = (idx !== null && idx !== undefined && state.persons[idx]) ? state.persons[idx].name + "'s" : 'Assigned';
+  list = list.map(c => ({ c, km: haversineKm(lat, lng, Number(c.lat), Number(c.lng)) })).sort((a, b) => a.km - b.km);
+  const fmt = km => { const mi = km * 0.621371; return mi < 0.1 ? Math.round(mi * 5280) + ' ft' : mi.toFixed(1) + ' mi'; };
+  const container = document.getElementById('persons-container');
+  if (!container) return;
+  container.innerHTML = `
+    <div class="near-head">
+      <div class="nh-title">${escHtml(who)} cafés, closest first</div>
+      <button class="wf-btn-sm" onclick="showNearestList()">Refresh</button>
+      <button class="wf-btn-sm" onclick="renderPanel()">Back</button>
+    </div>
+    ${list.length ? list.map((o, i) => {
+      const c = o.c;
+      const url = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(c.lat + ',' + c.lng);
+      return `<div class="near-item ${c.status === 'Visit Completed' ? 'done' : ''}">
+        <div class="near-rank">${i + 1}</div>
+        <div class="near-info" onclick="zoomToCafe('${c.id}')">
+          <div class="near-name">${escHtml(c.name)}</div>
+          <div class="near-sub">${escHtml(c.address || '')}${c.status === 'Visit Completed' ? ' · done' : ''}</div>
+          <div class="near-dist">${fmt(o.km)} away</div>
+        </div>
+        <a class="near-go" href="${url}" target="_blank" rel="noopener">Directions</a>
+      </div>`;
+    }).join('') : '<div style="font-size:0.78rem;color:#999;text-align:center;padding:20px 0">No assigned cafés to sort yet.</div>'}`;
+  wfOpenPanel();
+  const body = document.getElementById('panel-body'); if (body) body.scrollTop = 0;
 }
 
 // Locate Me button: use browser geolocation, then glow nearby cafes
@@ -4395,7 +4482,7 @@ function wfSyncFilterBar() {
   const onScout = state.activeTab === 'scout';
   bar.classList.add('visible');
   // Status + Scout dropdowns on every tab; Locate Me only on Assigned
-  ['scout-locate-btn', 'scout-glow-countdown'].forEach(id => {
+  ['scout-near-btn', 'scout-locate-btn', 'scout-glow-countdown'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = onScout ? '' : 'none';
   });
   const sf = document.getElementById('status-filter');
@@ -5207,12 +5294,12 @@ function renderOfficialPanel() {
 function renderEditsPanel() {
   const container = document.getElementById('persons-container');
   const q = (state.searchQuery || '').toLowerCase();
-  const rows = state.cafes.filter(c => cafeMatchesScout(c) && cafeMatchesStatus(c) && (!q || c.name.toLowerCase().includes(q) || c.address.toLowerCase().includes(q)))
+  const rows = state.cafes.filter(c => wfEditable(c) && cafeMatchesScout(c) && cafeMatchesStatus(c) && (!q || c.name.toLowerCase().includes(q) || c.address.toLowerCase().includes(q)))
     .sort((a, b) => a.name.localeCompare(b.name));
   const shown = q ? rows : rows.slice(0, 60);
   container.innerHTML = `
     <div class="wf-eyebrow" style="margin-bottom:4px">✏️ Edit Changes · ${rows.length} cafés</div>
-    <div class="wf-hint" style="margin-bottom:8px">Something changed at a café (hours, WiFi, seats, closed…)? Find it, update the form, and send it. The team reviews it before the listing changes.</div>
+    <div class="wf-hint" style="margin-bottom:8px">Something changed at a café (hours, WiFi, seats, closed…)? Only submitted and completed cafés show here. Find it, update the form, and send it. The team reviews it before the listing changes.</div>
     ${shown.map(c => `<div class="checklist-item" onclick="wfStartEditRequest('${c.id}')" style="cursor:pointer">
         <div class="cl-status-dot" style="background:${getMarkerColor(c)}"></div>
         <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.name)}</div><div class="cl-cafe-addr">${escHtml(c.address)}${c.status ? ' · ' + escHtml(c.status) : ''}</div></div>
