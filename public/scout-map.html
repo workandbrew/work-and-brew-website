@@ -1289,6 +1289,37 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 .wf-error { font-size:0.7rem; color:#b42318; background:#fde8e6; border:1px solid #f5c2bd; border-radius:7px; padding:6px 9px; }
 .wf-submit { width:100%; background:var(--brown); color:#F5EDE2; border:none; border-radius:8px; padding:10px; font-size:0.82rem; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; }
 .wf-submit.faded { opacity:.45; }
+.fine-print { font-size:0.6rem; color:rgba(46,26,14,0.5); margin-top:3px; line-height:1.3; }
+.pencil-btn { flex-shrink:0; background:none; border:1.5px solid #d1d5db; border-radius:5px; width:24px; height:24px; cursor:pointer; font-size:0.72rem; line-height:1; color:#888; padding:0; display:inline-flex; align-items:center; justify-content:center; vertical-align:middle; margin-left:6px; }
+.pencil-btn:hover { border-color:#2E1A0E; color:#2E1A0E; }
+.assn-ctrl { background:#fff4e5; border:1px solid #f3c48a; border-radius:10px; padding:10px; margin-bottom:10px; }
+.assn-ctrl label { font-size:0.68rem; font-weight:700; color:#7a4a12; text-transform:uppercase; letter-spacing:.04em; display:block; margin-bottom:3px; }
+.assn-ctrl select, .assn-ctrl input[type=date] { width:100%; box-sizing:border-box; border:1.5px solid #d1d5db; border-radius:7px; padding:7px 8px; font-size:0.82rem; font-family:'Inter',sans-serif; background:#fff; }
+.assn-row { display:flex; align-items:center; gap:10px; padding:9px 10px; margin-bottom:5px; background:#fff; border:1px solid var(--tan, #e4d6c3); border-radius:10px; }
+.assn-row.sel { background:#eef7f0; border-color:#9bd5b0; }
+.assn-row .ar-name { font-weight:700; font-size:0.8rem; }
+.assn-row .ar-sub { font-size:0.68rem; color:#8a7a6a; }
+.lead-row { display:flex; align-items:center; gap:10px; padding:10px; margin-bottom:6px; background:#fff; border:1px solid var(--tan, #e4d6c3); border-radius:10px; cursor:pointer; }
+.lead-row .lr-name { font-weight:700; font-size:0.82rem; }
+.lead-row .lr-sub { font-size:0.7rem; color:#8a7a6a; }
+.lead-row .lr-web { font-size:0.68rem; color:#1e6b3f; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+.lead-row.finished { opacity:.55; background:#f4efe6; }
+.lead-row.finished .lr-name { text-decoration:line-through; }
+.lead-tag { font-size:0.62rem; font-weight:800; border-radius:999px; padding:2px 8px; background:#e9f7ef; color:#1e6b3f; border:1px solid #9bd5b0; white-space:nowrap; }
+.lead-head { background:#fff4e5; border:1px solid #f3c48a; color:#7a4a12; border-radius:8px; padding:8px 10px; font-size:0.76rem; line-height:1.4; margin-bottom:10px; }
+.lead-bar { height:8px; background:#eadfce; border-radius:999px; overflow:hidden; margin-top:6px; }
+.lead-bar > div { height:100%; background:#27AE60; }
+.lead-check { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border-radius:10px; border:2px solid #cdbfa9; background:#fff; color:#6b5b4a; font-weight:700; font-size:0.82rem; cursor:pointer; font-family:'Inter',sans-serif; margin:8px 0; }
+.lead-check.on { border-color:#27AE60; background:#e9f7ef; color:#1e6b3f; }
+#lead-done-overlay { position:fixed; inset:0; z-index:5000; display:none; align-items:center; justify-content:center; background:rgba(44,26,14,0.55); }
+#lead-done-overlay.show { display:flex; }
+#lead-done-box { position:relative; z-index:2; background:#fff; border-radius:18px; padding:28px 26px; max-width:340px; width:calc(100% - 40px); text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.35); }
+#lead-done-box h2 { margin:0 0 8px; font-size:1.15rem; color:var(--brown); }
+#lead-done-box p { margin:0 0 16px; font-size:0.85rem; color:#6b5b4a; line-height:1.4; }
+#lead-confetti { position:absolute; inset:0; width:100%; height:100%; z-index:1; pointer-events:none; }
+.wf-progress { font-size:0.74rem; line-height:1.4; background:#fff4e5; border:1px solid #f3c48a; color:#7a4a12; border-radius:8px; padding:8px 10px; margin:8px 0 4px; }
+.wf-progress.done { background:#e9f7ef; border-color:#9bd5b0; color:#1e6b3f; }
+.draft-tag { display:inline-block; background:#fff4e5; border:1px solid #f3c48a; color:#9a4a0a; font-size:0.62rem; font-weight:800; border-radius:999px; padding:1px 7px; margin-left:6px; vertical-align:middle; }
 .wf-submit:disabled { opacity:.6; cursor:default; }
 .wf-row-btns { display:flex; gap:6px; }
 .wf-btn-sm { flex:1; border:1.5px solid #ddd2c4; background:#fff; color:#3a2f27; border-radius:7px; padding:7px; font-size:0.72rem; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
@@ -1363,6 +1394,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 @media (min-width: 769px) and (max-width: 900px) {
   :root { --panel-w: 280px; }
   #header h1 { font-size: 0.85rem; }
+  #toolbar .tab-btn { font-size: 0.71rem; padding: 0 3px; }
 }
 
 /* Status and Scout sit next to the search bar on wide screens; List goes to the far end of that line */
@@ -1381,7 +1413,13 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 }
 /* Smaller laptops: show fewer header chips so none are cut off */
 @media (min-width: 1101px) and (max-width: 1599px) { #stats-bar .stat-chip:nth-child(n+10) { display: none; } }
-@media (min-width: 1101px) and (max-width: 1300px) { #stats-bar .stat-chip:nth-child(n+9) { display: none; } }
+@media (min-width: 1101px) and (max-width: 1300px) { #stats-bar .stat-chip:nth-child(n+8) { display: none; } }
+/* 1101px to 1499px: short tab names so all tabs stay on one line */
+@media (min-width: 1101px) and (max-width: 1499px) {
+  #toolbar .tab-btn .tl { display: none; }
+  #toolbar .tab-btn .ts { display: inline; }
+  #toolbar .tab-btn { padding: 0 12px; }
+}
 
 /* Laptops under 1600px: tabs on one line (full names), search and List on the line below */
 @media (min-width: 1101px) and (max-width: 1899px) {
@@ -1469,7 +1507,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
     <div class="stat-chip">In Progress: <span id="s-inprogress">0</span></div>
     <div class="stat-chip">Completed: <span id="s-completed">0</span></div>
     <div class="stat-chip">Done: <span id="s-pct">0%</span></div>
-    <div class="stat-chip" style="background:#F59E0B">⚠ Temp: <span id="s-hazard">0</span></div>
+    <div class="stat-chip" style="background:#CA9A04">⚠ Temp: <span id="s-hazard">0</span></div>
     <div class="stat-chip" style="background:#DC2626">✕ Closed: <span id="s-closed">0</span></div>
     <div class="stat-chip" style="background:#FF6B00">↩ Revisit: <span id="s-revisit">0</span></div>
     <div class="stat-chip" style="background:#6366F1">⏳ Pending: <span id="s-pending">0</span></div>
@@ -1485,11 +1523,13 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   <button id="tabs-toggle" type="button" onclick="toggleTabs()"><span id="tabs-toggle-label">Tabs</span><span class="tt-caret">▾</span></button>
   <button class="tab-btn active" data-tab="independent"><span class="tl">☕ Main Map</span><span class="ts">☕ Main Map</span></button>
   <button class="tab-btn" data-tab="completed"><span class="tl">✅ Completed</span><span class="ts">✅ Done</span></button>
-  <button class="tab-btn" data-tab="official"><span class="tl">⭐ Official Work &amp; Brew Map</span><span class="ts">⭐ Official</span></button>
+  <button class="tab-btn" id="tab-official" data-tab="official"><span class="tl">⭐ Official Work &amp; Brew Map</span><span class="ts">⭐ Official</span></button>
   <button class="tab-btn" data-tab="scout"><span class="tl">🗺 Assigned Cafés</span><span class="ts">🗺 Assigned</span></button>
+  <button class="tab-btn" data-tab="assign" id="tab-assign" style="display:none"><span class="tl">Scout Cafe Assignments</span><span class="ts">Assign</span></button>
   <button class="tab-btn" data-tab="edits"><span class="tl">✏️ Edit Changes</span><span class="ts">✏️ Edits</span></button>
-  <button class="tab-btn" data-tab="ineligible"><span class="tl">❌ Ineligible</span><span class="ts">❌ Inelig.</span></button>
-  <button class="tab-btn" data-tab="chain"><span class="tl">⛓ Chain Cafés</span><span class="ts">⛓ Chains</span></button>
+  <button class="tab-btn" data-tab="lead" id="tab-lead" style="display:none"><span class="tl">Scout Lead</span><span class="ts">Scout Lead</span></button>
+  <button class="tab-btn" data-tab="ineligible"><span class="tl">⚠️ Ineligible</span><span class="ts">⚠️ Inelig.</span></button>
+  <button class="tab-btn" id="tab-chain" data-tab="chain"><span class="tl">⛓ Chain Cafés</span><span class="ts">⛓ Chains</span></button>
   <button class="tab-btn" data-tab="review" id="tab-review" style="display:none">🔎 Review</button>
   <div style="margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);height:20px;"></div>
   <input id="search-input" type="text" placeholder="🔍 Search cafés...">
@@ -1557,6 +1597,16 @@ body { display: flex; flex-direction: column; overflow: hidden; }
         <input type="file" id="import-file" accept=".json" style="display:none">
       </div>
     </div>
+  </div>
+</div>
+
+<!-- SCOUT LEAD DONE -->
+<div id="lead-done-overlay">
+  <canvas id="lead-confetti"></canvas>
+  <div id="lead-done-box">
+    <h2>All cafe websites inputted and complete!</h2>
+    <p>Every café has its website saved and its address checked. The list resets to normal now, with all the websites kept in each café card.</p>
+    <button class="wf-submit" onclick="leadCloseDone()">Reset the list</button>
   </div>
 </div>
 
@@ -2025,6 +2075,285 @@ document.getElementById('sb-login-form').addEventListener('submit', async (e) =>
   place();
 })();
 
+// ============================================================
+// SCOUT LEAD: go through every café, confirm the address/name, save its website.
+// A café is finished when BOTH are done. Finished cafés cross off and drop to the bottom.
+// When every café is finished the list celebrates and resets (websites stay saved).
+// Saved permanently in the Google Sheet (Website column + two helper columns).
+// ============================================================
+const LEAD = { loaded: false, loading: false, byNum: {}, cafeId: null, celebrating: false };
+function leadNum(c) { return String(c.number || '').trim(); }
+function leadInfo(c) { return LEAD.byNum[leadNum(c)] || {}; }
+function leadFinished(c) { const i = leadInfo(c); return !!(i.link && i.addr); }
+function leadSetInfo(c, patch) { const k = leadNum(c); LEAD.byNum[k] = Object.assign({}, LEAD.byNum[k] || {}, patch); }
+function leadCafes() {
+  return state.cafes.filter(c => leadNum(c)).slice().sort((a, b) => (parseInt(leadNum(a).replace(/\D/g, ''), 10) || 0) - (parseInt(leadNum(b).replace(/\D/g, ''), 10) || 0));
+}
+async function leadLoad() {
+  if (LEAD.loading) return;
+  LEAD.loading = true;
+  try {
+    const r = await wfApi('leadList', {});
+    LEAD.byNum = {};
+    (r.items || []).forEach(i => { LEAD.byNum[String(i.number).trim()] = { website: i.website || '', link: !!i.link, addr: !!i.addr }; });
+    LEAD.loaded = true;
+  } catch (e) { showToast('Could not load Scout Lead progress: ' + e.message); }
+  LEAD.loading = false;
+  if (state.activeTab === 'lead') { renderLeadPanel(); leadCheckAllDone(); }
+}
+function leadNormUrl(v) {
+  v = String(v || '').trim();
+  if (!v) return '';
+  if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+  return /^https?:\/\/[^\s.]+\.[^\s]+$/i.test(v) ? v : '';
+}
+function renderLeadPanel() {
+  const container = document.getElementById('persons-container');
+  if (!container) return;
+  if (!_wfIsApprover) { container.innerHTML = '<div class="wf-hint" style="padding:20px;text-align:center">This tab is for approvers.</div>'; return; }
+  if (!LEAD.loaded) {
+    container.innerHTML = '<div class="wf-hint" style="padding:20px;text-align:center">Loading your progress</div>';
+    leadLoad();
+    return;
+  }
+  if (LEAD.cafeId) { renderLeadCard(); return; }
+  const all = leadCafes();
+  const q = (state.searchQuery || '').toLowerCase();
+  const match = c => !q || c.name.toLowerCase().includes(q) || (c.address || '').toLowerCase().includes(q) || (c.borough || '').toLowerCase().includes(q);
+  const todo = all.filter(c => !leadFinished(c) && match(c));
+  const done = all.filter(c => leadFinished(c) && match(c));
+  const nDone = all.filter(leadFinished).length;
+  const row = (c, fin) => `<div class="lead-row ${fin ? 'finished' : ''}" onclick="leadOpen('${c.id}')">
+      <div style="flex:1;min-width:0">
+        <div class="lr-name">${escHtml(c.name)}</div>
+        <div class="lr-sub">${escHtml(c.address || '')}${c.borough ? ' · ' + escHtml(c.borough) : ''}</div>
+        ${leadInfo(c).website ? `<div class="lr-web">${escHtml(leadInfo(c).website)}</div>` : ''}
+      </div>
+      ${fin ? '<span class="lead-tag">finished</span>' : ''}
+    </div>`;
+  container.innerHTML = `
+    <div class="lead-head"><b>Assignment: confirm each café</b><br>Open a café, check the Google Maps address and name, tick "Correct address/cafe name?", paste its website and tap Submit link. It crosses off and moves to the bottom.
+      <div style="margin-top:6px"><b>${nDone}</b> of <b>${all.length}</b> finished</div>
+      <div class="lead-bar"><div style="width:${all.length ? Math.round(nDone / all.length * 100) : 0}%"></div></div>
+    </div>
+    ${todo.map(c => row(c, false)).join('')}
+    ${done.length ? `<div class="wf-eyebrow" style="margin:12px 0 6px">Finished · ${done.length}</div>${done.map(c => row(c, true)).join('')}` : ''}
+    ${!todo.length && !done.length ? '<div class="wf-hint" style="text-align:center;padding:20px 0">No café matches.</div>' : ''}`;
+}
+function leadOpen(id) {
+  LEAD.cafeId = id;
+  const c = wfFindCafe(id);
+  wfOpenPanel();
+  if (c && c.lat && c.lng) map.setView([c.lat, c.lng], 16);
+  renderLeadPanel();
+  const body = document.getElementById('panel-body'); if (body) body.scrollTop = 0;
+}
+function leadBack() { LEAD.cafeId = null; map.closePopup(); renderLeadPanel(); }
+function renderLeadCard() {
+  const c = wfFindCafe(LEAD.cafeId);
+  const container = document.getElementById('persons-container');
+  if (!c) { LEAD.cafeId = null; renderLeadPanel(); return; }
+  const i = leadInfo(c);
+  container.innerHTML = `
+  <div class="wf-form">
+    <button class="wf-back" onclick="leadBack()">Back to list</button>
+    <div class="wf-title">${escHtml(c.name)}<button class="pencil-btn" onclick="showEditCafe('${c.id}')" title="Edit café name">✏️</button></div>
+    <div class="wf-addr">${wfMapsLink(c.address, c.name)}<button class="pencil-btn" onclick="showEditCafe('${c.id}')" title="Edit address">✏️</button></div>
+    <button id="lead-addr-btn" class="lead-check ${i.addr ? 'on' : ''}" onclick="leadToggleAddr()">${i.addr ? '&#10003; ' : ''}Correct address/cafe name?</button>
+    <div class="wf-section">
+      <div class="wf-label">Website</div>
+      <div class="wf-row-btns" style="align-items:stretch">
+        <input type="text" id="lead-web" style="flex:1;min-width:0" placeholder="https://" value="${escHtml(i.website || '')}" onkeydown="if(event.key==='Enter')leadSubmitLink()">
+        <button class="wf-btn-sm primary" id="lead-submit-btn" onclick="leadSubmitLink()">Submit link</button>
+      </div>
+      <div class="wf-hint" id="lead-msg" style="margin-top:6px">${i.link ? 'Link saved.' : 'Paste the café website, then tap Submit link.'}${i.link && !i.addr ? ' Now tick Correct address/cafe name? to finish this café.' : ''}${!i.link && i.addr ? ' Address confirmed. Now submit the link to finish this café.' : ''}</div>
+    </div>
+  </div>`;
+}
+async function leadSave(c, fields) {
+  await wfApi('leadSave', { cafe: { id: c.id, number: c.number, name: c.name, address: c.address }, fields });
+}
+async function leadToggleAddr() {
+  const c = wfFindCafe(LEAD.cafeId); if (!c) return;
+  const was = !!leadInfo(c).addr;
+  leadSetInfo(c, { addr: !was });
+  try { await leadSave(c, { addr: !was }); }
+  catch (e) { leadSetInfo(c, { addr: was }); showToast('Not saved: ' + e.message); renderLeadCard(); return; }
+  leadAfterChange(c);
+}
+async function leadSubmitLink() {
+  const c = wfFindCafe(LEAD.cafeId); if (!c) return;
+  const input = document.getElementById('lead-web');
+  const url = leadNormUrl(input && input.value);
+  const msg = document.getElementById('lead-msg');
+  if (!url) { if (msg) msg.textContent = 'That does not look like a website. Paste the full link, like https://example.com'; return; }
+  const prev = Object.assign({}, leadInfo(c));
+  leadSetInfo(c, { website: url, link: true });
+  const btn = document.getElementById('lead-submit-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Saving'; }
+  try { await leadSave(c, { website: url, link: true }); }
+  catch (e) { LEAD.byNum[leadNum(c)] = prev; showToast('Not saved: ' + e.message); renderLeadCard(); return; }
+  leadAfterChange(c);
+}
+function leadAfterChange(c) {
+  if (leadFinished(c)) {
+    showToast(c.name + ' finished');
+    LEAD.cafeId = null;
+    map.closePopup();
+    renderLeadPanel();
+    leadCheckAllDone();
+  } else {
+    renderLeadCard();
+  }
+}
+function leadCheckAllDone() {
+  if (!LEAD.loaded || LEAD.celebrating) return;
+  const all = leadCafes();
+  if (all.length && all.every(leadFinished)) leadCelebrate();
+}
+function leadCelebrate() {
+  LEAD.celebrating = true;
+  document.getElementById('lead-done-overlay').classList.add('show');
+  leadConfetti();
+}
+async function leadCloseDone() {
+  document.getElementById('lead-done-overlay').classList.remove('show');
+  leadStopConfetti();
+  try { await wfApi('leadReset', {}); } catch (e) { showToast('Could not reset the list: ' + e.message); LEAD.celebrating = false; return; }
+  Object.keys(LEAD.byNum).forEach(k => { LEAD.byNum[k].link = false; LEAD.byNum[k].addr = false; });
+  LEAD.celebrating = false; LEAD.cafeId = null;
+  renderLeadPanel();
+  showToast('List reset. All websites are saved in each café.');
+}
+let _confettiRaf = null;
+function leadStopConfetti() { if (_confettiRaf) cancelAnimationFrame(_confettiRaf); _confettiRaf = null; const cv = document.getElementById('lead-confetti'); if (cv) cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); }
+function leadConfetti() {
+  const cv = document.getElementById('lead-confetti'); if (!cv) return;
+  cv.width = window.innerWidth; cv.height = window.innerHeight;
+  const ctx = cv.getContext('2d');
+  const colors = ['#27AE60', '#E8A33D', '#A0522D', '#6366F1', '#E84C6A', '#2D9CDB', '#F2C94C'];
+  const bits = Array.from({ length: 160 }, () => ({ x: Math.random() * cv.width, y: -20 - Math.random() * cv.height * 0.6, w: 6 + Math.random() * 6, h: 8 + Math.random() * 8, vx: -1.5 + Math.random() * 3, vy: 2 + Math.random() * 4, r: Math.random() * 6, vr: -0.2 + Math.random() * 0.4, c: colors[(Math.random() * colors.length) | 0] }));
+  const t0 = performance.now();
+  (function frame(t) {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    bits.forEach(b => { b.x += b.vx; b.y += b.vy; b.r += b.vr; if (b.y > cv.height + 20 && t - t0 < 5000) { b.y = -20; b.x = Math.random() * cv.width; } ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.r); ctx.fillStyle = b.c; ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h); ctx.restore(); });
+    if (t - t0 < 9000) _confettiRaf = requestAnimationFrame(frame);
+  })(t0);
+}
+
+// ============================================================
+// SCOUT CAFE ASSIGNMENTS (approvers): unvisited / unassigned cafés, assign them to a scout with a due date.
+// Assigned cafés get the status "Assigned", move to the Assigned tab, and show "Assigned ... Due ..." in fine print.
+// ============================================================
+const ASSN = { sel: new Set(), byNum: {}, loaded: false };
+const ASSN_SKIP = ['Visit Completed', 'Official Cafe Listing', 'In Review', 'Ineligible Cafe', 'Permanently Closed', 'Temporarily Unavailable'];
+function assnAssignable(c) {
+  if (ASSN_SKIP.includes(c.status)) return false;
+  return c.status === 'Unvisited' || c.assignedTo === null || c.assignedTo === undefined;
+}
+function assnYmd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function assnPlusDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return assnYmd(d); }
+function assnFmt(s) {
+  const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return '';
+  return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function assnDates(c) {
+  const k = String(c.number || '').trim();
+  const sv = ASSN.byNum[k] || {};
+  return { at: c.assignedAt || sv.at || '', due: c.dueAt || sv.due || '' };
+}
+function assnFinePrint(c) {
+  if (c.assignedTo === null || c.assignedTo === undefined) return '';
+  const d = assnDates(c);
+  if (!d.at && !d.due) return '';
+  return `<div class="fine-print">${d.at ? 'Assigned ' + assnFmt(d.at) : ''}${d.at && d.due ? ' · ' : ''}${d.due ? 'Due ' + assnFmt(d.due) : ''}</div>`;
+}
+async function assnLoad() {
+  try {
+    const r = await wfApi('assignmentList', {});
+    ASSN.byNum = {};
+    (r.items || []).forEach(i => { ASSN.byNum[String(i.number).trim()] = { at: i.assignedAt || '', due: i.dueAt || '' }; });
+    ASSN.loaded = true;
+    if (state.activeTab === 'scout' || state.activeTab === 'assign') renderPanel();
+  } catch (e) { /* dates are a nice-to-have; the map still works */ }
+}
+// Assign (or unassign when idx is null) a list of cafés. Updates the map now, the sheet in the background.
+function assnSet(cafes, idx, dueAt) {
+  const p = idx === null ? null : state.persons[idx];
+  const today = assnYmd(new Date());
+  cafes.forEach(c => {
+    c.assignedTo = idx;
+    c.assignedToName = p ? p.name : null;
+    if (p) {
+      if (!c.status || c.status === 'Unvisited') c.status = 'Assigned';
+      c.assignedAt = today; c.dueAt = dueAt || '';
+    } else {
+      if (c.status === 'Assigned') c.status = 'Unvisited';
+      c.assignedAt = ''; c.dueAt = '';
+    }
+    const k = String(c.number || '').trim();
+    if (k) ASSN.byNum[k] = { at: c.assignedAt, due: c.dueAt };
+    refreshMarker(c);
+  });
+  ASSN.sel.clear();
+  applyFilters(); renderPanel(); updateStats(); saveState();
+  showToast(p ? cafes.length + ' café' + (cafes.length === 1 ? '' : 's') + ' assigned to ' + p.name + (dueAt ? ', due ' + assnFmt(dueAt) : '') : 'Unassigned');
+  wfApi('assign', {
+    cafes: cafes.map(c => ({ id: c.id, number: c.number, name: c.name, address: c.address })),
+    scout: p ? p.name : '', assignedAt: p ? today : '', dueAt: p ? (dueAt || '') : ''
+  }).catch(e => showToast('Assigned here, but the sheet was not updated: ' + e.message));
+}
+function assnToggle(id, on) { if (on) ASSN.sel.add(String(id)); else ASSN.sel.delete(String(id)); assnUpdateBtn(); const r = document.getElementById('assn-row-' + id); if (r) r.classList.toggle('sel', on); }
+function assnUpdateBtn() {
+  const b = document.getElementById('assn-go'); if (b) b.textContent = 'Assign selected (' + ASSN.sel.size + ')';
+}
+function assnToggleAll(on) {
+  document.querySelectorAll('.assn-cb').forEach(cb => { cb.checked = on; assnToggle(cb.dataset.id, on); });
+}
+function assnApply() {
+  const sel = document.getElementById('assn-scout'), due = document.getElementById('assn-due');
+  if (!sel || sel.value === '') { showToast('Pick a scout first'); return; }
+  if (!ASSN.sel.size) { showToast('Tick the cafés to assign'); return; }
+  if (!due.value) { showToast('Pick a due date'); return; }
+  const cafes = state.cafes.filter(c => ASSN.sel.has(String(c.id)));
+  assnSet(cafes, parseInt(sel.value), due.value);
+}
+function renderAssignPanel() {
+  const container = document.getElementById('persons-container');
+  if (!container) return;
+  if (!_wfIsApprover) { container.innerHTML = '<div class="wf-hint" style="padding:20px;text-align:center">This tab is for approvers.</div>'; return; }
+  const q = (state.searchQuery || '').toLowerCase();
+  let list = state.cafes.filter(c => assnAssignable(c) && (!q || c.name.toLowerCase().includes(q) || (c.address || '').toLowerCase().includes(q) || (c.borough || '').toLowerCase().includes(q)));
+  list.sort((a, b) => (a.borough || '').localeCompare(b.borough || '') || a.name.localeCompare(b.name));
+  const shown = list.slice(0, 150);
+  const keepScout = (document.getElementById('assn-scout') || {}).value || '';
+  const keepDue = (document.getElementById('assn-due') || {}).value || assnPlusDays(7);
+  const opts = state.persons.map((p, i) => ({ p, i })).filter(o => o.p.name && o.p.name.trim()).map(o => `<option value="${o.i}" ${String(o.i) === keepScout ? 'selected' : ''}>${escHtml(o.p.name)}</option>`).join('');
+  container.innerHTML = `
+    <div class="wf-eyebrow" style="margin-bottom:6px">Scout Cafe Assignments · ${list.length} to assign</div>
+    <div class="assn-ctrl">
+      <div class="wf-hint" style="margin-bottom:8px">Unvisited and not yet assigned cafés. Tick some, pick a scout and a due date, and assign. They move to that scout's Assigned tab.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div><label>Scout</label><select id="assn-scout"><option value="">Choose</option>${opts}</select></div>
+        <div><label>Due date</label><input type="date" id="assn-due" value="${keepDue}"></div>
+      </div>
+      <button id="assn-go" class="wf-submit" onclick="assnApply()">Assign selected (${ASSN.sel.size})</button>
+      <label style="display:flex;align-items:center;gap:6px;margin:8px 0 0;text-transform:none;font-size:0.74rem;font-weight:600"><input type="checkbox" onchange="assnToggleAll(this.checked)"> Select all shown (${shown.length})</label>
+    </div>
+    ${shown.map(c => `<div class="assn-row ${ASSN.sel.has(String(c.id)) ? 'sel' : ''}" id="assn-row-${c.id}">
+        <input type="checkbox" class="assn-cb" data-id="${c.id}" ${ASSN.sel.has(String(c.id)) ? 'checked' : ''} onchange="assnToggle('${c.id}', this.checked)">
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="zoomToCafe('${c.id}')">
+          <div class="ar-name">${escHtml(c.name)}</div>
+          <div class="ar-sub">${escHtml(c.address || '')}${c.borough ? ' · ' + escHtml(c.borough) : ''}${c.assignedTo !== null && c.assignedTo !== undefined && state.persons[c.assignedTo] ? ' · now: ' + escHtml(state.persons[c.assignedTo].name) : ''}</div>
+        </div>
+      </div>`).join('')}
+    ${list.length > shown.length ? `<div class="wf-hint" style="text-align:center;padding:10px 0">Showing ${shown.length} of ${list.length}. Type in Search to find others.</div>` : ''}
+    ${!list.length ? '<div class="wf-hint" style="text-align:center;padding:20px 0">Nothing left to assign.</div>' : ''}
+    <div class="wf-eyebrow" style="margin:16px 0 6px">Scouts</div>
+    <div id="assn-persons"></div>`;
+  renderPersonCards(document.getElementById('assn-persons'));
+}
+
 document.getElementById('btn-logout').onclick = async function() {
   this.disabled = true; this.textContent = 'Logging out';
   try { await sb.auth.signOut(); } catch (e) {}
@@ -2124,10 +2453,10 @@ const markerLayer = L.layerGroup().addTo(map);
 const homeBaseLayer = L.layerGroup().addTo(map);
 
 function getMarkerColor(cafe) {
-  if (cafe.status === 'Visit Completed')        return '#4CAF50';
+  if (cafe.status === 'Visit Completed')        return state.activeTab === 'edits' ? '#1B5E20' : '#4CAF50';
   if (cafe.status === 'Official Cafe Listing')   return '#B8860B';
   if (cafe.status === 'In Review')               return '#C47F2E';
-  if (cafe.status === 'Temporarily Unavailable') return '#F59E0B';
+  if (cafe.status === 'Temporarily Unavailable') return '#FACC15';
   if (cafe.status === 'Permanently Closed')      return '#DC2626';
   if (cafe.status === 'Needs Revisit')           return '#FF6B00';
   if (cafe.status === 'Pending Visit')           return '#6366F1';
@@ -2142,7 +2471,7 @@ function getMarkerColor(cafe) {
 function createMarkerIcon(color, status) {
   let inner = '';
   if (status === 'Temporarily Unavailable') {
-    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-55%);font-size:9px;line-height:1">⚠</span>';
+    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-55%);font-size:8px;line-height:1;color:#7A5B00;font-weight:900">T</span>';
   } else if (status === 'Permanently Closed') {
     inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#fff;font-weight:900">✕</span>';
   } else if (status === 'Needs Revisit') {
@@ -2152,7 +2481,7 @@ function createMarkerIcon(color, status) {
   } else if (status === 'Backlogged Cafe') {
     inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:8px;line-height:1;color:#fff;font-weight:900">B</span>';
   } else if (status === 'Ineligible Cafe') {
-    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#fff;font-weight:900">✕</span>';
+    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:10px;line-height:1">⚠️</span>';
   }
   return L.divIcon({
     className: '',
@@ -2309,27 +2638,28 @@ function buildPopupContent(cafe) {
         <span class="boro-badge" style="background:${borColor}">${cafe.borough}</span>
         ${cafe.isChain ? '<span class="chain-badge">chain</span>' : ''}
       </h4>
-      <button onclick="showEditCafe('${cafe.id}')" title="Edit café info"
+      ${_wfIsApprover ? `<button onclick="showEditCafe('${cafe.id}')" title="Edit café name or address"
               style="flex-shrink:0;background:none;border:1.5px solid #d1d5db;border-radius:5px;width:24px;height:24px;cursor:pointer;font-size:0.75rem;line-height:1;color:#888;padding:0;display:flex;align-items:center;justify-content:center;transition:all 0.15s"
               onmouseover="this.style.borderColor='#2E1A0E';this.style.color='#2E1A0E'"
-              onmouseout="this.style.borderColor='#d1d5db';this.style.color='#888'">✏️</button>
+              onmouseout="this.style.borderColor='#d1d5db';this.style.color='#888'">✏️</button>` : ''}
     </div>
-    <div class="popup-addr">${wfMapsLink(cafe.address, cafe.name)}</div>
+    <div class="popup-addr">${wfMapsLink(cafe.address, cafe.name)}${_wfIsApprover ? `<button class="pencil-btn" onclick="showEditCafe('${cafe.id}')" title="Edit café name or address">✏️</button>` : ''}</div>
     ${inReview ? `<div style="font-size:0.75rem;color:#C47F2E;font-weight:700;margin:6px 0 2px">⏳ In review: submitted, waiting for approval</div>
-      <button class="popup-review-btn" onclick="openReview('${cafe.id}')">${_wfIsApprover ? '🔎 Review submission' : '👁 View my submission'}</button>` : ''}
+      <button class="popup-review-btn" onclick="openReview('${cafe.id}')">${_wfIsApprover ? '🔎 Review submission' : '👁 View my submission'}</button>
+      ${_wfIsApprover ? '' : `<button class="popup-scout-btn" onclick="wfEditSubmission('${cafe.id}')">✏️ Edit my submission</button>`}` : ''}
     ${(isCompleted || isOfficial || cafe.status === 'Needs Revisit') ? `<button class="popup-review-btn" onclick="openReview('${cafe.id}')">👁 View submission</button>` : ''}
     ${cafe.status === 'Needs Revisit' && cafe.notes ? `<div style="font-size:0.7rem;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:5px 7px;margin:4px 0">${escHtml(cafe.notes)}</div>` : ''}
     ${isOfficial ? `
     <div style="font-size:0.75rem;color:#B8860B;font-weight:700;margin-bottom:6px;">⭐ Official Work &amp; Brew listing: live on the public map</div>
     ${_wfIsApprover ? `<button class="popup-undo-btn" onclick="wfSetStatus('${cafe.id}','Visit Completed')">↩ Back to Completed</button>` : ''}
     ` : !isCompleted ? `
-    <div class="popup-row">
+    ${_wfIsApprover ? `<div class="popup-row">
       <label>Assign to:</label>
       <select id="popup-assign-${cafe.id}" onchange="updateAssign('${cafe.id}',this.value)">
         <option value="" ${cafe.assignedTo===null||cafe.assignedTo===undefined?'selected':''}>Unassigned</option>
         ${assignOptions}
       </select>
-    </div>
+    </div>` : ''}
     <div class="popup-row">
       <label>Status:</label>
       <select id="popup-status-${cafe.id}" onchange="onStatusChange('${cafe.id}',this.value)">
@@ -2363,19 +2693,18 @@ function buildPopupContent(cafe) {
     <button class="popup-undo-btn" onclick="undoCompleted('${cafe.id}')">↩ Undo Completed</button>
     `}
     <a class="popup-dir-btn" href="https://www.google.com/maps/dir/?api=1&destination=${dirAddr}" target="_blank">🗺 Get Directions</a>
-    ${canScout ? `<button class="popup-scout-btn" onclick="openScoutForm('${cafe.id}')">📝 Scout this café</button>` : ''}
+    ${canScout ? `<button class="popup-scout-btn" onclick="openScoutForm('${cafe.id}')">${wfHasDraft(cafe.id) ? '📝 Continue your draft' : '📝 Scout this café'}</button>` : ''}
     ${_wfIsApprover ? `<button class="popup-del-btn" onclick="deleteCafe('${cafe.id}')">🗑 Remove from map</button>` : ''}
+    ${assnFinePrint(cafe)}
   </div>`;
 }
 
 function updateAssign(id, val) {
   const cafe = state.cafes.find(c => String(c.id) === String(id));
-  if (!cafe) return;
-  cafe.assignedTo = val === '' ? null : parseInt(val);
-  refreshMarker(cafe);
-  renderPanel();
-  updateStats();
-  saveState();
+  if (!cafe || !_wfIsApprover) return;
+  const idx = val === '' ? null : parseInt(val);
+  const p = idx === null ? null : state.persons[idx];
+  assnSet([cafe], idx, p && p.deadline ? p.deadline : assnPlusDays(7));
 }
 
 function updateStatus(id, val) {
@@ -2442,7 +2771,7 @@ function submitIneligible(id, reasonParam) {
   renderPanel();
   updateStats();
   saveState();
-  showToast('❌ ' + cafe.name + ' marked ineligible' + (reason ? ': ' + reason : ''));
+  showToast('⚠️ ' + cafe.name + ' marked ineligible' + (reason ? ': ' + reason : ''));
 }
 
 // ============================================================
@@ -2451,6 +2780,7 @@ function submitIneligible(id, reasonParam) {
 function showEditCafe(id) {
   const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
+  if (!_wfIsApprover) { showToast('Only approvers can edit café info'); return; }
   const existing = document.getElementById('cafe-edit-modal');
   if (existing) existing.remove();
   const boroughs = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'];
@@ -2508,6 +2838,8 @@ async function saveEditCafe(id) {
   const lat     = parseFloat(document.getElementById('edit-cafe-lat').value);
   const lng     = parseFloat(document.getElementById('edit-cafe-lng').value);
   if (!name) { alert('Name is required.'); return; }
+  if (!_wfIsApprover) { showToast('Only approvers can edit café info'); return; }
+  const old = { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address };
 
   try {
     const { error } = await sb.from('cafes').update({
@@ -2531,7 +2863,10 @@ async function saveEditCafe(id) {
     applyFilters(); renderPanel(); updateStats();
     const modal = document.getElementById('cafe-edit-modal');
     if (modal) modal.remove();
-    showToast('✏️ ' + cafe.name + ' updated in Supabase!');
+    showToast('✏️ ' + cafe.name + ' updated');
+    // keep the Google Sheet in step (best effort)
+    wfApi('editCafe', { cafe: old, fields: { name: cafe.name, address: cafe.address, borough: cafe.borough, lat: cafe.lat, lng: cafe.lng } })
+      .catch(e => showToast('Saved on the map, but the sheet was not updated: ' + e.message));
   } catch(e) { showToast('⚠ Error: ' + e.message); }
 }
 
@@ -2591,8 +2926,10 @@ function cafeMatchesTab(cafe) {
   if (tab === 'ineligible') return cafe.status === 'Ineligible Cafe';
   const doneish = cafe.status === 'Visit Completed' || cafe.status === 'Official Cafe Listing' || cafe.status === 'Ineligible Cafe';
   if (tab === 'independent') return true; // Main Map: every café in the database, any status
+  if (tab === 'lead') return true; // Scout Lead: every café in the database
+  if (tab === 'assign') return assnAssignable(cafe); // Scout Cafe Assignments: unvisited or not yet assigned
   if (tab === 'edits') return wfEditable(cafe); // Edit Changes: submitted and completed cafés only
-  if (tab === 'chain') return cafe.isChain && !doneish;
+  if (tab === 'chain') return (cafe.isChain || cafe.status === 'Temporarily Unavailable') && !doneish;
   if (tab === 'official') return cafe.status === 'Official Cafe Listing';
   if (tab === 'completed') return cafe.status === 'Visit Completed';
   if (tab === 'review') return cafe.status === 'In Review';
@@ -2743,10 +3080,12 @@ function renderChecklistItems(cafes, person) {
     return `<div class="checklist-item ${c.status === 'Visit Completed' ? 'completed' : c.status === 'Pending Visit' ? 'pending-visit' : ''}" id="cl-item-${c.id}">
       <div class="cl-status-dot" style="background:${c.status === 'Visit Completed' ? '#4caf50' : c.status === 'Pending Visit' ? '#6366F1' : person.color}"></div>
       <div class="cl-info" onclick="zoomToCafe('${c.id}')">
-        <div class="cl-cafe-name">${escHtml(c.name)}</div>
+        <div class="cl-cafe-name">${escHtml(c.name)}${c.status === 'In Review' ? '<span class="draft-tag">In review</span>' : (wfHasDraft(c.id) ? '<span class="draft-tag">Draft saved</span>' : '')}</div>
         <div class="cl-cafe-addr">${wfMapsLink(c.address, c.name)}</div>
         <div class="cl-dist" id="cl-dist-${c.id}"></div>
+        ${assnFinePrint(c)}
       </div>
+      ${c.status === 'In Review' && !_wfIsApprover ? `<button class="cl-nav-btn" onclick="wfEditSubmission('${c.id}')" style="margin-right:4px">✏️ Edit</button>` : ''}
       <a href="${mapsUrl}" target="_blank" class="cl-nav-btn">🗺 Nav</a>
     </div>`;
   }).join('');
@@ -2895,7 +3234,7 @@ function renderIneligiblePanel() {
 
   container.innerHTML = `
     <div style="font-size:0.72rem;color:#6B7280;padding:4px 2px 10px;font-weight:600;border-bottom:1px solid var(--beige);margin-bottom:8px">
-      ❌ Ineligible Cafés: ${ineligible.length} total
+      ⚠️ Ineligible Cafés: ${ineligible.length} total
     </div>
     ${Object.entries(byBoro).map(([boro, cafes]) => `
       <div style="font-size:0.63rem;color:#aaa;text-transform:uppercase;letter-spacing:0.07em;font-weight:700;margin:8px 0 4px">${boro}</div>
@@ -2933,6 +3272,8 @@ function renderPanel() {
   }
   if (state.activeTab === 'review') { renderReviewList(); return; }
   if (state.activeTab === 'edits') { renderEditsPanel(); return; }
+  if (state.activeTab === 'lead') { renderLeadPanel(); return; }
+  if (state.activeTab === 'assign') { renderAssignPanel(); return; }
   if (state.activeTab === 'completed') { renderCompletedPanel(); return; }
   if (state.activeTab === 'official') { renderOfficialPanel(); return; }
 
@@ -2958,7 +3299,48 @@ function renderPanel() {
     return;
   }
 
-  // Admin view: normal persons cards
+  // Main Map: a list of every café, assigned ones first, then the rest
+  if (state.activeTab === 'independent') { renderMainList(container); return; }
+  // Every other tab: just the map. The scouts list lives in Scout Cafe Assignments (approvers only).
+  container.innerHTML = '<div class="wf-hint" style="padding:18px 12px;text-align:center">Tap a café on the map to see its details.</div>';
+}
+
+// Main Map side list: cafés that are assigned come first, then the ones nobody has taken yet (grey).
+// Each group runs Bronx, Manhattan, Brooklyn, Queens, Staten Island, and A to Z inside a borough.
+const MAINLIST = { limit: 150 };
+const BORO_ORDER = ['Bronx', 'Manhattan', 'Brooklyn', 'Queens', 'Staten Island'];
+function mainListMore() { MAINLIST.limit += 150; renderPanel(); }
+function renderMainList(container) {
+  const boroRank = b => { const i = BORO_ORDER.indexOf(b); return i === -1 ? 99 : i; };
+  const cmp = (a, b) => boroRank(a.borough) - boroRank(b.borough) || (a.name || '').localeCompare(b.name || '');
+  const vis = state.cafes.filter(c => cafeMatchesStatus(c) && cafeMatchesSearch(c) && c.lat && c.lng);
+  const isAssigned = c => c.assignedTo !== null && c.assignedTo !== undefined;
+  const assigned = vis.filter(isAssigned).sort(cmp);
+  const rest = vis.filter(c => !isAssigned(c)).sort(cmp);
+  const rows = assigned.map(c => ({ c, a: true })).concat(rest.map(c => ({ c, a: false })));
+  const shown = rows.slice(0, MAINLIST.limit);
+  let html = '', lastGroup = null;
+  shown.forEach(o => {
+    const g = o.a ? 'a' : 'r';
+    if (g !== lastGroup) {
+      html += `<div class="wf-eyebrow" style="margin:${lastGroup ? 14 : 2}px 0 6px">${g === 'a' ? 'Assigned · ' + assigned.length : 'Not assigned yet · ' + rest.length}</div>`;
+      lastGroup = g;
+    }
+    const c = o.c, p = o.a ? state.persons[c.assignedTo] : null;
+    html += `<div class="assn-row" style="cursor:pointer" onclick="zoomToCafe('${c.id}')">
+      <span style="width:12px;height:12px;border-radius:50%;flex-shrink:0;background:${getMarkerColor(c)}"></span>
+      <div style="flex:1;min-width:0">
+        <div class="ar-name">${c.status === 'Ineligible Cafe' ? '⚠️ ' : ''}${escHtml(c.name)}</div>
+        <div class="ar-sub">${escHtml(c.address || '')}${c.borough ? ' · ' + escHtml(c.borough) : ''}${p ? ' · ' + escHtml(p.name) : ''}${c.status && c.status !== 'Unvisited' ? ' · ' + escHtml(c.status) : ''}</div>
+      </div>
+    </div>`;
+  });
+  container.innerHTML = `<div class="wf-eyebrow" style="margin-bottom:6px">All cafés · ${rows.length}</div>` + (html || '<div class="wf-hint" style="text-align:center;padding:20px 0">No café matches.</div>') +
+    (rows.length > shown.length ? `<button class="wf-btn-sm" style="width:100%;margin-top:8px" onclick="mainListMore()">Show more (${rows.length - shown.length} left)</button>` : '');
+}
+
+// The scouts list (Copy List, Mark Complete, starting points). Shown only inside Scout Cafe Assignments.
+function renderPersonCards(container) {
   const total = state.cafes.length;
   
   state.persons.forEach((person, idx) => {
@@ -3160,7 +3542,7 @@ function zoomToCafe(id) {
       setTab('official');
     } else if (cafe.status === 'In Review' && _wfIsApprover) {
       setTab('review');
-    } else if (cafe.isChain) {
+    } else if (cafe.isChain || cafe.status === 'Temporarily Unavailable') {
       setTab('chain');
     } else {
       setTab('independent');
@@ -3484,6 +3866,7 @@ document.getElementById('panel-toggle').onclick = function() {
 // ============================================================
 function setTab(tab) {
   state.activeTab = tab;
+  MAINLIST.limit = 150;
   document.querySelectorAll('.tab-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
@@ -3492,6 +3875,7 @@ function setTab(tab) {
   renderScoutFilterBar();
   state.formCafeId = null; state.reviewCafeId = null;
   wfSyncFilterBar();
+  state.cafes.forEach(c => { if (markers[c.id] && c.status === 'Visit Completed') markers[c.id].setIcon(createMarkerIcon(getMarkerColor(c), c.status)); });
   applyFilters();
   renderHomeBaseMarkers();
   renderPanel();
@@ -4307,7 +4691,7 @@ function renderListMode() {
     'In Review': '#C47F2E',
     'In Progress': '#2196F3',
     'Pending Visit': '#6366F1',
-    'Temporarily Unavailable': '#F59E0B',
+    'Temporarily Unavailable': '#FACC15',
     'Permanently Closed': '#DC2626',
     'Needs Revisit': '#FF6B00',
     'Backlogged Cafe': '#D97706',
@@ -4535,6 +4919,25 @@ function wfDetectRole(user) {
   _wfScoutName = scoutParam || meta.full_name || meta.name || (byEmail && byEmail.name) || email;
   const tab = document.getElementById('tab-review');
   if (tab) tab.style.display = _wfIsApprover ? '' : 'none';
+  const assignTab = document.getElementById('tab-assign');
+  if (assignTab) assignTab.style.display = _wfIsApprover ? '' : 'none';
+  const leadTab = document.getElementById('tab-lead');
+  if (leadTab) leadTab.style.display = _wfIsApprover ? '' : 'none';
+  // Scouts only get 5 tabs, in this order: Assigned, Main Map, Completed, Edit Changes, Ineligible.
+  // Approvers (Den, Armando, David) keep every tab.
+  if (!_wfIsApprover) {
+    const keep = ['scout', 'independent', 'completed', 'edits', 'ineligible'];
+    const tb = document.getElementById('toolbar'), toggle = document.getElementById('tabs-toggle');
+    let anchor = toggle;
+    keep.forEach(t => {
+      const b = tb.querySelector('.tab-btn[data-tab="' + t + '"]');
+      if (b) { anchor.insertAdjacentElement('afterend', b); anchor = b; }
+    });
+    tb.querySelectorAll('.tab-btn').forEach(b => { if (!keep.includes(b.dataset.tab)) b.style.display = 'none'; });
+    if (!keep.includes(state.activeTab) && typeof setTab === 'function') setTab('scout');
+  } else {
+    ['tab-official', 'tab-chain'].forEach(id => { const b = document.getElementById(id); if (b) b.style.display = ''; });
+  }
   const cab = document.getElementById('copy-all-btn');
   if (cab) cab.style.display = _wfIsApprover ? '' : 'none'; // admin tool: copies every scout's list as text
   // Logging in picks you in the Scout dropdown with every status showing, so the Assigned tab is yours
@@ -4575,6 +4978,7 @@ function setStatusFilter(v) {
 let _wfLanded = false;
 function wfInit(user) {
   wfDetectRole(user);
+  setTimeout(assnLoad, 1200);
   if (!_wfIsApprover && !new URLSearchParams(window.location.search).get('scout') && !_wfLanded) {
     _wfLanded = true;
     // Scouts always land on Assigned Cafés, even if a saved tab or a late load tried to open another
@@ -4589,6 +4993,39 @@ function wfInit(user) {
 }
 
 // ---------- drafts (per café, on this device only) ----------
+// What is still missing before this café can be submitted (every question must be answered)
+function wfRemaining(id, d) {
+  return (String(id) === 'new' ? ncValidate(d) : []).concat(wfValidate(d));
+}
+function wfHasDraft(id) {
+  try {
+    const d = JSON.parse(localStorage.getItem(wfDraftKey(id)) || 'null');
+    if (!d) return false;
+    return Object.keys(d).some(k => { const v = d[k]; return v && (Array.isArray(v) ? v.length : (typeof v === 'object' ? Object.keys(v).length : true)); });
+  } catch (e) { return false; }
+}
+function wfUpdateProgress() {
+  const id = state.formCafeId;
+  const box = document.getElementById('wf-progress');
+  if (!id || !box) return;
+  const d = wfReadDraftFromForm(id);
+  const left = wfRemaining(id, d);
+  const sub = document.getElementById('wf-submit');
+  if (sub) sub.classList.toggle('faded', left.length > 0);
+  box.innerHTML = left.length
+    ? `<b>${left.length} thing${left.length === 1 ? '' : 's'} left before you can submit:</b> ${left.map(escHtml).join(', ')}.`
+    : '<b>Everything is filled in.</b> You can submit now.';
+  box.classList.toggle('done', left.length === 0);
+}
+// Save what is filled in so far and come back later (same device). Does not submit anything.
+function wfSaveProgress(id) {
+  const d = wfReadDraftFromForm(id);
+  d.savedAt = Date.now();
+  wfSaveDraft(id, d);
+  wfUpdateProgress();
+  const left = wfRemaining(id, d);
+  showToast(left.length ? 'Progress saved on this device. Come back anytime to finish.' : 'Saved. Everything is filled in, ready to submit.');
+}
 function wfDraftKey(id) { return 'wab_scout_draft_' + id; }
 function wfLoadDraft(id) {
   try { return JSON.parse(localStorage.getItem(wfDraftKey(id))) || { photos: [] }; } catch(e) { return { photos: [] }; }
@@ -4864,10 +5301,12 @@ function renderScoutForm(cafe) {
 
     <div class="wf-meta">Scout: <b>${escHtml(_wfScoutName || 'unknown')}</b> · Date: filled in on submit (${today})</div>
     <div id="wf-error" class="wf-error" style="display:none"></div>
-    <button id="wf-submit" class="wf-submit ${d.videosTexted ? '' : 'faded'}" onclick="wfSubmit('${cafe.id}')">${isNew ? 'Submit new café for review' : d.editRequest ? 'Send edits for review' : d.correction ? 'Resubmit correction' : 'Submit café for review'}</button>
-    ${d.videosTexted ? '' : '<div class="wf-hint" style="text-align:center">Tap <b>Sent?</b> above once you\'ve texted your videos to unlock Submit.</div>'}
-    <div class="wf-hint" style="text-align:center">Your answers save on this device as you go.</div>
+    <div id="wf-progress" class="wf-progress"></div>
+    <button id="wf-save-progress" class="wf-btn-sm" style="width:100%;margin:6px 0;border-color:#27AE60;color:#1e8e4e;font-weight:700" onclick="wfSaveProgress('${cafe.id}')">Save progress, finish later</button>
+    <button id="wf-submit" class="wf-submit faded" onclick="wfSubmit('${cafe.id}')">${isNew ? 'Submit new café for review' : d.editRequest ? 'Send edits for review' : d.correction ? 'Resubmit correction' : 'Submit café for review'}</button>
+    <div class="wf-hint" style="text-align:center">Submit unlocks once every question is answered. Your answers also save on this device as you go.</div>
   </div>`;
+  setTimeout(wfUpdateProgress, 0);
 }
 
 function wfPhotoGridHtml(d) {
@@ -4931,6 +5370,7 @@ function wfOnChange() {
   if (!id) return;
   const d = wfReadDraftFromForm(id);
   wfSaveDraft(id, d);
+  wfUpdateProgress();
   // conditional fields
   const sec = document.getElementById('wf-secured-wrap'); if (sec) sec.style.display = d.wifi === 'YES' ? 'block' : 'none';
   const rs = document.getElementById('wf-restrict'); if (rs) rs.style.display = d.anyRestrict === 'TRUE' ? 'block' : 'none';

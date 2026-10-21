@@ -10,6 +10,8 @@
  *   POST flagAddress   → marks the address as reported, pings #address-corrections
  *   POST getSubmission → returns a submission for the review screen
  *   POST saveReview    → approver saves edits without approving (status unchanged)
+ *   POST assign / assignmentList / editCafe → assignments with due dates, café name/address fixes
+ *   POST leadList/leadSave/leadReset → Scout Lead assignment (approvers only)
  *   POST approve       → finalizes the row (Status = Visit Completed), pings Slack
  *   POST sendBack      → Status = Needs Revisit, pings Slack with the note
  *   POST removeUpload  → trashes a file the scout removed before submitting
@@ -33,7 +35,7 @@ var DEFAULT_APPROVERS = ['denissemedinaflores@gmail.com', 'davidatorres123@gmail
 var EXTRA_COLUMNS = [
   'ReviewStatus', 'Website', 'HoursWeekday', 'HoursWeekend', 'WeekendRestrictions', 'Environment',
   'SeatsType', 'Notes', 'DateScouted', 'SubmittedBy', 'PhotoIds', 'ListingPhotoIds', 'DriveFolderUrl',
-  'AddressFlag', 'AddressFlagNote', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted', 'HoursByDay', 'PrevStatus'
+  'AssignedTo', 'AssignedAt', 'DueAt', 'LeadLink', 'LeadAddr', 'AddressFlag', 'AddressFlagNote', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted', 'HoursByDay', 'PrevStatus'
 ];
 
 // ------------------------------------------------------------ entry points
@@ -53,6 +55,12 @@ function doPost(e) {
       case 'rejectSuggestion':  out = handleRejectSuggestion_(body, user); break;
       case 'getSubmission': out = handleGetSubmission_(body, user); break;
       case 'approve':       out = handleApprove_(body, user); break;
+      case 'assign':        out = handleAssign_(body, user); break;
+      case 'assignmentList': out = handleAssignmentList_(body, user); break;
+      case 'editCafe':      out = handleEditCafe_(body, user); break;
+      case 'leadList':      out = handleLeadList_(body, user); break;
+      case 'leadSave':      out = handleLeadSave_(body, user); break;
+      case 'leadReset':     out = handleLeadReset_(body, user); break;
       case 'saveReview':    out = handleSaveReview_(body, user); break;
       case 'sendBack':      out = handleSendBack_(body, user); break;
       case 'setStatus':     out = handleSetStatus_(body, user); break;
@@ -536,6 +544,124 @@ function handleSaveReview_(body, user) {
     isChain: f.isChain ? 'TRUE' : 'FALSE'
   });
   CacheService.getScriptCache().remove('markers_csv');
+  return {};
+}
+
+// ------------------------------------------------------------ assignments
+function ymdCell_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, 'America/New_York', 'yyyy-MM-dd');
+  return String(v || '');
+}
+// Approver assigns (or unassigns when scout is empty) a batch of cafés, with an assigned date and a due date.
+function handleAssign_(body, user) {
+  requireApprover_(user);
+  var sh = sheet_(), h = ensureColumns_(sh), last = sh.getLastRow();
+  if (last < 2) return {};
+  var n = last - 1;
+  var numCol = h.Number;
+  var nums = numCol ? sh.getRange(2, numCol, n, 1).getValues() : [];
+  var rowByNum = {};
+  nums.forEach(function (v, i) { var k = norm_(v[0]); if (k) rowByNum[k] = i; });
+  var cAssigned = sh.getRange(2, h.AssignedTo, n, 1).getValues();
+  var cStatus = sh.getRange(2, h.Status, n, 1).getValues();
+  var cAt = sh.getRange(2, h.AssignedAt, n, 1).getValues();
+  var cDue = sh.getRange(2, h.DueAt, n, 1).getValues();
+  var scout = String(body.scout || '');
+  var done = 0;
+  (body.cafes || []).forEach(function (c) {
+    var i = rowByNum[norm_(c.number)];
+    if (i === undefined) { var r = findRow_(sh, h, c); if (r === -1) return; i = r - 2; }
+    cAssigned[i][0] = scout;
+    var st = String(cStatus[i][0] || '');
+    if (scout) {
+      if (st === '' || st === 'Unvisited') cStatus[i][0] = 'Assigned';
+      cAt[i][0] = String(body.assignedAt || '');
+      cDue[i][0] = String(body.dueAt || '');
+    } else {
+      if (st === 'Assigned') cStatus[i][0] = 'Unvisited';
+      cAt[i][0] = ''; cDue[i][0] = '';
+    }
+    done++;
+  });
+  sh.getRange(2, h.AssignedAt, n, 1).setNumberFormat('@');
+  sh.getRange(2, h.DueAt, n, 1).setNumberFormat('@');
+  sh.getRange(2, h.AssignedTo, n, 1).setValues(cAssigned);
+  sh.getRange(2, h.Status, n, 1).setValues(cStatus);
+  sh.getRange(2, h.AssignedAt, n, 1).setValues(cAt);
+  sh.getRange(2, h.DueAt, n, 1).setValues(cDue);
+  return { updated: done };
+}
+// Any logged-in user: when each assigned café was assigned and when it is due (scouts see this in fine print)
+function handleAssignmentList_(body, user) {
+  var sh = sheet_(), h = ensureColumns_(sh), last = sh.getLastRow(), items = [];
+  if (last < 2 || !h.Number) return { items: items };
+  var vals = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
+  vals.forEach(function (v) {
+    var num = String(v[h.Number - 1] || '').trim();
+    var at = ymdCell_(v[h.AssignedAt - 1]), due = ymdCell_(v[h.DueAt - 1]);
+    if (num && (at || due)) items.push({ number: num, assignedAt: at, dueAt: due });
+  });
+  return { items: items };
+}
+// Approver fixes a café's name or address on the map: keep the sheet in step
+function handleEditCafe_(body, user) {
+  requireApprover_(user);
+  var sh = sheet_(), h = ensureColumns_(sh);
+  var row = findRow_(sh, h, body.cafe || {});
+  if (row === -1) throw new Error('This café is not in the spreadsheet.');
+  var f = body.fields || {}, cells = {};
+  if (f.name) cells.Name = String(f.name);
+  if (f.address !== undefined) cells.Address = String(f.address || '');
+  if (f.borough) cells.Borough = String(f.borough);
+  if (f.lat !== undefined && f.lat !== null && f.lat !== '') cells.Latitude = f.lat;
+  if (f.lng !== undefined && f.lng !== null && f.lng !== '') cells.Longitude = f.lng;
+  setCells_(sh, h, row, cells);
+  CacheService.getScriptCache().remove('markers_csv');
+  return {};
+}
+
+// ------------------------------------------------------------ Scout Lead (confirm address/name, save website)
+// A café is finished when LeadLink and LeadAddr are both TRUE. Websites go in the Website column and stay forever.
+function handleLeadList_(body, user) {
+  requireApprover_(user);
+  var sh = sheet_(), h = ensureColumns_(sh), last = sh.getLastRow(), items = [];
+  if (last < 2 || !h.Number) return { items: items };
+  var vals = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
+  vals.forEach(function (v) {
+    var num = String(v[h.Number - 1] || '').trim();
+    if (!num) return;
+    items.push({
+      number: num,
+      website: h.Website ? String(v[h.Website - 1] || '') : '',
+      link: String(v[h.LeadLink - 1]).toUpperCase() === 'TRUE',
+      addr: String(v[h.LeadAddr - 1]).toUpperCase() === 'TRUE'
+    });
+  });
+  return { items: items };
+}
+function handleLeadSave_(body, user) {
+  requireApprover_(user);
+  var sh = sheet_(), h = ensureColumns_(sh);
+  var row = findRow_(sh, h, body.cafe || {});
+  if (row === -1) throw new Error('This café is not in the spreadsheet.');
+  var f = body.fields || {}, cells = {};
+  if (f.website !== undefined) cells.Website = String(f.website || '');
+  if (f.link !== undefined) cells.LeadLink = f.link ? 'TRUE' : 'FALSE';
+  if (f.addr !== undefined) cells.LeadAddr = f.addr ? 'TRUE' : 'FALSE';
+  setCells_(sh, h, row, cells);
+  CacheService.getScriptCache().remove('markers_csv');
+  return {};
+}
+// Everything is finished: clear the two check columns so the list starts fresh. Websites stay.
+function handleLeadReset_(body, user) {
+  requireApprover_(user);
+  var sh = sheet_(), h = ensureColumns_(sh), last = sh.getLastRow();
+  if (last >= 2) {
+    [h.LeadLink, h.LeadAddr].forEach(function (col) {
+      var blank = []; for (var i = 0; i < last - 1; i++) blank.push(['FALSE']);
+      sh.getRange(2, col, last - 1, 1).setValues(blank);
+    });
+  }
   return {};
 }
 
