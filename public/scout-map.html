@@ -1158,6 +1158,13 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 .wf-chip { display:inline-flex; align-items:center; gap:5px; font-size:0.72rem; border:1.5px solid #ddd2c4; border-radius:999px; padding:4px 10px; background:#fff; cursor:pointer; color:#3a2f27; user-select:none; }
 .wf-chip:has(input:checked) { background:var(--brown); color:#F5EDE2; border-color:var(--brown); }
 .wf-chip input { margin:0; accent-color:var(--brown); }
+.wf-hrow { display:grid; grid-template-columns:64px 1fr auto 1fr 26px 26px; gap:4px; align-items:center; font-size:0.7rem; color:#3a2f27; margin-bottom:5px; }
+.wf-hrow > span:first-child { font-weight:600; }
+.wf-closed { display:inline-flex; align-items:center; justify-content:center; border:1.5px solid #b42318; color:#b42318; background:#fde8e6; border-radius:999px; padding:5px 8px; font-size:0.72rem; font-weight:700; }
+.wf-ico { width:26px; height:28px; border:1.5px solid #ddd2c4; background:#fff; border-radius:6px; font-size:0.75rem; cursor:pointer; padding:0; }
+.wf-daylist { display:flex; flex-direction:column; gap:2px; font-size:0.72rem; margin-bottom:6px; }
+.wf-daylist div { display:flex; justify-content:space-between; border-bottom:1px solid var(--beige); padding:2px 0; }
+.wf-daylist .cl { color:#b42318; font-weight:600; }
 .wf-hours { display:grid; grid-template-columns:auto 1fr auto 1fr; gap:6px; align-items:center; font-size:0.7rem; color:#3a2f27; }
 .wf-to { color:#9a8b7d; text-align:center; }
 .wf-time { font-size:0.76rem !important; padding:6px 4px !important; }
@@ -4311,15 +4318,16 @@ async function wfEditSubmission(id) {
   catch (e) { showToast('⚠ ' + e.message); return; }
   const toHHMM = t => { const m = String(t || '').match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i); if (!m) return ''; let h = +m[1] % 12; if (/pm/i.test(m[3])) h += 12; return String(h).padStart(2,'0') + ':' + m[2]; };
   const splitHours = str => { const parts = String(str || '').split(/\s+to\s+|\s*[-\u2013]\s*/); return [toHHMM(parts[0]), toHHMM(parts[1])]; };
-  const [wdOpen, wdClose] = splitHours(sub.hoursWeekday);
-  const [weOpen, weClose] = splitHours(sub.hoursWeekend);
+  let everyOpen = '', everyClose = '', hoursEx = [];
+  try { const hb = JSON.parse(sub.hoursByDay || ''); everyOpen = hb.every[0] || ''; everyClose = hb.every[1] || ''; hoursEx = hb.ex || []; }
+  catch (e) { const [a, b] = splitHours(sub.hoursWeekday); everyOpen = a; everyClose = b; const [c2, d2] = splitHours(sub.hoursWeekend); if (c2 && (c2 !== a || d2 !== b)) hoursEx = [{ day:'Sat', o:c2, c:d2 }, { day:'Sun', o:c2, c:d2 }]; }
   const types = String(sub.seatsType || '').split(',').map(x => x.trim()).filter(Boolean);
   const other = types.find(t => /^other:/i.test(t));
   const d = {
     cafeId: id, correction: true,
     photos: (sub.photos || []).map(p => ({ id: p.id, name: p.name, thumb: p.thumb, url: p.url, isVideo: !!p.isVideo })),
     folderUrl: sub.folderUrl,
-    wdOpen, wdClose, weOpen, weClose,
+    everyOpen, everyClose, hoursEx,
     weekendRestrict: sub.weekendRestrictions || '',
     environment: sub.environment || '', highlight: sub.highlight || '',
     wifi: sub.wifi || '', secured: sub.secured || '', outlets: sub.outlets || '', hotFood: sub.hotFood || '', restroom: sub.restroom || '',
@@ -4368,6 +4376,44 @@ function wfTimeOpts(sel) {
 function wfTime(id, val) {
   return `<select id="${id}" class="wf-time" onchange="wfOnChange()"><option value="">--:--</option>${wfTimeOpts(val)}</select>`;
 }
+const WF_DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+function wfHoursExHtml(d) {
+  const ex = d.hoursEx || [];
+  return ex.map((e, i) => `<div class="wf-hrow">
+    <select class="wf-time" onchange="wfHoursEdit(${i},'day',this.value)">${WF_DAYS.map(x => `<option ${e.day===x?'selected':''}>${x}</option>`).join('')}</select>
+    ${e.closed ? `<span class="wf-closed" style="grid-column:2/4">Closed</span>`
+               : `<select class="wf-time" onchange="wfHoursEdit(${i},'o',this.value)"><option value="">--:--</option>${wfTimeOpts(e.o)}</select><span class="wf-to">to</span><select class="wf-time" onchange="wfHoursEdit(${i},'c',this.value)"><option value="">--:--</option>${wfTimeOpts(e.c)}</select>`}
+    <button class="wf-ico" title="${e.closed ? 'Set hours instead' : 'Mark this day closed'}" onclick="wfHoursEdit(${i},'closed',${!e.closed})">${e.closed ? '⏰' : '✕'}</button>
+    <button class="wf-ico" title="Remove" onclick="wfHoursEdit(${i},'remove')">🗑</button>
+  </div>`).join('');
+}
+function wfHoursAdd(id) {
+  const d = wfReadDraftFromForm(id); d.hoursEx = d.hoursEx || [];
+  const used = d.hoursEx.map(e => e.day);
+  d.hoursEx.push({ day: WF_DAYS.find(x => !used.includes(x)) || 'Mon', o: '', c: '', closed: false });
+  wfSaveDraft(id, d); const c = wfFindCafe(id); if (c) renderScoutForm(c);
+}
+function wfHoursEdit(i, key, val) {
+  const id = state.formCafeId; const d = wfReadDraftFromForm(id); d.hoursEx = d.hoursEx || [];
+  if (!d.hoursEx[i]) return;
+  if (key === 'remove') d.hoursEx.splice(i, 1); else d.hoursEx[i][key] = val;
+  wfSaveDraft(id, d); const c = wfFindCafe(id); if (c) renderScoutForm(c);
+}
+// Expand "everyday + exceptions" into one entry per day: [open,close] or null for closed
+function wfHoursByDay(d) {
+  const out = {};
+  WF_DAYS.forEach(x => out[x] = (d.everyOpen && d.everyClose) ? [d.everyOpen, d.everyClose] : null);
+  (d.hoursEx || []).forEach(e => { if (!e.day) return; out[e.day] = e.closed ? 'closed' : (e.o && e.c ? [e.o, e.c] : null); });
+  return out;
+}
+function wfHoursSummary(byDay, days) {
+  const out = []; let i = 0;
+  const txt = v => v === 'closed' ? 'Closed' : (v ? wfFmtTime(v[0]) + ' to ' + wfFmtTime(v[1]) : '');
+  while (i < days.length) { const v = JSON.stringify(byDay[days[i]]); let j = i; while (j + 1 < days.length && JSON.stringify(byDay[days[j+1]]) === v) j++;
+    out.push((i === j ? days[i] : days[i] + ' to ' + days[j]) + ' ' + txt(byDay[days[i]])); i = j + 1; }
+  return out.join('; ');
+}
+
 function wfFmtTime(v) {
   if (!v) return '';
   const [h, m] = v.split(':').map(Number);
@@ -4414,11 +4460,10 @@ function renderScoutForm(cafe) {
     </div>
 
     <div class="wf-section">
-      <div class="wf-label">Confirmed hours <span class="wf-req">*</span> <span class="wf-hint-inline">(scroll to pick)</span></div>
-      <div class="wf-hours">
-        <span>Mon to Fri</span>${wfTime('wf-h-wd-open', d.wdOpen)}<span class="wf-to">to</span>${wfTime('wf-h-wd-close', d.wdClose)}
-        <span>Sat to Sun</span>${wfTime('wf-h-we-open', d.weOpen)}<span class="wf-to">to</span>${wfTime('wf-h-we-close', d.weClose)}
-      </div>
+      <div class="wf-label">Café Hours <span class="wf-req">*</span> <span class="wf-hint-inline">(scroll to pick)</span></div>
+      <div class="wf-hrow"><span>Everyday</span>${wfTime('wf-h-every-open', d.everyOpen)}<span class="wf-to">to</span>${wfTime('wf-h-every-close', d.everyClose)}<span></span><span></span></div>
+      <div id="wf-hex">${wfHoursExHtml(d)}</div>
+      <button class="wf-btn-sm" style="width:100%" onclick="wfHoursAdd('${cafe.id}')">＋ Add special hours or closed days</button>
     </div>
 
     <div class="wf-section">
@@ -4515,8 +4560,8 @@ function wfToggleAddrBox() {
 function wfReadDraftFromForm(id) {
   const d = wfLoadDraft(id);
   d.cafeId = id;
-  d.wdOpen = wfText('wf-h-wd-open'); d.wdClose = wfText('wf-h-wd-close');
-  d.weOpen = wfText('wf-h-we-open'); d.weClose = wfText('wf-h-we-close');
+  d.everyOpen = wfText('wf-h-every-open'); d.everyClose = wfText('wf-h-every-close');
+  // exception rows are edited through wfHoursEdit, so they're already in the draft
   d.weekendRestrict = wfVal('wf-weekend');
   d.environment = wfText('wf-env');
   d.highlight = wfText('wf-highlight');
@@ -4629,7 +4674,8 @@ function wfValidate(d) {
   const missing = [];
   if (!(d.photos || []).length) missing.push('at least one photo');
   if (!d.videosTexted) missing.push('confirm you texted your videos (tap Sent?)');
-  if (!d.wdOpen || !d.wdClose || !d.weOpen || !d.weClose) missing.push('hours');
+  if (!d.everyOpen || !d.everyClose) missing.push('everyday hours');
+  if ((d.hoursEx || []).some(e => !e.closed && (!e.o || !e.c))) missing.push('times on each special-hours row (or mark it closed)');
   if (!d.weekendRestrict) missing.push('weekend laptop restrictions');
   if (!d.environment) missing.push('aesthetic / environment');
   if (!d.highlight) missing.push('highlight');
@@ -4663,8 +4709,9 @@ async function wfSubmit(id) {
   try {
     const seatTypes = (d.seatTypes || []).concat(d.seatOther ? ['Other: ' + d.seatOther] : []);
     const form = {
-      hoursWeekday: `${wfFmtTime(d.wdOpen)} to ${wfFmtTime(d.wdClose)}`,
-      hoursWeekend: `${wfFmtTime(d.weOpen)} to ${wfFmtTime(d.weClose)}`,
+      hoursWeekday: wfHoursSummary(wfHoursByDay(d), ['Mon','Tue','Wed','Thu','Fri']),
+      hoursWeekend: wfHoursSummary(wfHoursByDay(d), ['Sat','Sun']),
+      hoursByDay: JSON.stringify({ every: [d.everyOpen, d.everyClose], ex: (d.hoursEx || []).map(e => ({ day: e.day, o: e.o, c: e.c, closed: !!e.closed })), byDay: wfHoursByDay(d) }),
       weekendRestrictions: d.weekendRestrict,
       environment: d.environment,
       highlight: d.highlight,
@@ -4772,6 +4819,7 @@ async function renderReviewPanel(cafe) {
 
     ${ro ? '' : `<div class="wf-section"><div class="wf-label">Website <span class="wf-hint-inline">(optional, yours to add)</span></div><input id="rv-website" value="${escHtml(s.website || '')}" placeholder="https://"></div>`}
     <div class="wf-section"><div class="wf-label">Hours</div>
+      ${(() => { try { const hb = JSON.parse(s.hoursByDay || ''); return '<div class="wf-daylist">' + WF_DAYS.map(x => `<div><span>${x}</span><span class="${hb.byDay[x]==='closed'?'cl':''}">${hb.byDay[x]==='closed' ? 'Closed' : hb.byDay[x] ? wfFmtTime(hb.byDay[x][0]) + ' to ' + wfFmtTime(hb.byDay[x][1]) : '?'}</span></div>`).join('') + '</div>'; } catch (e) { return ''; } })()}
       <input id="rv-hours-wd" value="${escHtml(s.hoursWeekday || '')}" placeholder="Mon to Fri" ${dis}><input id="rv-hours-we" value="${escHtml(s.hoursWeekend || '')}" placeholder="Sat to Sun" style="margin-top:6px" ${dis}></div>
     <div class="wf-section wf-grid3">
       <div><div class="wf-label">Weekend restrictions</div>${tf('rv-weekend', s.weekendRestrictions)}</div>

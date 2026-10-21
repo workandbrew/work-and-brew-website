@@ -32,7 +32,7 @@ var DEFAULT_APPROVERS = ['denissemedinaflores@gmail.com', 'davidatorres123@gmail
 var EXTRA_COLUMNS = [
   'ReviewStatus', 'Website', 'HoursWeekday', 'HoursWeekend', 'WeekendRestrictions', 'Environment',
   'SeatsType', 'Notes', 'DateScouted', 'SubmittedBy', 'PhotoIds', 'ListingPhotoIds', 'DriveFolderUrl',
-  'AddressFlag', 'AddressFlagNote', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted'
+  'AddressFlag', 'AddressFlagNote', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted', 'HoursByDay'
 ];
 
 // ------------------------------------------------------------ entry points
@@ -221,6 +221,7 @@ function handleSubmit_(body, user) {
     ReviewStatus: isCorrection ? 'Correction' : 'In Review',
     HoursWeekday: f.hoursWeekday || '',
     HoursWeekend: f.hoursWeekend || '',
+    HoursByDay: f.hoursByDay || '',
     WeekendRestrictions: f.weekendRestrictions || '',
     Environment: f.environment || '',
     Highlight: f.highlight || '',
@@ -250,7 +251,7 @@ function handleSubmit_(body, user) {
   }
   var lines = [
     '*' + (cafe.name || 'Café') + '* · ' + (cafe.borough || '') + '\n' + (cafe.address || ''),
-    '*Scout:* ' + scoutName + '\n*Hours:* Mon to Fri ' + f.hoursWeekday + ' · Sat to Sun ' + f.hoursWeekend,
+    '*Scout:* ' + scoutName + '\n*Hours:* ' + f.hoursWeekday + '; ' + f.hoursWeekend,
     '*WiFi* ' + f.wifi + (f.wifi === 'YES' ? ' (secured ' + f.secured + ')' : '') + '  ·  *Outlets* ' + f.outlets + '  ·  *Hot food* ' + f.hotFood + '  ·  *Restroom* ' + f.restroom,
     '*Seats* ' + f.seats + ' · ' + f.seatsType,
     '*Weekend laptop restrictions:* ' + (f.weekendRestrictions === 'TRUE' ? 'Yes' : 'No') + '   *Other restrictions:* ' + (f.anyRestrictions === 'TRUE' ? f.restrictions : 'None'),
@@ -294,7 +295,7 @@ function handleGetSubmission_(body, user) {
   try { listing = JSON.parse(r.ListingPhotoIds || '[]'); } catch (e) {}
   return { submission: {
     submittedBy: r.ScoutName || r.SubmittedBy, dateScouted: r.DateScouted, submittedAt: r.SubmittedAt, reviewStatus: r.ReviewStatus, videosTexted: String(r.VideosTexted || ''), website: r.Website,
-    hoursWeekday: r.HoursWeekday, hoursWeekend: r.HoursWeekend, weekendRestrictions: String(r.WeekendRestrictions || ''),
+    hoursWeekday: r.HoursWeekday, hoursWeekend: r.HoursWeekend, hoursByDay: r.HoursByDay, weekendRestrictions: String(r.WeekendRestrictions || ''),
     environment: r.Environment, highlight: r.Highlight, description: r.Description,
     chainFlag: String(r.ChainFlag || '') === 'reported' ? 'TRUE' : 'FALSE', isChain: String(r.isChain || '').toUpperCase(),
     wifi: String(r.WiFi || ''), secured: String(r.Secured || ''), outlets: String(r.Outlets || ''), hotFood: String(r.HotFood || ''), restroom: String(r.Restroom || ''),
@@ -404,7 +405,7 @@ function buildMarkersCsv_() {
   if (cached) return cached;
   var sh = sheet_(), h = ensureColumns_(sh);
   var last = sh.getLastRow();
-  var cols = ['Name', 'Address', 'Zipcode', 'County', 'Latitude', 'Longitude', 'Description', 'Highlight', 'WiFi', 'Secured', 'Outlets', 'HotFood', 'Restroom', 'Seats', 'TimeRestriction', 'RestrictionAmount', 'ScoutName', 'Website', 'HoursWeekday', 'HoursWeekend', 'WeekendRestrictions', 'SeatsType', 'Notes', 'Photo', 'Photos'];
+  var cols = ['Name', 'Address', 'Zipcode', 'County', 'Latitude', 'Longitude', 'Description', 'Highlight', 'WiFi', 'Secured', 'Outlets', 'HotFood', 'Restroom', 'Seats', 'TimeRestriction', 'RestrictionAmount', 'ScoutName', 'Website', 'HoursWeekday', 'HoursWeekend', 'HoursByDay', 'WeekendRestrictions', 'SeatsType', 'Notes', 'Photo', 'Photos'];
   var lines = [cols.join(',')];
   if (last >= 2) {
     var data = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
