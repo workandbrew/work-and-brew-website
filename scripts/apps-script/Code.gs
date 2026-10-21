@@ -32,7 +32,7 @@ var DEFAULT_APPROVERS = ['denissemedinaflores@gmail.com', 'davidatorres123@gmail
 var EXTRA_COLUMNS = [
   'ReviewStatus', 'Website', 'HoursWeekday', 'HoursWeekend', 'WeekendRestrictions', 'Environment',
   'SeatsType', 'Notes', 'DateScouted', 'SubmittedBy', 'PhotoIds', 'ListingPhotoIds', 'DriveFolderUrl',
-  'AddressFlag', 'AddressFlagNote', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag'
+  'AddressFlag', 'AddressFlagNote', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted'
 ];
 
 // ------------------------------------------------------------ entry points
@@ -70,13 +70,19 @@ function doGet(e) {
 // ------------------------------------------------------------ auth
 function verifyUser_(token) {
   if (!token) throw new Error('Please log in to the scout map first.');
+  var cache = CacheService.getScriptCache();
+  var ck = 'u_' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, token)).substring(0, 40);
+  var cached = cache.get(ck);
+  if (cached) return JSON.parse(cached);
   var res = UrlFetchApp.fetch(SUPABASE_URL + '/auth/v1/user', {
     method: 'get', muteHttpExceptions: true,
     headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token }
   });
   if (res.getResponseCode() !== 200) throw new Error('Your login expired. Refresh the map and log in again.');
   var u = JSON.parse(res.getContentText());
-  return { email: (u.email || '').toLowerCase(), name: (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || '' };
+  var user = { email: (u.email || '').toLowerCase(), name: (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || '' };
+  try { cache.put(ck, JSON.stringify(user), 600); } catch (e) {}
+  return user;
 }
 
 function approvers_() {
@@ -122,15 +128,17 @@ function findRow_(sh, h, cafe) {
   var last = sh.getLastRow();
   if (last < 2) return -1;
   var numCol = h['Number'], nameCol = h['Name'], addrCol = h['Address'];
-  var data = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
+  var nums = numCol ? sh.getRange(2, numCol, last - 1, 1).getValues() : [];
   var wantNum = norm_(cafe.number), wantName = norm_(cafe.name), wantAddr = norm_(cafe.address);
   if (wantNum && numCol) {
-    for (var i = 0; i < data.length; i++) if (norm_(data[i][numCol - 1]) === wantNum) return i + 2;
+    for (var i = 0; i < nums.length; i++) if (norm_(nums[i][0]) === wantNum) return i + 2;
   }
+  var names = sh.getRange(2, nameCol, last - 1, 1).getValues();
+  var addrs = addrCol ? sh.getRange(2, addrCol, last - 1, 1).getValues() : [];
   var byName = -1;
-  for (var j = 0; j < data.length; j++) {
-    if (norm_(data[j][nameCol - 1]) !== wantName) continue;
-    if (wantAddr && addrCol && norm_(data[j][addrCol - 1]) === wantAddr) return j + 2;
+  for (var j = 0; j < names.length; j++) {
+    if (norm_(names[j][0]) !== wantName) continue;
+    if (wantAddr && addrCol && norm_(addrs[j][0]) === wantAddr) return j + 2;
     if (byName === -1) byName = j + 2;
   }
   return byName;
@@ -224,6 +232,8 @@ function handleSubmit_(body, user) {
     ScoutName: scoutName,
     SubmittedBy: user.email,
     DateScouted: today_(),
+    SubmittedAt: now_(),
+    VideosTexted: f.videosTexted === 'TRUE' ? 'TRUE' : 'FALSE',
     PhotoIds: JSON.stringify(photos),
     DriveFolderUrl: folder.getUrl(),
     SendBackNote: '',
@@ -248,6 +258,7 @@ function handleSubmit_(body, user) {
     '*Highlight:* ' + (f.highlight || ''),
     f.notes ? '*Notes:* ' + f.notes : '',
     f.chainFlag === 'TRUE' ? '⛓ *Scout says this is a chain café* (confirm on review)' : '',
+    f.videosTexted === 'TRUE' ? '📱 *Scout texted videos to the work phone*' : '',
     photos.length + ' photo/video' + (photos.length === 1 ? '' : 's') + ' · <' + folder.getUrl() + '|Drive folder>',
     '<' + reviewLink + '|🔎 Review & approve in the scout map>'
   ].filter(String);
@@ -264,15 +275,15 @@ function handleFlagAddress_(body, user) {
   var cafe = body.cafe || {};
   var row = findRow_(sh, h, cafe);
   if (row !== -1) setCells_(sh, h, row, { AddressFlag: 'reported', AddressFlagNote: (body.note || '') + ' (' + (body.scoutName || user.email) + ', ' + now_() + ')' });
-  postSlack_('SLACK_ADDRESS_WEBHOOK', '📍 Address flagged: ' + (cafe.name || ''),
+  postSlack_('SLACK_ADDRESS_WEBHOOK', '📍 Address or name flagged: ' + (cafe.name || ''),
     '*' + (cafe.name || '') + '*\nListed as: ' + (cafe.address || '') + '\n*Scout says:* ' + (body.note || '') + '\n_From: ' + (body.scoutName || user.email) + '_\n' +
-    'Fix it with the ✏️ button on the café in the scout map, then clear the flag in the sheet (AddressFlag column).', []);
+    'Fix the name or address with the ✏️ button on the café in the scout map, then clear the flag in the sheet (AddressFlag column).', []);
   return {};
 }
 
 function handleGetSubmission_(body, user) {
   // Any logged-in scout may read a submission (the map shows non-approvers a read-only view)
-  var sh = sheet_(), h = ensureColumns_(sh);
+  var sh = sheet_(), h = headers_(sh);
   var row = findRow_(sh, h, body.cafe || {});
   if (row === -1) throw new Error('This café is not in the spreadsheet.');
   var r = getRowObj_(sh, h, row);
@@ -282,7 +293,7 @@ function handleGetSubmission_(body, user) {
   var listing = [];
   try { listing = JSON.parse(r.ListingPhotoIds || '[]'); } catch (e) {}
   return { submission: {
-    submittedBy: r.ScoutName || r.SubmittedBy, dateScouted: r.DateScouted, website: r.Website,
+    submittedBy: r.ScoutName || r.SubmittedBy, dateScouted: r.DateScouted, submittedAt: r.SubmittedAt, reviewStatus: r.ReviewStatus, videosTexted: String(r.VideosTexted || ''), website: r.Website,
     hoursWeekday: r.HoursWeekday, hoursWeekend: r.HoursWeekend, weekendRestrictions: String(r.WeekendRestrictions || ''),
     environment: r.Environment, highlight: r.Highlight, description: r.Description,
     chainFlag: String(r.ChainFlag || '') === 'reported' ? 'TRUE' : 'FALSE', isChain: String(r.isChain || '').toUpperCase(),
