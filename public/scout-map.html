@@ -641,6 +641,8 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   overflow: visible;
 }
 .cafe-marker-icon:hover { transform: scale(1.35); }
+.lead-done-mk { pointer-events: none !important; }
+.lead-done-mk .cafe-marker-icon { opacity: 0.55; }
 
 /* Scrollbar for panel */
 #panel-body { scrollbar-width: thin; scrollbar-color: var(--beige) transparent; }
@@ -2085,6 +2087,24 @@ const LEAD = { loaded: false, loading: false, byNum: {}, cafeId: null, celebrati
 function leadNum(c) { return String(c.number || '').trim(); }
 function leadInfo(c) { return LEAD.byNum[leadNum(c)] || {}; }
 function leadFinished(c) { const i = leadInfo(c); return !!(i.link && i.addr); }
+// Scout Lead map: finished cafés turn grey and cannot be tapped, so they never block a café that still needs work.
+function leadStyleMarkers() {
+  const onLead = state.activeTab === 'lead';
+  state.cafes.forEach(c => {
+    const m = markers[c.id]; if (!m) return;
+    const grey = onLead && LEAD.loaded && leadFinished(c);
+    if (grey && !m._leadGrey) {
+      m._leadGrey = true;
+      m.setIcon(L.divIcon({ className: 'lead-done-mk', html: '<div class="cafe-marker-icon" style="width:16px;height:16px;background:#9E9E9E;position:relative;"></div>', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] }));
+      m.setZIndexOffset(-3000);
+      m.closePopup();
+    } else if (!grey && m._leadGrey) {
+      m._leadGrey = false;
+      m.setIcon(createMarkerIcon(getMarkerColor(c), c.status));
+      m.setZIndexOffset(0);
+    }
+  });
+}
 function leadSetInfo(c, patch) { const k = leadNum(c); LEAD.byNum[k] = Object.assign({}, LEAD.byNum[k] || {}, patch); }
 function leadCafes() {
   return state.cafes.filter(c => leadNum(c)).slice().sort((a, b) => (parseInt(leadNum(a).replace(/\D/g, ''), 10) || 0) - (parseInt(leadNum(b).replace(/\D/g, ''), 10) || 0));
@@ -2100,6 +2120,7 @@ async function leadLoad() {
   } catch (e) { showToast('Could not load Scout Lead progress: ' + e.message); }
   LEAD.loading = false;
   if (state.activeTab === 'lead') { renderLeadPanel(); leadCheckAllDone(); }
+  leadStyleMarkers();
 }
 function leadNormUrl(v) {
   v = String(v || '').trim();
@@ -2157,8 +2178,8 @@ function renderLeadCard() {
   container.innerHTML = `
   <div class="wf-form">
     <button class="wf-back" onclick="leadBack()">Back to list</button>
-    <div class="wf-title">${escHtml(c.name)}<button class="pencil-btn" onclick="showEditCafe('${c.id}')" title="Edit café name">✏️</button></div>
-    <div class="wf-addr">${wfMapsLink(c.address, c.name)}<button class="pencil-btn" onclick="showEditCafe('${c.id}')" title="Edit address">✏️</button></div>
+    <div class="wf-title">${escHtml(c.name)}</div>
+    <div class="wf-addr">${wfMapsLink(c.address, c.name)}</div>
     <button id="lead-addr-btn" class="lead-check ${i.addr ? 'on' : ''}" onclick="leadToggleAddr()">${i.addr ? '&#10003; ' : ''}Correct address/cafe name?</button>
     <div class="wf-section">
       <div class="wf-label">Website</div>
@@ -2199,6 +2220,7 @@ function leadAfterChange(c) {
     showToast(c.name + ' finished');
     LEAD.cafeId = null;
     map.closePopup();
+    leadStyleMarkers();
     renderLeadPanel();
     leadCheckAllDone();
   } else {
@@ -2220,7 +2242,7 @@ async function leadCloseDone() {
   leadStopConfetti();
   try { await wfApi('leadReset', {}); } catch (e) { showToast('Could not reset the list: ' + e.message); LEAD.celebrating = false; return; }
   Object.keys(LEAD.byNum).forEach(k => { LEAD.byNum[k].link = false; LEAD.byNum[k].addr = false; });
-  LEAD.celebrating = false; LEAD.cafeId = null;
+  LEAD.celebrating = false; LEAD.cafeId = null; leadStyleMarkers();
   renderLeadPanel();
   showToast('List reset. All websites are saved in each café.');
 }
@@ -2638,12 +2660,8 @@ function buildPopupContent(cafe) {
         <span class="boro-badge" style="background:${borColor}">${cafe.borough}</span>
         ${cafe.isChain ? '<span class="chain-badge">chain</span>' : ''}
       </h4>
-      ${_wfIsApprover ? `<button onclick="showEditCafe('${cafe.id}')" title="Edit café name or address"
-              style="flex-shrink:0;background:none;border:1.5px solid #d1d5db;border-radius:5px;width:24px;height:24px;cursor:pointer;font-size:0.75rem;line-height:1;color:#888;padding:0;display:flex;align-items:center;justify-content:center;transition:all 0.15s"
-              onmouseover="this.style.borderColor='#2E1A0E';this.style.color='#2E1A0E'"
-              onmouseout="this.style.borderColor='#d1d5db';this.style.color='#888'">✏️</button>` : ''}
     </div>
-    <div class="popup-addr">${wfMapsLink(cafe.address, cafe.name)}${_wfIsApprover ? `<button class="pencil-btn" onclick="showEditCafe('${cafe.id}')" title="Edit café name or address">✏️</button>` : ''}</div>
+    <div class="popup-addr">${wfMapsLink(cafe.address, cafe.name)}</div>
     ${inReview ? `<div style="font-size:0.75rem;color:#C47F2E;font-weight:700;margin:6px 0 2px">⏳ In review: submitted, waiting for approval</div>
       <button class="popup-review-btn" onclick="openReview('${cafe.id}')">${_wfIsApprover ? '🔎 Review submission' : '👁 View my submission'}</button>
       ${_wfIsApprover ? '' : `<button class="popup-scout-btn" onclick="wfEditSubmission('${cafe.id}')">✏️ Edit my submission</button>`}` : ''}
@@ -3008,6 +3026,7 @@ function applyFilters() {
         markers[id]._icon.classList.add('marker-nearby');
       }
     });
+    leadStyleMarkers();
     // Also refresh list view if active
     if (state.listMode) renderListMode();
   });
@@ -5204,8 +5223,8 @@ function renderScoutForm(cafe) {
     ${isNew ? ncHeaderHtml(d) : `
     <div class="wf-eyebrow">${d.editRequest ? '✏️ Café edit · ' + escHtml(cafe.status || '') : d.correction ? '✏️ Editing your submission · resubmits as a correction' : 'Assigned to you · ' + escHtml(cafe.status || 'Unvisited')}</div>
     ${d.editRequest ? '<div class="sg-note"><b>CAFÉ EDIT</b>: update only what changed, then send. The listing stays as is until the team approves.</div>' : ''}
-    <div class="wf-title">${escHtml(cafe.name)}</div>
-    <div class="wf-addr">${wfMapsLink(cafe.address, cafe.name)}</div>
+    <div class="wf-title">${escHtml(cafe.name)}${_wfIsApprover ? `<button class="pencil-btn" onclick="showEditCafe('${cafe.id}')" title="Edit café name">✏️</button>` : ''}</div>
+    <div class="wf-addr">${wfMapsLink(cafe.address, cafe.name)}${_wfIsApprover ? `<button class="pencil-btn" onclick="showEditCafe('${cafe.id}')" title="Edit address">✏️</button>` : ''}</div>
     ${flagged
       ? `<div class="wf-flag-badge">⚠ Address or name flagged: we're on it</div>`
       : `<a class="wf-link" onclick="wfToggleAddrBox()">Wrong address or café name? Tell us</a>
@@ -5645,9 +5664,9 @@ async function renderReviewPanel(cafe) {
     <div class="wf-eyebrow">${ro ? 'Your submission' : 'Review'}</div>
     <div class="wf-head">
       <div class="wf-head-txt">
-        <div class="wf-title">${escHtml(cafe.name)}</div>
+        <div class="wf-title">${escHtml(cafe.name)}${_wfIsApprover ? `<button class="pencil-btn" onclick="showEditCafe('${cafe.id}')" title="Edit café name">✏️</button>` : ''}</div>
         <div class="popup-status" style="color:${getMarkerColor(cafe)}"><span class="popup-status-dot" style="background:${getMarkerColor(cafe)}"></span>${escHtml(cafe.status || 'Unvisited')}</div>
-        <div class="wf-addr">${wfMapsLink(cafe.address, cafe.name)}</div>
+        <div class="wf-addr">${wfMapsLink(cafe.address, cafe.name)}${_wfIsApprover ? `<button class="pencil-btn" onclick="showEditCafe('${cafe.id}')" title="Edit address">✏️</button>` : ''}</div>
         <div class="wf-hint">Submitted by <b>${escHtml(s.submittedBy || '?')}</b>${s.submittedAt ? ' on ' + escHtml(s.submittedAt) : (s.dateScouted ? ' on ' + escHtml(s.dateScouted) : '')}${s.reviewStatus === 'Correction' ? ' · 🔁 correction' : ''}</div>
       </div>
       ${(cafe.status === 'In Review' || cafe.status === 'Needs Revisit') ? `<button class="wf-edit-btn" onclick="wfEditSubmission('${cafe.id}')">✏️ Edit Changes</button>` : ''}
