@@ -4,7 +4,7 @@ import IntroAnimation from "../components/IntroAnimation";
 
 const LAUNCH_DATE = new Date("2026-10-26T18:00:00-04:00");
 
-const BYPASS_PATHS = ["/login", "/privacy", "/terms", "/sms-privacy", "/sms-terms"];
+const BYPASS_PATHS = ["/login", "/privacy", "/terms", "/sms-privacy", "/sms-terms", "/for-owners"];
 
 /* ── Palette ────────────────────────────────────────────────── */
 const C = {
@@ -124,9 +124,9 @@ export default function ComingSoon({ children }) {
         width: "100%", maxWidth: "560px", zIndex: 1,
       }}>
 
-      {/* Mug */}
-      <div style={{ marginBottom: "20px", opacity: 0.9 }}>
-        <CoffeeMugIcon />
+      {/* Logo mark */}
+      <div style={{ marginBottom: "20px" }}>
+        <img src="/logo.png" alt="Work & Brew" style={{ width: "64px", height: "64px", objectFit: "contain" }} />
       </div>
 
       {/* Eyebrow */}
@@ -165,7 +165,7 @@ export default function ComingSoon({ children }) {
         lineHeight: 1.7,
         fontFamily: "'Pangolin', Georgia, sans-serif",
       }}>
-        Created, researched and backed by real native first gen latino New Yorkers: for productivity and exploration in support of New York City cafes
+        Created, researched and backed by a team of real native first generation latinos for exploration and genuine, honest support of New York City cafes.
       </p>
 
       {/* Countdown — fixed width per box so numbers never shift layout */}
@@ -281,10 +281,34 @@ export default function ComingSoon({ children }) {
               onMouseOver={(e) => { if (!subLoading) e.currentTarget.style.background = C.orangeLight; }}
               onMouseOut={(e) => { e.currentTarget.style.background = C.orange; }}
             >
-              {subLoading ? "Adding you…" : "Sign Up for Early Access →"}
+              {subLoading ? "Adding you…" : "Sign Up for Early Access"}
             </button>
           </form>
         )}
+
+        {/* Café owner CTA */}
+        <button
+          onClick={() => window.location.href = "/for-owners"}
+          style={{
+            width: "100%",
+            padding: "13px",
+            borderRadius: "10px",
+            border: `1.5px solid ${C.border}`,
+            background: "transparent",
+            color: C.midBrown,
+            fontSize: "0.92rem",
+            fontWeight: 600,
+            cursor: "pointer",
+            letterSpacing: "0.02em",
+            fontFamily: "inherit",
+            transition: "background 0.15s, color 0.15s",
+            marginTop: "2px",
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = C.bgCard; e.currentTarget.style.color = C.darkBrown; }}
+          onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.midBrown; }}
+        >
+          Are you a café owner? Contact us
+        </button>
 
         <button
           onClick={() => window.location.href = "/login"}
@@ -308,6 +332,19 @@ export default function ComingSoon({ children }) {
           Team member? Log in
         </button>
       </div>
+
+      {/* Legal links */}
+      <p style={{
+        marginTop: "28px",
+        fontSize: "0.72rem",
+        color: C.mutedBrown,
+        textAlign: "center",
+        letterSpacing: "0.02em",
+      }}>
+        <a href="/privacy" style={{ color: C.mutedBrown, textDecoration: "underline", textUnderlineOffset: "2px", marginRight: "12px" }}>Privacy Policy</a>
+        <a href="/terms"   style={{ color: C.mutedBrown, textDecoration: "underline", textUnderlineOffset: "2px", marginRight: "12px" }}>Terms of Service</a>
+        <a href="/sms-privacy" style={{ color: C.mutedBrown, textDecoration: "underline", textUnderlineOffset: "2px" }}>SMS Privacy</a>
+      </p>
 
       </div>{/* end centered content column */}
     </div>

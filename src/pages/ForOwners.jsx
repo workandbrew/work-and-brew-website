@@ -1,6 +1,72 @@
 import { useState } from "react";
-import Navbar from "../components/Navbar";
+import { useNavigate } from "react-router-dom";
 import "./PageShared.css";
+
+function MinimalNav() {
+  const navigate = useNavigate();
+  return (
+    <nav style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "14px 28px",
+      borderBottom: "1px solid rgba(224,217,207,0.18)",
+      background: "#180A02",
+      position: "sticky",
+      top: 0,
+      zIndex: 100,
+    }}>
+      <img
+        src="/logo.png"
+        alt="Work & Brew"
+        style={{ height: "32px", cursor: "pointer", opacity: 0.92 }}
+        onClick={() => navigate("/")}
+      />
+      <div style={{ display: "flex", gap: "10px" }}>
+        <button
+          onClick={() => navigate("/")}
+          style={{
+            background: "transparent",
+            border: "1px solid rgba(242,236,227,0.25)",
+            color: "#F2ECE3",
+            borderRadius: "8px",
+            padding: "7px 16px",
+            fontSize: "0.82rem",
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            letterSpacing: "0.03em",
+            transition: "border-color 0.15s",
+          }}
+          onMouseOver={(e) => e.currentTarget.style.borderColor = "rgba(242,236,227,0.6)"}
+          onMouseOut={(e) => e.currentTarget.style.borderColor = "rgba(242,236,227,0.25)"}
+        >
+          ← Home
+        </button>
+        <button
+          onClick={() => navigate("/login")}
+          style={{
+            background: "#F2ECE3",
+            border: "none",
+            color: "#180A02",
+            borderRadius: "8px",
+            padding: "7px 16px",
+            fontSize: "0.82rem",
+            fontWeight: 700,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            letterSpacing: "0.03em",
+            transition: "opacity 0.15s",
+          }}
+          onMouseOver={(e) => e.currentTarget.style.opacity = "0.85"}
+          onMouseOut={(e) => e.currentTarget.style.opacity = "1"}
+        >
+          Login
+        </button>
+      </div>
+    </nav>
+  );
+}
 
 const REASONS = [
   "Real, free, foot traffic from remote workers & students",
@@ -57,7 +123,7 @@ export default function ForOwners() {
 
   return (
     <div className="page-shell">
-      <Navbar />
+      <MinimalNav />
       <div className="owners-content">
         <div className="page-badge">Business Inquiries & Content Creators</div>
         <h1 className="page-title">
