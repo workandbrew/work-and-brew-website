@@ -232,7 +232,12 @@ export default function IntroAnimation({ onDone }) {
           if (titleA > 0) {
             // Bigger on mobile — use a higher % of width on small screens
             const tSize = Math.round(W < 500 ? W * 0.13 : Math.min(W * 0.082, 96));
-            const tY    = H * 0.40;
+            // Place title in the sky area (above buildings). Max building height is 380px
+            // so sky goes from 0 to (H - 380). Center the title in that space,
+            // clamped so it never overlaps buildings on short landscape screens.
+            const maxBldH = 380;
+            const skyH    = Math.max(H - maxBldH, tSize * 1.6);
+            const tY      = Math.round(skyH * 0.48 + tSize * 0.35);
 
             // ── Main title — subtle glow only, no hard shadow spread
             ctx.save();

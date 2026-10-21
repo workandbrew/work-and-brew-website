@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import IntroAnimation from "../components/IntroAnimation";
 
-const LAUNCH_DATE = new Date("2026-10-21T15:00:00-04:00");
+const LAUNCH_DATE = new Date("2026-10-26T18:00:00-04:00");
 
 const BYPASS_PATHS = ["/login", "/privacy", "/terms", "/sms-privacy", "/sms-terms"];
 
@@ -118,6 +118,12 @@ export default function ComingSoon({ children }) {
         pointerEvents: "none",
       }} />
 
+      {/* Centered content column — max-width prevents stretch on wide/landscape screens */}
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        width: "100%", maxWidth: "560px", zIndex: 1,
+      }}>
+
       {/* Mug */}
       <div style={{ marginBottom: "20px", opacity: 0.9 }}>
         <CoffeeMugIcon />
@@ -132,7 +138,7 @@ export default function ComingSoon({ children }) {
         fontFamily: "'Wizanes', Georgia, serif",
         marginBottom: "10px",
       }}>
-        Launching October 21, 2026 : 3 PM EST
+        Launching October 26, 2026 : 6 PM EST
       </p>
 
       {/* Title */}
@@ -302,6 +308,8 @@ export default function ComingSoon({ children }) {
           Team member? Log in
         </button>
       </div>
+
+      </div>{/* end centered content column */}
     </div>
   );
 
