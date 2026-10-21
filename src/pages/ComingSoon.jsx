@@ -342,8 +342,7 @@ export default function ComingSoon({ children }) {
         letterSpacing: "0.02em",
       }}>
         <a href="/privacy" style={{ color: C.mutedBrown, textDecoration: "underline", textUnderlineOffset: "2px", marginRight: "12px" }}>Privacy Policy</a>
-        <a href="/terms"   style={{ color: C.mutedBrown, textDecoration: "underline", textUnderlineOffset: "2px", marginRight: "12px" }}>Terms of Service</a>
-        <a href="/sms-privacy" style={{ color: C.mutedBrown, textDecoration: "underline", textUnderlineOffset: "2px" }}>SMS Privacy</a>
+        <a href="/terms"   style={{ color: C.mutedBrown, textDecoration: "underline", textUnderlineOffset: "2px" }}>Terms of Service</a>
       </p>
 
       </div>{/* end centered content column */}

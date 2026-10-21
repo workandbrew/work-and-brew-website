@@ -11,7 +11,7 @@ function MinimalNav() {
       justifyContent: "space-between",
       padding: "14px 28px",
       borderBottom: "1px solid rgba(224,217,207,0.18)",
-      background: "#180A02",
+      background: "#000000",
       position: "sticky",
       top: 0,
       zIndex: 100,
@@ -122,9 +122,9 @@ export default function ForOwners() {
   };
 
   return (
-    <div className="page-shell">
+    <div className="page-shell" style={{ paddingTop: 0 }}>
       <MinimalNav />
-      <div className="owners-content">
+      <div className="owners-content" style={{ paddingTop: "2rem" }}>
         <div className="page-badge">Business Inquiries & Content Creators</div>
         <h1 className="page-title">
           Get discovered by the right people, <br />your new regulars.
@@ -132,9 +132,7 @@ export default function ForOwners() {
         {/* intro paragraph with the tagline sitting to its right */}
         <div className="owners-intro-row">
           <p className="page-body">
-            Work & Brew puts small, independent cafés front and center, for free. We
-            personally visit, verify, and highlight what makes your space unique,
-            so remote workers can find you, trust you, and keep coming back.
+            Work &amp; Brew handpicks and chooses every single cafe we place on our map because we build with the mission of supporting our New York City cafes we know deserve the recognition. So new yorkers can find you, trust you and keep coming back.
           </p>
           <p className="owners-tagline">
             Verified by New Yorkers.<br />
