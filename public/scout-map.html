@@ -1760,6 +1760,25 @@ async function loadFromSupabase() {
   }
 }
 
+// Update existing rows only (an upsert tries to insert first and trips the not-null "name" column).
+// Cafés that share the same values go out as one request.
+async function sbUpdateRows(rows) {
+  const groups = {};
+  rows.forEach(r => {
+    const { id, ...vals } = r;
+    const k = JSON.stringify(vals);
+    (groups[k] = groups[k] || { vals, ids: [] }).ids.push(id);
+  });
+  let firstError = null;
+  for (const g of Object.values(groups)) {
+    for (let i = 0; i < g.ids.length; i += 100) {
+      const { error } = await sb.from('cafes').update(g.vals).in('id', g.ids.slice(i, i + 100));
+      if (error && !firstError) firstError = error;
+    }
+  }
+  return { error: firstError };
+}
+
 async function syncToSupabase() {
   if (!_sbUser) return;
   try {
@@ -1772,7 +1791,7 @@ async function syncToSupabase() {
         assigned_to: c.assignedToName || null,
       }));
     if (toSync.length === 0) return;
-    const { error } = await sb.from('cafes').upsert(toSync, { onConflict: 'id' });
+    const { error } = await sbUpdateRows(toSync);
     if (error) console.warn('Supabase sync error:', error.message);
   } catch(e) { console.warn('Supabase sync failed:', e); }
 }
@@ -2003,7 +2022,7 @@ async function manualSync() {
       setTimeout(() => { btn.textContent = '☁ Sync to Cloud'; btn.style.background = '#1b3a2e'; }, 3000);
       return;
     }
-    const { error } = await sb.from('cafes').upsert(toSync, { onConflict: 'id' });
+    const { error } = await sbUpdateRows(toSync);
     if (error) {
       btn.textContent = '❌ ' + error.message;
       btn.style.background = '#3a1b1b';
