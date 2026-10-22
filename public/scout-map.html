@@ -3720,6 +3720,11 @@ function ncHeaderHtml(d) {
       <input type="text" id="nc-addr" placeholder="Street address" value="${escHtml(nc.address || '')}" oninput="wfOnChange()">
     </div>
     <div class="wf-section" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><div class="wf-label">Zip code</div>
+        <input type="text" id="nc-zip" inputmode="numeric" maxlength="5" placeholder="Zip" value="${escHtml(nc.zip || '')}" oninput="wfOnChange()"></div>
+      <div></div>
+    </div>
+    <div class="wf-section" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div><div class="wf-label">Borough <span class="wf-req">*</span></div>
         <select id="nc-boro" onchange="wfOnChange()">${opts(NC_BOROUGHS, nc.borough, 'Choose')}</select></div>
       <div><div class="wf-label">Type <span class="wf-req">*</span></div>
@@ -3731,9 +3736,76 @@ function ncRushHtml() {
   return `
     <div class="wf-section wf-rush">
       <div class="wf-label">In a rush?</div>
-      <div class="wf-hint">Just tell us where you found it: fill in the name, the address or Google Maps link, and the borough below, then tap this. Someone else will scout it later.</div>
+      <div class="wf-hint">Paste the Google Maps link below and tap this. We pull the café name, address, borough and zip code from the link, and that is all we need. Someone else will scout it later.</div>
       <button class="wf-btn-sm" style="width:100%" onclick="ncQuickSend()">Send the location only</button>
     </div>`;
+}
+
+// Reads a Google Maps link (or a typed café name) and works out name, street address, borough, zip and coordinates.
+async function ncLookup(input) {
+  let lat = null, lng = null, name = '', address = '', borough = '', zip = '', link = input;
+  if (/^https?:/i.test(input)) {
+    // Phone share links (maps.app.goo.gl) hide the details: the backend opens them for us
+    if (/^https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs)/i.test(input)) {
+      try { const r = await wfApi('resolveMaps', { url: input }); if (r && r.url) link = r.url; } catch (e) {}
+    }
+    const parsed = parseGoogleMapsUrl(link);
+    lat = parsed.lat; lng = parsed.lng; name = parsed.name; address = parsed.address; borough = parsed.borough;
+    let raw = (link.match(/\/maps\/place\/([^/@?&]+)/) || ['', ''])[1].replace(/\+/g, ' ');
+    try { raw = decodeURIComponent(raw); } catch (e) {}
+    const zm = raw.match(/\b(1[0-4]\d{3})\b/);
+    if (zm) zip = zm[1];
+  }
+  if (lat && lng) {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+        { headers: { 'User-Agent': 'WorkAndBrew-CafeMap/2.0 (cafe-scouting)' } });
+      const data = await res.json();
+      if (data && data.address) {
+        const a = data.address;
+        const street = [a.house_number, a.road].filter(Boolean).join(' ');
+        if (street) address = street;
+        if (!name && data.name) name = data.name;
+        if (a.postcode) zip = String(a.postcode).slice(0, 5);
+        borough = getBoroughFromNominatim(a) || detectNYCBorough(lat, lng);
+      }
+    } catch (e) { borough = borough || detectNYCBorough(lat, lng); }
+  } else {
+    const searchTerm = name || input;
+    try {
+      const hasNY = /new york|bronx|brooklyn|queens|manhattan|staten island/i.test(searchTerm);
+      const q = encodeURIComponent(searchTerm + (hasNY ? '' : ', New York'));
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=us&addressdetails=1&viewbox=-74.26,40.49,-73.68,40.93&bounded=1`,
+        { headers: { 'User-Agent': 'WorkAndBrew-CafeMap/2.0 (cafe-scouting)' } });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon);
+        if (!name) name = data[0].name || searchTerm;
+        const a = data[0].address || {};
+        const street = [a.house_number, a.road].filter(Boolean).join(' ');
+        if (!address) address = street || data[0].display_name.split(',').map(x => x.trim()).slice(0, 2).join(', ');
+        if (a.postcode) zip = String(a.postcode).slice(0, 5);
+        borough = getBoroughFromNominatim(a) || detectNYCBorough(lat, lng);
+      }
+    } catch (e) {}
+  }
+  return { lat, lng, name, address, borough, zip };
+}
+function ncApply(d, f) {
+  d.nc = Object.assign({}, d.nc);
+  if (f.name) d.nc.name = f.name;
+  if (f.address) d.nc.address = f.address;
+  if (f.zip) d.nc.zip = f.zip;
+  if (f.borough && NC_BOROUGHS.includes(f.borough)) d.nc.borough = f.borough;
+  if (f.lat) { d.nc.lat = f.lat; d.nc.lng = f.lng; }
+}
+// The full address as it goes to the team: street, borough, NY and zip (the sheet reads the zip from it)
+function ncFullAddress(nc) {
+  const street = nc.address || '';
+  if (!street) return '';
+  if (/\b1[0-4]\d{3}\b/.test(street)) return street;
+  const boro = nc.borough ? ', ' + nc.borough : '';
+  return street + boro + ', NY' + (nc.zip ? ' ' + nc.zip : '');
 }
 
 async function ncFind() {
@@ -3743,48 +3815,11 @@ async function ncFind() {
   const btn = document.getElementById('nc-find-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Looking'; }
   try {
-    let lat = null, lng = null, name = '', address = '', borough = '';
-    if (input.startsWith('http')) {
-      const parsed = parseGoogleMapsUrl(input);
-      lat = parsed.lat; lng = parsed.lng; name = parsed.name; address = parsed.address; borough = parsed.borough;
-    }
-    if (lat && lng) {
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
-          { headers: { 'User-Agent': 'WorkAndBrew-CafeMap/2.0 (cafe-scouting)' } });
-        const data = await res.json();
-        if (data && data.address) {
-          const a = data.address;
-          const street = [a.house_number, a.road].filter(Boolean).join(' ');
-          if (street) address = street;
-          if (!name && data.name) name = data.name;
-          borough = getBoroughFromNominatim(a) || detectNYCBorough(lat, lng);
-        }
-      } catch (e) { borough = borough || detectNYCBorough(lat, lng); }
-    } else {
-      const searchTerm = name || input;
-      try {
-        const hasNY = /new york|bronx|brooklyn|queens|manhattan|staten island/i.test(searchTerm);
-        const q = encodeURIComponent(searchTerm + (hasNY ? '' : ', New York'));
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=us&viewbox=-74.26,40.49,-73.68,40.93&bounded=1`,
-          { headers: { 'User-Agent': 'WorkAndBrew-CafeMap/2.0 (cafe-scouting)' } });
-        const data = await res.json();
-        if (data && data.length > 0) {
-          lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon);
-          if (!name) name = data[0].name || searchTerm;
-          if (!address) address = data[0].display_name.split(',').map(x => x.trim()).slice(0, 2).join(', ');
-          borough = detectNYCBorough(lat, lng);
-        }
-      } catch (e) {}
-    }
-    d.nc = Object.assign({}, d.nc);
-    if (name) d.nc.name = name;
-    if (address) d.nc.address = address;
-    if (borough && NC_BOROUGHS.includes(borough)) d.nc.borough = borough;
-    if (lat) { d.nc.lat = lat; d.nc.lng = lng; }
+    const f = await ncLookup(input);
+    ncApply(d, f);
     wfSaveDraft('new', d);
     renderScoutForm(wfFindCafe('new'));
-    showToast(lat ? 'Found it. Check the details below.' : 'Could not find it. Type the name and address instead.');
+    showToast(f.lat ? 'Found it. Check the details below.' : 'Could not find it. Type the name and address instead.');
   } catch (e) {
     showToast('Lookup failed. Type the name and address instead.');
   } finally {
@@ -3819,7 +3854,7 @@ async function ncSendFull(d, form) {
   const [lat, lng] = await ncCoords(nc);
   await wfApi('suggestCafe', {
     full: true,
-    cafe: { name: nc.name, address: nc.address, borough: nc.borough, type: nc.type, lat, lng },
+    cafe: { name: nc.name, address: ncFullAddress(nc), borough: nc.borough, type: nc.type, lat, lng },
     mapsLink: nc.link || '', form,
     photos: (d.photos || []).map(p => ({ id: p.id, name: p.name, isVideo: !!p.isVideo })),
     scoutName: _wfScoutName || '',
@@ -3832,14 +3867,22 @@ async function ncSendFull(d, form) {
 // "In a rush?": only the location, someone else scouts it later
 async function ncQuickSend() {
   const d = wfReadDraftFromForm('new');
+  const rushBtn = document.querySelector('.wf-rush button');
+  // A pasted link is enough: read the name, address, borough and zip from it before checking
+  if (d.nc && d.nc.link && (!d.nc.name || !d.nc.address || !d.nc.borough)) {
+    if (rushBtn) { rushBtn.disabled = true; rushBtn.textContent = 'Reading the link'; }
+    try { ncApply(d, await ncLookup(d.nc.link)); } catch (e) {}
+    if (rushBtn) { rushBtn.disabled = false; rushBtn.textContent = 'Send the location only'; }
+  }
   wfSaveDraft('new', d);
   const nc = d.nc || {}, miss = [];
   if (!nc.name) miss.push('café name');
   if (!nc.address && !nc.link) miss.push('address or Google Maps link');
   if (!nc.borough) miss.push('borough');
+  if (miss.length) renderScoutForm(wfFindCafe('new'));
   const err = document.getElementById('wf-error');
   if (miss.length) {
-    if (err) { err.style.display = 'block'; err.textContent = 'To send just the location we need: ' + miss.join(', ') + '.'; }
+    if (err) { err.style.display = 'block'; err.textContent = 'We could not read everything from that link. Please fill in: ' + miss.join(', ') + ', then tap again.'; }
     return;
   }
   if (err) err.style.display = 'none';
@@ -3847,7 +3890,7 @@ async function ncQuickSend() {
     const [lat, lng] = await ncCoords(nc);
     await wfApi('suggestCafe', {
       quick: true,
-      cafe: { name: nc.name, address: nc.address || '(see Google Maps link)', borough: nc.borough, type: nc.type || '', lat, lng },
+      cafe: { name: nc.name, address: ncFullAddress(nc) || '(see Google Maps link)', borough: nc.borough, type: nc.type || '', lat, lng },
       mapsLink: nc.link || '', scoutName: _wfScoutName || '',
     });
     wfClearDraft('new');
@@ -4670,7 +4713,8 @@ function parseGoogleMapsUrl(url) {
   if (!url) return result;
   try {
     // Extract coordinates: format: /@lat,lng or ?q=lat,lng or &ll=lat,lng
-    let m = url.match(/@(-?\d+\.?\d+),(-?\d+\.?\d+)/);
+    let m = url.match(/!3d(-?\d+\.?\d+)!4d(-?\d+\.?\d+)/);
+    if (!m) m = url.match(/@(-?\d+\.?\d+),(-?\d+\.?\d+)/);
     if (!m) m = url.match(/[?&]q=(-?\d+\.?\d+),(-?\d+\.?\d+)/);
     if (!m) m = url.match(/[?&]ll=(-?\d+\.?\d+),(-?\d+\.?\d+)/);
     if (m) {
@@ -4681,7 +4725,8 @@ function parseGoogleMapsUrl(url) {
     // Extract place name: format: /maps/place/Name/@
     const placeMatch = url.match(/\/maps\/place\/([^/@?&]+)/);
     if (placeMatch) {
-      const raw = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+      let raw = placeMatch[1].replace(/\+/g, ' ');
+      try { raw = decodeURIComponent(raw); } catch (e) {}
       // Split on comma: first part is name, rest may be address
       const parts = raw.split(',').map(s => s.trim());
       result.name = parts[0];
@@ -5394,7 +5439,7 @@ function wfReadDraftFromForm(id) {
     const prev = d.nc || {};
     const addr = wfText('nc-addr');
     d.nc = Object.assign({}, prev, {
-      link: wfText('nc-link'), name: wfText('nc-name'), address: addr,
+      link: wfText('nc-link'), name: wfText('nc-name'), address: addr, zip: wfText('nc-zip'),
       borough: (document.getElementById('nc-boro') || {}).value || '',
       type: (document.getElementById('nc-type') || {}).value || '',
     });

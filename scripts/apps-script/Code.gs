@@ -8,6 +8,7 @@
  *   POST upload        → saves a photo/video into the café's Drive folder
  *   POST submit        → writes the scout's answers to the sheet, pings #cafe-submissions
  *   POST flagAddress   → marks the address as reported, pings #address-corrections
+ *   POST resolveMaps   → opens a Google Maps share link and returns the full address of the place
  *   POST getSubmission → returns a submission for the review screen
  *   POST saveReview    → approver saves edits without approving (status unchanged)
  *   POST assign / assignmentList / editCafe → assignments with due dates, café name/address fixes
@@ -50,6 +51,7 @@ function doPost(e) {
       case 'submit':        out = handleSubmit_(body, user); break;
       case 'flagAddress':   out = handleFlagAddress_(body, user); break;
       case 'suggestCafe':   out = handleSuggestCafe_(body, user); break;
+      case 'resolveMaps':   out = handleResolveMaps_(body, user); break;
       case 'listSuggestions':   out = handleListSuggestions_(body, user); break;
       case 'approveSuggestion': out = handleApproveSuggestion_(body, user); break;
       case 'rejectSuggestion':  out = handleRejectSuggestion_(body, user); break;
@@ -364,6 +366,23 @@ function handleSuggestCafe_(body, user) {
       (body.mapsLink ? '\n<' + body.mapsLink + '|Google Maps link>' : '') + '\n_Found by ' + who + '_\n' + link, []);
   }
   return {};
+}
+// A phone "share" link (maps.app.goo.gl/...) hides the café details behind redirects the browser cannot follow.
+// Follow them here and hand back the final Google Maps address, which holds the name and the coordinates.
+function handleResolveMaps_(body, user) {
+  var url = String(body.url || '');
+  var ok = function (u) { return /^https:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs|www\.google\.com\/maps|maps\.google\.com|google\.com\/maps)/i.test(u); };
+  if (!ok(url)) throw new Error('That is not a Google Maps link.');
+  for (var i = 0; i < 6; i++) {
+    var res = UrlFetchApp.fetch(url, { followRedirects: false, muteHttpExceptions: true });
+    var code = res.getResponseCode();
+    if (code < 300 || code >= 400) break;
+    var h = res.getHeaders();
+    var loc = h['Location'] || h['location'];
+    if (!loc || !ok(loc)) break;
+    url = loc;
+  }
+  return { url: url };
 }
 function handleListSuggestions_(body, user) {
   requireApprover_(user);
