@@ -9,6 +9,7 @@
  *   POST submit        → writes the scout's answers to the sheet, pings #cafe-submissions
  *   POST flagAddress   → marks the address as reported, pings #address-corrections
  *   POST resolveMaps   → opens a Google Maps share link and returns the full address of the place
+ *   POST lookupZip     → finds the zip code for a street address (US Census address finder)
  *   POST getSubmission → returns a submission for the review screen
  *   POST saveReview    → approver saves edits without approving (status unchanged)
  *   POST assign / assignmentList / editCafe → assignments with due dates, café name/address fixes
@@ -52,6 +53,7 @@ function doPost(e) {
       case 'flagAddress':   out = handleFlagAddress_(body, user); break;
       case 'suggestCafe':   out = handleSuggestCafe_(body, user); break;
       case 'resolveMaps':   out = handleResolveMaps_(body, user); break;
+      case 'lookupZip':     out = handleLookupZip_(body, user); break;
       case 'listSuggestions':   out = handleListSuggestions_(body, user); break;
       case 'approveSuggestion': out = handleApproveSuggestion_(body, user); break;
       case 'rejectSuggestion':  out = handleRejectSuggestion_(body, user); break;
@@ -80,7 +82,7 @@ function doGet(e) {
   if (action === 'markers') {
     return ContentService.createTextOutput(buildMarkersCsv_()).setMimeType(ContentService.MimeType.CSV);
   }
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, service: 'workandbrew-scout-api', version: 'v13 with leadList, assign, resolveMaps' })).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, service: 'workandbrew-scout-api', version: 'v16 pings channel, yellow rows' })).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ------------------------------------------------------------ auth
@@ -268,7 +270,7 @@ function handleSubmit_(body, user) {
       '*' + (cafe.name || '') + '* · ' + (cafe.borough || '') + '\n' + (cafe.address || '') + '\n*Scout:* ' + scoutName +
       ' set this café to Visit Completed from the status menu, so there are no form answers or photos yet.\n' +
       (f.notes ? '*Notes:* ' + f.notes + '\n' : '') +
-      'Ask them to open it and use 📝 Scout this café, or fill it in yourself on review.\n<' + reviewLink + '|🔎 Open in the scout map>', []);
+      'Ask them to open it and use 📝 Scout this café, or fill it in yourself on review.\n<' + reviewLink + '|🔎 Open in the scout map>', [], true);
     return { row: row, manual: true };
   }
   var lines = [
@@ -290,7 +292,7 @@ function handleSubmit_(body, user) {
   });
   postSlack_('SLACK_SUBMISSIONS_WEBHOOK', (isEdit ? '✏️ CAFÉ EDITS NEED REVIEW: ' : isCorrection ? '🔁 RESUBMIT CORRECTION: ' : '📬 New café submission: ') + (cafe.name || ''),
     (isEdit ? '_A scout says something changed at this café (was: ' + (prevStatus || 'n/a') + '). Approve to update the listing' + (keepPrev ? ' and it goes back to ' + prevStatus : '') + '._\n'
-      : isCorrection ? '_The scout edited and resubmitted this café. Latest version below._\n' : '') + lines.join('\n'), images);
+      : isCorrection ? '_The scout edited and resubmitted this café. Latest version below._\n' : '') + lines.join('\n'), images, true);
   return { row: row };
 }
 
@@ -301,7 +303,7 @@ function handleFlagAddress_(body, user) {
   if (row !== -1) setCells_(sh, h, row, { AddressFlag: 'reported', AddressFlagNote: (body.note || '') + ' (' + (body.scoutName || user.email) + ', ' + now_() + ')' });
   postSlack_('SLACK_ADDRESS_WEBHOOK', '📍 Address or name flagged: ' + (cafe.name || ''),
     '*' + (cafe.name || '') + '*\nListed as: ' + (cafe.address || '') + '\n*Scout says:* ' + (body.note || '') + '\n_From: ' + (body.scoutName || user.email) + '_\n' +
-    'Fix the name or address with the ✏️ button on the café in the scout map, then clear the flag in the sheet (AddressFlag column).', []);
+    'Fix the name or address with the ✏️ button on the café in the scout map, then clear the flag in the sheet (AddressFlag column).', [], true);
   return {};
 }
 
@@ -337,9 +339,18 @@ function handleSuggestCafe_(body, user) {
   var who = body.scoutName || user.email;
   var photos = body.photos || [];
   var sh = suggestSheet_();
+  // Same café sent twice (double tap, bad signal): keep only the first one waiting for approval
+  var wantKey = norm_(c.name) + '|' + norm_(c.address);
+  var lastRow = sh.getLastRow();
+  if (lastRow >= 2) {
+    var existing = sh.getRange(2, 1, lastRow - 1, 9).getValues();
+    for (var q = 0; q < existing.length; q++) {
+      if (String(existing[q][8]) === 'Pending' && (norm_(existing[q][2]) + '|' + norm_(existing[q][3])) === wantKey) return { duplicate: true };
+    }
+  }
   sh.appendRow([now_(), who, c.name, c.address || '', c.borough || '', c.type || '', c.lat || '', c.lng || '', 'Pending', '', '', '',
     full ? 'Full' : 'Quick', body.mapsLink || '', full ? JSON.stringify(f) : '', full ? JSON.stringify(photos) : '']);
-  var link = '<' + SITE_URL + '?suggestions=1|Approve or reject it in the Review tab of the scout map>';
+  var link = '<' + SITE_URL + '?suggestions=1&row=' + sh.getLastRow() + '|Open it in the scout map to approve or reject>';
   if (full) {
     var folder = cafeFolder_({ name: c.name });
     var lines = [
@@ -358,12 +369,12 @@ function handleSuggestCafe_(body, user) {
       return { type: 'image', image_url: 'https://lh3.googleusercontent.com/d/' + p.id + '=w800', alt_text: p.name || 'photo' };
     });
     postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'NEW CAFE SUBMISSION (not on the map yet): ' + c.name,
-      '_A scout found a café that is not in the database. Approve it to add it to the map and the sheet._\n' + lines.join('\n'), images);
+      '_A scout found a café that is not in the database. Approve it to add it to the map and the sheet._\n' + lines.join('\n'), images, true);
   } else {
     postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'NEW CAFE LEAD (quick, not scouted yet): ' + c.name,
       '*A scout was in a rush and only sent the location.* Someone else needs to scout it later. It is NOT on the map yet.\n*' + c.name + '*\n' +
       (c.address || '') + (c.borough ? ', ' + c.borough : '') + (c.type ? '\nType: ' + c.type : '') +
-      (body.mapsLink ? '\n<' + body.mapsLink + '|Google Maps link>' : '') + '\n_Found by ' + who + '_\n' + link, []);
+      (body.mapsLink ? '\n<' + body.mapsLink + '|Google Maps link>' : '') + '\n_Found by ' + who + '_\n' + link, [], true);
   }
   return {};
 }
@@ -383,6 +394,20 @@ function handleResolveMaps_(body, user) {
     url = loc;
   }
   return { url: url };
+}
+// Zip code from the US Census address finder (more reliable than map data, and a browser is not allowed to call it)
+function handleLookupZip_(body, user) {
+  var addr = String(body.address || '').replace(/\s+/g, ' ').trim();
+  if (!addr) return { zip: '' };
+  var boro = String(body.borough || '').trim();
+  var q = /new york|, ny\b|bronx|brooklyn|queens|manhattan|staten island/i.test(addr) ? addr : addr + ', ' + boro + ', NY';
+  var zip = '', lat = '', lng = '';
+  try {
+    var res = UrlFetchApp.fetch('https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?benchmark=Public_AR_Current&format=json&address=' + encodeURIComponent(q), { muteHttpExceptions: true });
+    var m = JSON.parse(res.getContentText()).result.addressMatches;
+    if (m && m.length) { zip = String((m[0].addressComponents || {}).zip || ''); lat = (m[0].coordinates || {}).y || ''; lng = (m[0].coordinates || {}).x || ''; }
+  } catch (e) {}
+  return { zip: zip, lat: lat, lng: lng };
 }
 function handleListSuggestions_(body, user) {
   requireApprover_(user);
@@ -407,6 +432,19 @@ function handleApproveSuggestion_(body, user) {
   var c = { name: v[2], address: v[3], borough: v[4], type: v[5], lat: v[6], lng: v[7], kind: full ? 'Full' : 'Quick', status: full ? 'In Review' : 'Unvisited' };
   var sh = sheet_(), h = ensureColumns_(sh);
   var last = sh.getLastRow(), maxNum = 0;
+  // Already on the map? Stop here so approving a repeat cannot add the café twice.
+  if (last >= 2 && h.Name) {
+    var nm = norm_(c.name), ad = norm_(c.address);
+    var nms = sh.getRange(2, h.Name, last - 1, 1).getValues();
+    var ads = h.Address ? sh.getRange(2, h.Address, last - 1, 1).getValues() : [];
+    var nums0 = h.Number ? sh.getRange(2, h.Number, last - 1, 1).getValues() : [];
+    for (var z = 0; z < nms.length; z++) {
+      if (norm_(nms[z][0]) === nm && (!ad || !ads.length || norm_(ads[z][0]) === ad)) {
+        ssh.getRange(r, 9, 1, 4).setValues([['Rejected', user.email, now_(), 'Duplicate of ' + (nums0.length ? nums0[z][0] : 'a café already on the map')]]);
+        throw new Error('This café is already on the map' + (nums0.length ? ' (' + nums0[z][0] + ')' : '') + '. I marked this repeat as rejected so you only keep one.');
+      }
+    }
+  }
   if (last >= 2 && h.Number) {
     sh.getRange(2, h.Number, last - 1, 1).getValues().forEach(function (x) {
       var n = parseInt(String(x[0]).replace(/[^0-9]/g, ''), 10);
@@ -441,6 +479,7 @@ function handleApproveSuggestion_(body, user) {
   }
   setCells_(sh, h, row, cells);
   sh.getRange(row, 1, 1, sh.getLastColumn()).setBackground('#fff59d'); // yellow = new café from a scout
+  SpreadsheetApp.flush(); // write the new row and its yellow colour now
   ssh.getRange(r, 9, 1, 3).setValues([['Approved', user.email, now_()]]);
   postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'New café approved: ' + c.name,
     '*' + c.name + '* is now on the scout map and in the spreadsheet as ' + c.number + ' (yellow row). Approved by ' + user.email + '.' +
@@ -717,14 +756,15 @@ function handleSetStatus_(body, user) {
 }
 
 // ------------------------------------------------------------ slack
-function postSlack_(propName, title, text, images) {
+// ping = true adds @channel so everyone in the channel gets a notification
+function postSlack_(propName, title, text, images, ping) {
   var url = PropertiesService.getScriptProperties().getProperty(propName);
   if (!url) return; // Slack not set up yet; the sheet still has everything
   var blocks = [
     { type: 'header', text: { type: 'plain_text', text: title.substring(0, 150) } },
-    { type: 'section', text: { type: 'mrkdwn', text: text.substring(0, 2900) } }
+    { type: 'section', text: { type: 'mrkdwn', text: (ping ? '<!channel> ' : '') + text.substring(0, 2900) } }
   ].concat(images || []);
-  var payload = { text: title, blocks: blocks };
+  var payload = { text: (ping ? '<!channel> ' : '') + title, blocks: blocks };
   var res = UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true });
   if (res.getResponseCode() !== 200 && images && images.length) {
     // Slack sometimes rejects image blocks it can't fetch, so retry without them

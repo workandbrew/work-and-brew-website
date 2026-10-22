@@ -1313,6 +1313,11 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 .lead-bar > div { height:100%; background:#27AE60; }
 .lead-check { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border-radius:10px; border:2px solid #cdbfa9; background:#fff; color:#6b5b4a; font-weight:700; font-size:0.82rem; cursor:pointer; font-family:'Inter',sans-serif; margin:8px 0; }
 .lead-check.on { border-color:#27AE60; background:#e9f7ef; color:#1e6b3f; }
+.wf-submit:disabled, .wf-rush button:disabled { background:#9b8f80 !important; color:#fff !important; opacity:.85; cursor:wait; border-color:#9b8f80 !important; }
+.lead-two { display:flex; gap:8px; margin:8px 0; }
+.lead-two .lead-check { margin:0; flex:1; padding:11px 6px; font-size:0.78rem; }
+.lead-edit { background:#fff; border:1.5px solid #cdbfa9; border-radius:10px; padding:10px; margin:8px 0; }
+.lead-edit input { width:100%; box-sizing:border-box; }
 #lead-done-overlay { position:fixed; inset:0; z-index:5000; display:none; align-items:center; justify-content:center; background:rgba(44,26,14,0.55); }
 #lead-done-overlay.show { display:flex; }
 #lead-done-box { position:relative; z-index:2; background:#fff; border-radius:18px; padding:28px 26px; max-width:340px; width:calc(100% - 40px); text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.35); }
@@ -2102,7 +2107,7 @@ document.getElementById('sb-login-form').addEventListener('submit', async (e) =>
 // When every café is finished the list celebrates and resets (websites stay saved).
 // Saved permanently in the Google Sheet (Website column + two helper columns).
 // ============================================================
-const LEAD = { loaded: false, loading: false, byNum: {}, cafeId: null, celebrating: false };
+const LEAD = { loaded: false, loading: false, byNum: {}, cafeId: null, celebrating: false, editing: false };
 function leadNum(c) { return String(c.number || '').trim(); }
 function leadInfo(c) { return LEAD.byNum[leadNum(c)] || {}; }
 function leadFinished(c) { const i = leadInfo(c); return !!(i.link && i.addr); }
@@ -2172,7 +2177,7 @@ function renderLeadPanel() {
       ${fin ? '<span class="lead-tag">finished</span>' : ''}
     </div>`;
   container.innerHTML = `
-    <div class="lead-head"><b>Assignment: confirm each café</b><br>Open a café, check the Google Maps address and name, tick "Correct address/cafe name?", paste its website and tap Submit link. It crosses off and moves to the bottom.
+    <div class="lead-head"><b>Assignment: confirm each café</b><br>Open a café, check the Google Maps address and name, tap "Name and address are correct" (or edit them), paste its website and tap Submit link. It crosses off and moves to the bottom.
       <div style="margin-top:6px"><b>${nDone}</b> of <b>${all.length}</b> finished</div>
       <div class="lead-bar"><div style="width:${all.length ? Math.round(nDone / all.length * 100) : 0}%"></div></div>
     </div>
@@ -2181,14 +2186,14 @@ function renderLeadPanel() {
     ${!todo.length && !done.length ? '<div class="wf-hint" style="text-align:center;padding:20px 0">No café matches.</div>' : ''}`;
 }
 function leadOpen(id) {
-  LEAD.cafeId = id;
+  LEAD.cafeId = id; LEAD.editing = false;
   const c = wfFindCafe(id);
   wfOpenPanel();
   if (c && c.lat && c.lng) map.setView([c.lat, c.lng], 16);
   renderLeadPanel();
   const body = document.getElementById('panel-body'); if (body) body.scrollTop = 0;
 }
-function leadBack() { LEAD.cafeId = null; map.closePopup(); renderLeadPanel(); }
+function leadBack() { LEAD.cafeId = null; LEAD.editing = false; map.closePopup(); renderLeadPanel(); }
 function renderLeadCard() {
   const c = wfFindCafe(LEAD.cafeId);
   const container = document.getElementById('persons-container');
@@ -2199,19 +2204,87 @@ function renderLeadCard() {
     <button class="wf-back" onclick="leadBack()">Back to list</button>
     <div class="wf-title">${escHtml(c.name)}</div>
     <div class="wf-addr">${wfMapsLink(c.address, c.name)}</div>
-    <button id="lead-addr-btn" class="lead-check ${i.addr ? 'on' : ''}" onclick="leadToggleAddr()">${i.addr ? '&#10003; ' : ''}Correct address/cafe name?</button>
+    ${LEAD.editing ? `
+    <div class="lead-edit">
+      <div class="wf-label">Google Maps link <span class="wf-hint-inline">(optional, fills in the rest)</span></div>
+      <div class="wf-row-btns" style="align-items:stretch">
+        <input type="text" id="lead-gm" style="flex:1;min-width:0" placeholder="Paste the Google Maps link">
+        <button class="wf-btn-sm primary" id="lead-gm-btn" onclick="leadReadLink()">Read link</button>
+      </div>
+      <div class="wf-label" style="margin-top:8px">Café name</div>
+      <input type="text" id="lead-ename" value="${escHtml(c.name)}">
+      <div class="wf-label" style="margin-top:8px">Address</div>
+      <input type="text" id="lead-eaddr" value="${escHtml(c.address || '')}">
+      <div class="wf-hint" id="lead-emsg" style="margin-top:6px">Saving also confirms the name and address.</div>
+      <div class="lead-two" style="margin-bottom:0">
+        <button class="lead-check" onclick="leadEditCancel()">Cancel</button>
+        <button class="lead-check on" id="lead-esave-btn" onclick="leadEditSave()">Save and confirm</button>
+      </div>
+    </div>` : `
+    <div class="lead-two">
+      <button id="lead-addr-btn" class="lead-check ${i.addr ? 'on' : ''}" onclick="leadToggleAddr()">${i.addr ? '&#10003; ' : ''}Name and address are correct</button>
+      <button class="lead-check" onclick="leadEditOpen()">Edit name or address</button>
+    </div>`}
     <div class="wf-section">
       <div class="wf-label">Website</div>
       <div class="wf-row-btns" style="align-items:stretch">
         <input type="text" id="lead-web" style="flex:1;min-width:0" placeholder="https://" value="${escHtml(i.website || '')}" onkeydown="if(event.key==='Enter')leadSubmitLink()">
         <button class="wf-btn-sm primary" id="lead-submit-btn" onclick="leadSubmitLink()">Submit link</button>
       </div>
-      <div class="wf-hint" id="lead-msg" style="margin-top:6px">${i.link ? 'Link saved.' : 'Paste the café website, then tap Submit link.'}${i.link && !i.addr ? ' Now tick Correct address/cafe name? to finish this café.' : ''}${!i.link && i.addr ? ' Address confirmed. Now submit the link to finish this café.' : ''}</div>
+      <div class="wf-hint" id="lead-msg" style="margin-top:6px">${i.link ? 'Link saved.' : 'Paste the café website, then tap Submit link.'}${i.link && !i.addr ? ' Now confirm the name and address to finish this café.' : ''}${!i.link && i.addr ? ' Address confirmed. Now submit the link to finish this café.' : ''}</div>
     </div>
   </div>`;
 }
 async function leadSave(c, fields) {
   await wfApi('leadSave', { cafe: { id: c.id, number: c.number, name: c.name, address: c.address }, fields });
+}
+function leadEditOpen() { LEAD.editing = true; renderLeadCard(); }
+function leadEditCancel() { LEAD.editing = false; renderLeadCard(); }
+async function leadReadLink() {
+  const link = (document.getElementById('lead-gm') || {}).value || '';
+  const msg = document.getElementById('lead-emsg');
+  if (!link.trim()) { if (msg) msg.textContent = 'Paste a Google Maps link first.'; return; }
+  const btn = document.getElementById('lead-gm-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Reading'; }
+  try {
+    const f = await ncLookup(link.trim());
+    const c = wfFindCafe(LEAD.cafeId);
+    if (f.name) document.getElementById('lead-ename').value = f.name;
+    if (f.address) document.getElementById('lead-eaddr').value = ncFullAddress({ address: f.address, borough: f.borough || (c && c.borough), zip: f.zip });
+    LEAD.pending = { lat: f.lat, lng: f.lng, borough: f.borough };
+    if (msg) msg.textContent = f.lat ? 'Read the link. Check the name and address, then save.' : 'Could not read that link. Type the name and address instead.';
+  } catch (e) { if (msg) msg.textContent = 'Could not read that link. Type the name and address instead.'; }
+  if (btn) { btn.disabled = false; btn.textContent = 'Read link'; }
+}
+async function leadEditSave() {
+  const c = wfFindCafe(LEAD.cafeId); if (!c) return;
+  const name = ((document.getElementById('lead-ename') || {}).value || '').trim();
+  const address = ((document.getElementById('lead-eaddr') || {}).value || '').trim();
+  const msg = document.getElementById('lead-emsg');
+  if (!name || !address) { if (msg) msg.textContent = 'Name and address are both needed.'; return; }
+  const pend = LEAD.pending || {};
+  const old = { id: c.id, number: c.number, name: c.name, address: c.address };
+  const btn = document.getElementById('lead-esave-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Saving'; }
+  const upd = { name, address };
+  if (pend.borough && NC_BOROUGHS.includes(pend.borough)) upd.borough = pend.borough;
+  if (pend.lat) { upd.latitude = pend.lat; upd.longitude = pend.lng; }
+  try {
+    const { error } = await sb.from('cafes').update(upd).eq('id', c.id);
+    if (error) throw new Error(error.message);
+    await wfApi('editCafe', { cafe: old, fields: { name, address, borough: upd.borough, lat: upd.latitude, lng: upd.longitude } });
+  } catch (e) {
+    if (msg) msg.textContent = 'Not saved: ' + e.message;
+    if (btn) { btn.disabled = false; btn.textContent = 'Save and confirm'; }
+    return;
+  }
+  c.name = name; c.address = address;
+  if (upd.borough) c.borough = upd.borough;
+  if (pend.lat) { c.lat = pend.lat; c.lng = pend.lng; if (markers[c.id]) markers[c.id].setLatLng([c.lat, c.lng]); }
+  if (markers[c.id]) markers[c.id].setPopupContent(buildPopupContent(c));
+  LEAD.pending = null; LEAD.editing = false;
+  leadSetInfo(c, { addr: true });
+  try { await leadSave(c, { addr: true }); }
+  catch (e) { leadSetInfo(c, { addr: false }); showToast('Saved the new name and address, but not the confirmation: ' + e.message); renderLeadCard(); return; }
+  leadAfterChange(c);
 }
 async function leadToggleAddr() {
   const c = wfFindCafe(LEAD.cafeId); if (!c) return;
@@ -2237,7 +2310,7 @@ async function leadSubmitLink() {
 function leadAfterChange(c) {
   if (leadFinished(c)) {
     showToast(c.name + ' finished');
-    LEAD.cafeId = null;
+    LEAD.cafeId = null; LEAD.editing = false;
     map.closePopup();
     leadStyleMarkers();
     renderLeadPanel();
@@ -3361,7 +3434,7 @@ function renderMainList(container) {
   shown.forEach(o => {
     const g = o.a ? 'a' : 'r';
     if (g !== lastGroup) {
-      html += `<div class="wf-eyebrow" style="margin:${lastGroup ? 14 : 2}px 0 6px">${g === 'a' ? 'Assigned · ' + assigned.length : 'Not assigned yet · ' + rest.length}</div>`;
+      html += `<div class="wf-eyebrow" style="margin:${lastGroup ? 14 : 2}px 0 6px">${g === 'a' ? 'Assigned' : 'Not assigned yet'}</div>`;
       lastGroup = g;
     }
     const c = o.c, p = o.a ? state.persons[c.assignedTo] : null;
@@ -3373,7 +3446,7 @@ function renderMainList(container) {
       </div>
     </div>`;
   });
-  container.innerHTML = `<div class="wf-eyebrow" style="margin-bottom:6px">All cafés · ${rows.length}</div>` + (html || '<div class="wf-hint" style="text-align:center;padding:20px 0">No café matches.</div>') +
+  container.innerHTML = `<div style="display:flex;gap:18px;align-items:baseline;margin-bottom:8px"><div class="wf-eyebrow" style="margin:0">All cafés · ${rows.length}</div><div class="wf-eyebrow" style="margin:0">Assigned · ${assigned.length}</div></div>` + (html || '<div class="wf-hint" style="text-align:center;padding:20px 0">No café matches.</div>') +
     (rows.length > shown.length ? `<button class="wf-btn-sm" style="width:100%;margin-top:8px" onclick="mainListMore()">Show more (${rows.length - shown.length} left)</button>` : '');
 }
 
@@ -3742,6 +3815,31 @@ function ncRushHtml() {
 }
 
 // Reads a Google Maps link (or a typed café name) and works out name, street address, borough, zip and coordinates.
+const _sleep = ms => new Promise(r => setTimeout(r, ms));
+// OpenStreetMap often has no zip on the exact building, so try a few nearby spots and the street name too.
+async function ncFindZip(lat, lng, street) {
+  const H = { headers: { 'User-Agent': 'WorkAndBrew-CafeMap/2.0 (cafe-scouting)' } };
+  const pc = a => (a && a.postcode ? String(a.postcode).slice(0, 5) : '');
+  try {
+    if (street) {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?street=${encodeURIComponent(street)}&city=${encodeURIComponent('New York')}&state=NY&format=json&addressdetails=1&limit=5&countrycodes=us&viewbox=${lng - 0.01},${lat + 0.01},${lng + 0.01},${lat - 0.01}&bounded=1`, H);
+      const d = await r.json();
+      for (const x of d || []) { const z = pc(x.address); if (z) return z; }
+    }
+  } catch (e) {}
+  const counts = {};
+  const off = [[0, 0], [0.0005, 0], [-0.0005, 0], [0, 0.0005], [0, -0.0005]];
+  for (const [dy, dx] of off) {
+    try {
+      await _sleep(300);
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat + dy}&lon=${lng + dx}&format=json&addressdetails=1&zoom=18`, H);
+      const z = pc((await r.json()).address);
+      if (z) counts[z] = (counts[z] || 0) + 1;
+    } catch (e) {}
+  }
+  const best = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+  return best || '';
+}
 async function ncLookup(input) {
   let lat = null, lng = null, name = '', address = '', borough = '', zip = '', link = input;
   if (/^https?:/i.test(input)) {
@@ -3789,6 +3887,15 @@ async function ncLookup(input) {
       }
     } catch (e) {}
   }
+  // Best source: the US Census address finder (through the backend). Fall back to map data.
+  if (address) {
+    try {
+      const z = await wfApi('lookupZip', { address, borough });
+      if (z && z.zip) zip = String(z.zip).slice(0, 5);
+      if (!lat && z && z.lat) { lat = Number(z.lat); lng = Number(z.lng); } // no pin in the link: use the address position
+    } catch (e) {}
+  }
+  if (!zip && lat && lng) zip = await ncFindZip(lat, lng, address);
   return { lat, lng, name, address, borough, zip };
 }
 function ncApply(d, f) {
@@ -3866,6 +3973,8 @@ async function ncSendFull(d, form) {
 
 // "In a rush?": only the location, someone else scouts it later
 async function ncQuickSend() {
+  if (WF_BUSY) return;
+  WF_BUSY = true;
   const d = wfReadDraftFromForm('new');
   const rushBtn = document.querySelector('.wf-rush button');
   // A pasted link is enough: read the name, address, borough and zip from it before checking
@@ -3882,10 +3991,13 @@ async function ncQuickSend() {
   if (miss.length) renderScoutForm(wfFindCafe('new'));
   const err = document.getElementById('wf-error');
   if (miss.length) {
+    WF_BUSY = false;
     if (err) { err.style.display = 'block'; err.textContent = 'We could not read everything from that link. Please fill in: ' + miss.join(', ') + ', then tap again.'; }
     return;
   }
   if (err) err.style.display = 'none';
+  const rb = document.querySelector('.wf-rush button');
+  if (rb) { rb.disabled = true; rb.textContent = 'Sending…'; }
   try {
     const [lat, lng] = await ncCoords(nc);
     await wfApi('suggestCafe', {
@@ -3896,7 +4008,10 @@ async function ncQuickSend() {
     wfClearDraft('new');
     closeScoutForm(true);
     showToast('Sent. Someone else will scout ' + nc.name + ' later.');
+    WF_BUSY = false;
   } catch (e) {
+    WF_BUSY = false;
+    const rb2 = document.querySelector('.wf-rush button'); if (rb2) { rb2.disabled = false; rb2.textContent = 'Send the location only'; }
     if (err) { err.style.display = 'block'; err.textContent = e.message; }
   }
 }
@@ -5072,7 +5187,7 @@ function wfInit(user) {
   if (reviewId && _wfIsApprover) {
     setTimeout(() => openReview(reviewId), 400);
   }
-  if (params.get('suggestions') && _wfIsApprover) setTimeout(() => setTab('review'), 400);
+  if (params.get('suggestions') && _wfIsApprover) setTimeout(() => sgShowModal(params.get('row')), 900);
 }
 
 // ---------- drafts (per café, on this device only) ----------
@@ -5561,7 +5676,9 @@ function wfValidate(d) {
   return missing;
 }
 
+let WF_BUSY = false; // one send at a time: blocks double taps
 async function wfSubmit(id) {
+  if (WF_BUSY) return;
   const cafe = wfFindCafe(id);
   if (!cafe) return;
   const isNewCafe = String(id) === 'new';
@@ -5575,6 +5692,7 @@ async function wfSubmit(id) {
     return;
   }
   err.style.display = 'none';
+  WF_BUSY = true;
   const btn = document.getElementById('wf-submit');
   btn.disabled = true; btn.textContent = 'Sending…';
   try {
@@ -5593,7 +5711,7 @@ async function wfSubmit(id) {
       chainFlag: d.isChain ? 'TRUE' : 'FALSE',
       videosTexted: d.videosTexted ? 'TRUE' : 'FALSE',
     };
-    if (isNewCafe) { await ncSendFull(d, form); return; }
+    if (isNewCafe) { await ncSendFull(d, form); WF_BUSY = false; return; }
     await wfApi('submit', {
       cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address, borough: cafe.borough, zip: cafe.zip },
       form, photos: (d.photos || []).map(p => ({ id: p.id, name: p.name, isVideo: !!p.isVideo })),
@@ -5609,7 +5727,9 @@ async function wfSubmit(id) {
     refreshMarker(cafe);
     applyFilters(); renderPanel(); updateStats(); saveState();
     showToast(d.editRequest ? '✏️ Edits sent to the team for review.' : d.correction ? '🔁 Correction sent to the team.' : '✅ Sent for review. We\'ll ping you if anything\'s missing.');
+    WF_BUSY = false;
   } catch (e) {
+    WF_BUSY = false;
     btn.disabled = false; btn.textContent = isNewCafe ? 'Submit new café for review' : d.editRequest ? 'Send edits for review' : d.correction ? 'Resubmit correction' : 'Submit café for review';
     err.style.display = 'block'; err.textContent = '⚠ ' + e.message;
   }
@@ -5649,6 +5769,46 @@ function renderSuggestionsBlock() {
         </div>
       </div>`).join('')}
     <div style="height:10px"></div>`;
+}
+// Centered window over the map: shows the café a scout just sent, with Approve and Reject
+async function sgShowModal(focusRow) {
+  if (state.activeTab !== 'independent') setTab('independent');
+  await sgLoadPending();
+  const old = document.getElementById('sg-modal'); if (old) old.remove();
+  const list = (_sgPending || []).slice();
+  list.sort((a, b) => (String(b.row) === String(focusRow)) - (String(a.row) === String(focusRow)));
+  const sg = list[0];
+  const m = document.createElement('div');
+  m.id = 'sg-modal';
+  m.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  const close = '<button onclick="document.getElementById(\'sg-modal\').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#999;line-height:1">&times;</button>';
+  m.innerHTML = sg ? `
+    <div style="background:#fff;border-radius:14px;padding:20px;max-width:400px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.35);font-family:Inter,sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:0.7rem;font-weight:700;letter-spacing:.06em;color:#8a6d1d">NEW CAFÉ TO APPROVE${list.length > 1 ? ' · ' + (list.length - 1) + ' more waiting' : ''}</div>${close}
+      </div>
+      <div style="font-size:1.1rem;font-weight:700;color:#2E1A0E">${escHtml(sg.name)}</div>
+      <div style="font-size:0.85rem;margin:4px 0">${wfMapsLink(sg.address, sg.name)}${sg.borough ? ' · ' + escHtml(sg.borough) : ''}</div>
+      <div style="font-size:0.78rem;color:#777;margin-bottom:4px">${sg.kind === 'Full' ? 'Full submission · ' + (sg.photoCount || 0) + ' photo(s)' : 'Quick lead, not scouted yet'}${sg.type ? ' · ' + escHtml(sg.type) : ''}</div>
+      <div style="font-size:0.78rem;color:#777">From ${escHtml(sg.by || '')} ${escHtml(sg.at || '')}${sg.mapsLink ? ' · <a href="' + escHtml(sg.mapsLink) + '" target="_blank" rel="noopener">Maps link</a>' : ''}</div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60;padding:11px" onclick="sgModalDo('approve','${sg.row}',this)">Approve and add to map</button>
+        <button class="wf-btn-sm" style="flex:1;padding:11px" onclick="sgModalDo('reject','${sg.row}',this)">Reject</button>
+      </div>
+    </div>` : `
+    <div style="background:#fff;border-radius:14px;padding:22px;max-width:360px;width:100%;text-align:center;font-family:Inter,sans-serif">
+      <div style="display:flex;justify-content:flex-end">${close}</div>
+      <div style="font-weight:700;color:#2E1A0E;margin-bottom:6px">Nothing waiting for approval</div>
+      <div style="font-size:0.85rem;color:#777">This café was already approved or rejected.</div>
+    </div>`;
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  document.body.appendChild(m);
+}
+async function sgModalDo(kind, row, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = kind === 'approve' ? 'Adding…' : 'Rejecting…'; }
+  if (kind === 'approve') await sgApprove(row); else await sgReject(row);
+  const m = document.getElementById('sg-modal'); if (m) m.remove();
+  if ((_sgPending || []).length) sgShowModal(null);
 }
 async function sgApprove(row) {
   const sg = (_sgPending || []).find(x => String(x.row) === String(row));
