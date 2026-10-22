@@ -80,7 +80,7 @@ function doGet(e) {
   if (action === 'markers') {
     return ContentService.createTextOutput(buildMarkersCsv_()).setMimeType(ContentService.MimeType.CSV);
   }
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, service: 'workandbrew-scout-api' })).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, service: 'workandbrew-scout-api', version: 'v13 with leadList, assign, resolveMaps' })).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ------------------------------------------------------------ auth
