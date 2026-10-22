@@ -37,7 +37,7 @@ var DEFAULT_APPROVERS = ['denissemedinaflores@gmail.com', 'davidatorres123@gmail
 var EXTRA_COLUMNS = [
   'ReviewStatus', 'Website', 'HoursWeekday', 'HoursWeekend', 'WeekendRestrictions', 'Environment',
   'SeatsType', 'Notes', 'DateScouted', 'SubmittedBy', 'PhotoIds', 'ListingPhotoIds', 'DriveFolderUrl',
-  'AssignedTo', 'AssignedAt', 'DueAt', 'LeadLink', 'LeadAddr', 'AddressFlag', 'AddressFlagNote', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted', 'HoursByDay', 'PrevStatus'
+  'AssignedTo', 'AssignedAt', 'DueAt', 'LeadLink', 'LeadAddr', 'AddressFlag', 'AddressFlagNote', 'AddressFlagName', 'AddressFlagAddr', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted', 'HoursByDay', 'PrevStatus'
 ];
 
 // ------------------------------------------------------------ entry points
@@ -54,9 +54,12 @@ function doPost(e) {
       case 'suggestCafe':   out = handleSuggestCafe_(body, user); break;
       case 'resolveMaps':   out = handleResolveMaps_(body, user); break;
       case 'lookupZip':     out = handleLookupZip_(body, user); break;
+      case 'readWebsite':   out = handleReadWebsite_(body, user); break;
       case 'listSuggestions':   out = handleListSuggestions_(body, user); break;
       case 'approveSuggestion': out = handleApproveSuggestion_(body, user); break;
       case 'rejectSuggestion':  out = handleRejectSuggestion_(body, user); break;
+      case 'listCorrections':   out = handleListCorrections_(body, user); break;
+      case 'resolveCorrection': out = handleResolveCorrection_(body, user); break;
       case 'getSubmission': out = handleGetSubmission_(body, user); break;
       case 'approve':       out = handleApprove_(body, user); break;
       case 'assign':        out = handleAssign_(body, user); break;
@@ -82,7 +85,7 @@ function doGet(e) {
   if (action === 'markers') {
     return ContentService.createTextOutput(buildMarkersCsv_()).setMimeType(ContentService.MimeType.CSV);
   }
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, service: 'workandbrew-scout-api', version: 'v16 pings channel, yellow rows' })).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, service: 'workandbrew-scout-api', version: 'v19 new slack messages, corrections, photo pick' })).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ------------------------------------------------------------ auth
@@ -172,6 +175,15 @@ function getRowObj_(sh, h, row) {
   var o = {};
   Object.keys(h).forEach(function (k) { o[k] = vals[h[k] - 1]; });
   return o;
+}
+function statusLabel_(st) {
+  st = String(st || '');
+  if (st === 'Official Cafe Listing') return 'Official Cafe Listing (live on the public map)';
+  if (st === 'Visit Completed') return 'Complete (scouted, not on the official map yet)';
+  if (st === 'In Review') return 'In Review (still waiting for approval)';
+  if (st === 'Needs Revisit') return 'Needs Revisit (sent back to the scout)';
+  if (st === 'Assigned' || st === 'Unvisited' || st === '') return 'Not scouted yet (' + (st || 'Unvisited') + ')';
+  return st;
 }
 function now_() { return Utilities.formatDate(new Date(), 'America/New_York', 'MMM d, yyyy h:mm a'); }
 function today_() { return Utilities.formatDate(new Date(), 'America/New_York', 'MMM d, yyyy'); }
@@ -273,6 +285,13 @@ function handleSubmit_(body, user) {
       'Ask them to open it and use 📝 Scout this café, or fill it in yourself on review.\n<' + reviewLink + '|🔎 Open in the scout map>', [], true);
     return { row: row, manual: true };
   }
+  if (isEdit || isCorrection) {
+    postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'CAFE EDITS/CORRECTION NEED REVIEW: ' + (cafe.name || ''),
+      'A scout has submitted an edit/correction to the listed cafe that needs to be reviewed, details provided in form.\n' +
+      '*' + (cafe.name || 'Café') + '* · ' + (cafe.borough || '') + '\n' + (cafe.address || '') + '\n_Sent by ' + scoutName + '_\n' +
+      '*Status:* ' + statusLabel_(prevStatus) + '\n<' + reviewLink + '|Review & approve changes in the scout map>', [], true);
+    return { row: row };
+  }
   var lines = [
     '*' + (cafe.name || 'Café') + '* · ' + (cafe.borough || '') + '\n' + (cafe.address || ''),
     '*Scout:* ' + scoutName + '\n*Hours:* ' + f.hoursWeekday + '; ' + f.hoursWeekend,
@@ -300,10 +319,14 @@ function handleFlagAddress_(body, user) {
   var sh = sheet_(), h = ensureColumns_(sh);
   var cafe = body.cafe || {};
   var row = findRow_(sh, h, cafe);
-  if (row !== -1) setCells_(sh, h, row, { AddressFlag: 'reported', AddressFlagNote: (body.note || '') + ' (' + (body.scoutName || user.email) + ', ' + now_() + ')' });
-  postSlack_('SLACK_ADDRESS_WEBHOOK', '📍 Address or name flagged: ' + (cafe.name || ''),
-    '*' + (cafe.name || '') + '*\nListed as: ' + (cafe.address || '') + '\n*Scout says:* ' + (body.note || '') + '\n_From: ' + (body.scoutName || user.email) + '_\n' +
-    'Fix the name or address with the ✏️ button on the café in the scout map, then clear the flag in the sheet (AddressFlag column).', [], true);
+  if (row !== -1) setCells_(sh, h, row, { AddressFlag: 'reported', AddressFlagNote: (body.note || '') + ' (' + (body.scoutName || user.email) + ', ' + now_() + ')', AddressFlagName: body.newName || '', AddressFlagAddr: body.newAddress || '' });
+  var cLink = SITE_URL + '?corrections=1&cafe=' + encodeURIComponent(cafe.number || '');
+  postSlack_('SLACK_ADDRESS_WEBHOOK', 'Address or name flagged: ' + (cafe.name || ''),
+    'A scout has submitted a cafe name/address correction for review.\n' +
+    '*Listed as:* ' + (cafe.name || '') + ', ' + (cafe.address || '') + '\n' +
+    (body.newName || body.newAddress ? '*Corrected to:* ' + (body.newName || cafe.name || '') + ', ' + (body.newAddress || cafe.address || '') + '\n' : '') +
+    (body.note ? '*Scout says:* ' + body.note + '\n' : '') +
+    '_From: ' + (body.scoutName || user.email) + '_\n<' + cLink + '|Click here to approve or reject corrections>', [], true);
   return {};
 }
 
@@ -354,7 +377,7 @@ function handleSuggestCafe_(body, user) {
   if (full) {
     var folder = cafeFolder_({ name: c.name });
     var lines = [
-      '*' + c.name + '* · ' + (c.borough || '') + '\n' + (c.address || '') + '\nType: ' + (c.type || '') + (body.mapsLink ? ' · <' + body.mapsLink + '|Google Maps>' : ''),
+      '*' + c.name + '* · ' + (c.borough || '') + '\n' + (c.address || '') + (c.type ? '\nType: ' + c.type : '') + (body.mapsLink ? '\n<' + body.mapsLink + '|Link used to find it>' : ''),
       '*Scout:* ' + who + '\n*Hours:* ' + (f.hoursWeekday || '') + '; ' + (f.hoursWeekend || ''),
       '*WiFi* ' + f.wifi + (f.wifi === 'YES' ? ' (secured ' + f.secured + ')' : '') + '  ·  *Outlets* ' + f.outlets + '  ·  *Hot food* ' + f.hotFood + '  ·  *Restroom* ' + f.restroom,
       '*Seats* ' + f.seats + ' · ' + f.seatsType,
@@ -368,13 +391,13 @@ function handleSuggestCafe_(body, user) {
     var images = photos.filter(function (p) { return !p.isVideo; }).slice(0, 4).map(function (p) {
       return { type: 'image', image_url: 'https://lh3.googleusercontent.com/d/' + p.id + '=w800', alt_text: p.name || 'photo' };
     });
-    postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'NEW CAFE SUBMISSION (not on the map yet): ' + c.name,
-      '_A scout found a café that is not in the database. Approve it to add it to the map and the sheet._\n' + lines.join('\n'), images, true);
+    postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'NEW CAFE SCOUTED (not on the map yet): ' + c.name,
+      'A scout has completed scouting a café and submitted their form, ready for review. Approve it to add it to the map and the database.\n' + lines.join('\n'), images, true);
   } else {
-    postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'NEW CAFE LEAD (quick, not scouted yet): ' + c.name,
-      '*A scout was in a rush and only sent the location.* Someone else needs to scout it later. It is NOT on the map yet.\n*' + c.name + '*\n' +
+    postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'NEW CAFE ALERT (Not scouted yet): ' + c.name,
+      'A scout has found an eligible cafe and was unable to scout the area properly, location has been submitted. It is confirmed NOT on the map yet.\n*' + c.name + '*\n' +
       (c.address || '') + (c.borough ? ', ' + c.borough : '') + (c.type ? '\nType: ' + c.type : '') +
-      (body.mapsLink ? '\n<' + body.mapsLink + '|Google Maps link>' : '') + '\n_Found by ' + who + '_\n' + link, [], true);
+      (body.mapsLink ? '\n<' + body.mapsLink + '|Link used to find it>' : '') + '\n_Found by ' + who + '_\n' + link, [], true);
   }
   return {};
 }
@@ -394,6 +417,45 @@ function handleResolveMaps_(body, user) {
     url = loc;
   }
   return { url: url };
+}
+// A café's own website: read the page and pull out its name and street address (schema.org data first, then plain text)
+function handleReadWebsite_(body, user) {
+  var url = String(body.url || '').trim();
+  if (!/^https?:\/\//i.test(url)) throw new Error('That is not a website link.');
+  if (/^https?:\/\/(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.)/i.test(url)) throw new Error('That is not a public website.');
+  var res = UrlFetchApp.fetch(url, { followRedirects: true, muteHttpExceptions: true, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; WorkAndBrewBot/1.0)' } });
+  if (res.getResponseCode() >= 400) throw new Error('Could not open that website.');
+  var html = res.getContentText().substring(0, 600000);
+  var out = { name: '', address: '', locality: '', zip: '', lat: '', lng: '' };
+  var pickAddr = function (a) {
+    if (!a) return;
+    if (typeof a === 'string') { if (!out.address) out.address = a; return; }
+    if (a.streetAddress && !out.address) out.address = String(a.streetAddress);
+    if (a.addressLocality && !out.locality) out.locality = String(a.addressLocality);
+    if (a.postalCode && !out.zip) out.zip = String(a.postalCode).substring(0, 5);
+  };
+  var walk = function (n) {
+    if (!n || typeof n !== 'object') return;
+    if (Array.isArray(n)) { n.forEach(walk); return; }
+    if (n['@graph']) walk(n['@graph']);
+    if (n.address) { pickAddr(n.address); if (!out.name && n.name) out.name = String(n.name); }
+    if (n.geo && n.geo.latitude && !out.lat) { out.lat = Number(n.geo.latitude); out.lng = Number(n.geo.longitude); }
+  };
+  var re = /<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi, m;
+  while ((m = re.exec(html))) { try { walk(JSON.parse(m[1])); } catch (e) {} }
+  var text = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+  if (!out.address || !out.locality) {
+    var am = text.match(/(\d{1,5}[A-Za-z]?\s+(?:[NSEW]\.?\s+)?[A-Za-z0-9 .'-]{2,40}?(?:Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Place|Pl|Drive|Dr|Lane|Ln|Court|Ct|Broadway|Parkway|Pkwy|Way|Square|Sq)\.?)(?:,?\s*(?:Suite|Ste|Unit|Fl|Floor)\.?\s*[A-Za-z0-9-]+)?,?\s*(Bronx|Brooklyn|Queens|New York|Manhattan|Staten Island|Astoria|Long Island City|Flushing|Jamaica|Ridgewood|Harlem)\b[^0-9]{0,15}(1[0-4]\d{3})?/i);
+    if (am) { if (!out.address) out.address = am[1]; if (!out.locality) out.locality = am[2]; if (!out.zip && am[3]) out.zip = am[3]; }
+  }
+  if (!out.name) {
+    var og = html.match(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:site_name["']/i);
+    var tt = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    out.name = og ? og[1] : (tt ? tt[1].split(/\s[|\u2013\u2014-]\s/)[0] : '');
+  }
+  out.name = out.name.replace(/&amp;/g, '&').replace(/&#0?39;/g, "'").replace(/\s+/g, ' ').trim();
+  if (!out.address && !out.name) throw new Error('Could not find a name or address on that website.');
+  return out;
 }
 // Zip code from the US Census address finder (more reliable than map data, and a browser is not allowed to call it)
 function handleLookupZip_(body, user) {
@@ -416,9 +478,12 @@ function handleListSuggestions_(body, user) {
   var vals = sh.getRange(2, 1, last - 1, SUGGEST_COLS.length).getValues();
   vals.forEach(function (v, i) {
     if (String(v[8]) !== 'Pending') return;
-    var pc = 0;
-    try { pc = JSON.parse(v[15] || '[]').length; } catch (e) {}
-    out.push({ row: i + 2, at: v[0], by: v[1], name: v[2], address: v[3], borough: v[4], type: v[5], lat: v[6], lng: v[7], kind: v[12] || 'Quick', mapsLink: v[13] || '', photoCount: pc });
+    var pc = 0, ph = [];
+    try {
+      var pl = JSON.parse(v[15] || '[]'); pc = pl.length;
+      ph = pl.map(function (p) { var fi = fileInfo_({ getId: function () { return p.id; } }); return { id: p.id, name: p.name, isVideo: !!p.isVideo, thumb: fi.thumbUrl, url: fi.viewUrl }; });
+    } catch (e) {}
+    out.push({ row: i + 2, at: v[0], by: v[1], name: v[2], address: v[3], borough: v[4], type: v[5], lat: v[6], lng: v[7], kind: v[12] || 'Quick', mapsLink: v[13] || '', photoCount: pc, photos: ph });
   });
   return { suggestions: out };
 }
@@ -476,15 +541,77 @@ function handleApproveSuggestion_(body, user) {
       PhotoIds: JSON.stringify(photos), DriveFolderUrl: folder.getUrl()
     };
     Object.keys(form).forEach(function (k) { cells[k] = form[k]; });
+    // Rename the photos you named in Drive, and keep the ones you picked for the listing
+    var names = body.photoNames || {};
+    Object.keys(names).forEach(function (id) {
+      try {
+        var file = DriveApp.getFileById(id), oldName = file.getName();
+        var em = oldName.match(/\.[A-Za-z0-9]{2,5}$/), ext = em ? em[0] : '';
+        var label = String(names[id]).replace(/[\/\\:*?"<>|]/g, '').trim();
+        if (!label) return;
+        var pre = String(c.name || '').trim();
+        var nn = (pre && label.toLowerCase().indexOf(pre.toLowerCase()) !== 0 ? pre + ' - ' : '') + label + ext;
+        if (nn !== oldName) file.setName(nn);
+        photos.forEach(function (p) { if (p.id === id) p.name = nn; });
+      } catch (e) {}
+    });
+    var ids = photos.map(function (p) { return p.id; });
+    var picked = (body.listingPhotoIds || []).filter(function (id) { return ids.indexOf(id) !== -1; });
+    if (!picked.length) picked = photos.filter(function (p) { return !p.isVideo; }).map(function (p) { return p.id; });
+    cells.PhotoIds = JSON.stringify(photos);
+    cells.ListingPhotoIds = JSON.stringify(picked);
+    var complete = !!((f.hoursWeekday || f.hoursByDay) && f.environment && f.highlight && f.wifi && f.outlets && f.hotFood && f.restroom && f.seats && photos.length && picked.length);
+    c.status = complete ? 'Visit Completed' : 'In Review';
+    cells.Status = c.status;
+    cells.ReviewStatus = complete ? 'Approved' : 'New cafe';
+    if (complete) { cells.ApprovedBy = user.email; cells.ApprovedAt = now_(); }
   }
   setCells_(sh, h, row, cells);
   sh.getRange(row, 1, 1, sh.getLastColumn()).setBackground('#fff59d'); // yellow = new café from a scout
   SpreadsheetApp.flush(); // write the new row and its yellow colour now
   ssh.getRange(r, 9, 1, 3).setValues([['Approved', user.email, now_()]]);
-  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'New café approved: ' + c.name,
-    '*' + c.name + '* is now on the scout map and in the spreadsheet as ' + c.number + ' (yellow row). Approved by ' + user.email + '.' +
-    (full ? '\nIt is in the Review tab now, ready to publish.' : '\nIt is Unvisited, ready to assign to a scout.'), []);
+  CacheService.getScriptCache().remove('markers_csv');
+  var where = !full ? 'the main map, ready for scouting like the rest of the cafes'
+    : c.status === 'Visit Completed' ? 'the Complete list, ready to be pushed to the official map'
+    : 'the Review tab (some info is still missing)';
+  postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'Cafe added: ' + c.name,
+    '*' + c.name + '* has successfully been added to ' + where + '. (' + c.number + ', yellow row in the spreadsheet. Approved by ' + user.email + '.)', []);
   return { cafe: c };
+}
+// ---- name/address corrections a scout flagged
+function handleListCorrections_(body, user) {
+  requireApprover_(user);
+  var sh = sheet_(), h = ensureColumns_(sh), last = sh.getLastRow(), out = [];
+  if (last < 2) return { corrections: out };
+  var vals = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
+  vals.forEach(function (v) {
+    if (String(v[h.AddressFlag - 1]) !== 'reported') return;
+    out.push({
+      number: String(v[h.Number - 1] || ''), name: v[h.Name - 1], address: v[h.Address - 1], borough: v[h.Borough - 1],
+      newName: String(v[h.AddressFlagName - 1] || ''), newAddress: String(v[h.AddressFlagAddr - 1] || ''),
+      note: String(v[h.AddressFlagNote - 1] || '')
+    });
+  });
+  return { corrections: out };
+}
+function handleResolveCorrection_(body, user) {
+  requireApprover_(user);
+  var sh = sheet_(), h = ensureColumns_(sh);
+  var cafe = body.cafe || {};
+  var row = findRow_(sh, h, cafe);
+  if (row === -1) throw new Error('This café is not in the spreadsheet.');
+  var cells = { AddressFlag: '', AddressFlagNote: '', AddressFlagName: '', AddressFlagAddr: '' };
+  if (body.approve) {
+    if (body.name) cells.Name = String(body.name);
+    if (body.address) cells.Address = String(body.address);
+    if (body.lat !== undefined && body.lat !== '') { cells.Latitude = body.lat; cells.Longitude = body.lng; }
+  }
+  setCells_(sh, h, row, cells);
+  CacheService.getScriptCache().remove('markers_csv');
+  postSlack_('SLACK_ADDRESS_WEBHOOK', (body.approve ? 'Correction approved: ' : 'Correction rejected: ') + (cafe.name || ''),
+    body.approve ? '*' + (body.name || cafe.name) + '* now shows ' + (body.address || cafe.address) + '. Approved by ' + user.email + '.'
+                 : 'The correction for *' + (cafe.name || '') + '* was not applied. Closed by ' + user.email + '.', []);
+  return {};
 }
 function handleRejectSuggestion_(body, user) {
   requireApprover_(user);

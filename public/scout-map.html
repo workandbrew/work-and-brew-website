@@ -594,7 +594,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 .toast-msg.show { opacity: 1; }
 
 /* COPY ALL BTN */
-#copy-all-btn {
+#copy-all-btn, #btn-export {
   background: transparent;
   border: 2px solid var(--brown);
   color: var(--brown);
@@ -608,7 +608,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   flex-shrink: 0;
   transition: all 0.15s;
 }
-#copy-all-btn:hover { background: var(--brown); color: var(--beige-light); }
+#copy-all-btn:hover, #btn-export:hover { background: var(--brown); color: var(--beige-light); }
 
 .popup-del-btn {
   display:block;width:100%;background:transparent;color:#bbb;
@@ -765,7 +765,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 
 /* Touch device improvements */
 @media (hover: none) and (pointer: coarse) {
-  .tab-btn, .boro-btn, .footer-btn, #btn-add-cafe, #copy-all-btn {
+  .tab-btn, .boro-btn, .footer-btn, #btn-add-cafe, #copy-all-btn, #btn-export {
     min-height: 44px;
     min-width: 44px;
   }
@@ -1312,8 +1312,12 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 .lead-bar { height:8px; background:#eadfce; border-radius:999px; overflow:hidden; margin-top:6px; }
 .lead-bar > div { height:100%; background:#27AE60; }
 .lead-check { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border-radius:10px; border:2px solid #cdbfa9; background:#fff; color:#6b5b4a; font-weight:700; font-size:0.82rem; cursor:pointer; font-family:'Inter',sans-serif; margin:8px 0; }
-.lead-check.on { border-color:#27AE60; background:#e9f7ef; color:#1e6b3f; }
+.lead-check.on { border-color:#1e8e4a; background:#27AE60; color:#fff; box-shadow:inset 0 2px 5px rgba(0,0,0,.22); transform:translateY(1px); }
+.lead-check { transition: background .15s, border-color .15s, transform .08s; }
+.lead-check:active { transform:scale(.97); }
 .wf-submit:disabled, .wf-rush button:disabled { background:#9b8f80 !important; color:#fff !important; opacity:.85; cursor:wait; border-color:#9b8f80 !important; }
+.leaflet-marker-icon { animation: mkfade .22s ease-out; }
+@keyframes mkfade { from { opacity:0; } to { opacity:1; } }
 .lead-two { display:flex; gap:8px; margin:8px 0; }
 .lead-two .lead-check { margin:0; flex:1; padding:11px 6px; font-size:0.78rem; }
 .lead-edit { background:#fff; border:1.5px solid #cdbfa9; border-radius:10px; padding:10px; margin:8px 0; }
@@ -1347,6 +1351,10 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 #search-suggest .sg { display:flex; align-items:center; gap:8px; padding:8px 11px; cursor:pointer; border-bottom:1px solid var(--cream); }
 #search-suggest .sg:last-child { border-bottom:none; }
 #search-suggest .sg:hover, #search-suggest .sg.on { background:var(--cream); }
+#search-suggest .sg-none { cursor:default; background:#fff4e5; }
+#search-suggest .sg-none:hover { background:#fff4e5; }
+#search-suggest .sg-none .sg-name { color:#9a4a0a; white-space:normal; }
+#search-suggest .sg-none .sg-addr { white-space:normal; }
 #search-suggest .sg-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
 #search-suggest .sg-name { font-size:0.78rem; font-weight:600; color:var(--brown); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #search-suggest .sg-name b { color:#C47F2E; }
@@ -1520,6 +1528,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
     <div class="stat-chip" style="background:#6366F1">⏳ Pending: <span id="s-pending">0</span></div>
     <div class="stat-chip" style="background:#1b3a5c">🗺 Assigned: <span id="s-assigned">0</span></div>
   </div>
+  <button id="btn-export">⬇ Export</button>
   <button id="copy-all-btn">📋 Copy All</button>
   <button id="btn-add-cafe" title="Suggest a café that is not on the map yet"><span class="tl">Found a new café?</span><span class="ts">New café?</span></button>
   <button id="btn-logout" type="button" title="Log out of the scout map">Log out</button>
@@ -1597,11 +1606,6 @@ body { display: flex; flex-direction: column; overflow: hidden; }
       <div id="panel-body">
         <div id="persons-container"></div>
 
-      </div>
-      <div id="panel-footer">
-        <button class="footer-btn" id="btn-export">⬇ Export Data</button>
-        <button class="footer-btn" id="btn-import">⬆ Import Data</button>
-        <input type="file" id="import-file" accept=".json" style="display:none">
       </div>
     </div>
   </div>
@@ -2110,7 +2114,7 @@ document.getElementById('sb-login-form').addEventListener('submit', async (e) =>
 const LEAD = { loaded: false, loading: false, byNum: {}, cafeId: null, celebrating: false, editing: false };
 function leadNum(c) { return String(c.number || '').trim(); }
 function leadInfo(c) { return LEAD.byNum[leadNum(c)] || {}; }
-function leadFinished(c) { const i = leadInfo(c); return !!(i.link && i.addr); }
+function leadFinished(c) { const i = leadInfo(c); return !!i.link; }
 // Scout Lead map: finished cafés turn grey and cannot be tapped, so they never block a café that still needs work.
 function leadStyleMarkers() {
   const onLead = state.activeTab === 'lead';
@@ -2177,7 +2181,7 @@ function renderLeadPanel() {
       ${fin ? '<span class="lead-tag">finished</span>' : ''}
     </div>`;
   container.innerHTML = `
-    <div class="lead-head"><b>Assignment: confirm each café</b><br>Open a café, check the Google Maps address and name, tap "Name and address are correct" (or edit them), paste its website and tap Submit link. It crosses off and moves to the bottom.
+    <div class="lead-head"><b>Assignment: confirm each café</b><br>Open a café, check the Google Maps address and name, fix the name or address if needed, paste its website and tap Submit link. It crosses off and moves to the bottom.
       <div style="margin-top:6px"><b>${nDone}</b> of <b>${all.length}</b> finished</div>
       <div class="lead-bar"><div style="width:${all.length ? Math.round(nDone / all.length * 100) : 0}%"></div></div>
     </div>
@@ -2189,7 +2193,7 @@ function leadOpen(id) {
   LEAD.cafeId = id; LEAD.editing = false;
   const c = wfFindCafe(id);
   wfOpenPanel();
-  if (c && c.lat && c.lng) map.setView([c.lat, c.lng], 16);
+  if (c && c.lat && c.lng) map.flyTo([c.lat, c.lng], 16, { duration: 0.6 });
   renderLeadPanel();
   const body = document.getElementById('panel-body'); if (body) body.scrollTop = 0;
 }
@@ -2206,23 +2210,22 @@ function renderLeadCard() {
     <div class="wf-addr">${wfMapsLink(c.address, c.name)}</div>
     ${LEAD.editing ? `
     <div class="lead-edit">
-      <div class="wf-label">Google Maps link <span class="wf-hint-inline">(optional, fills in the rest)</span></div>
+      <div class="wf-label">Google Maps link or website <span class="wf-hint-inline">(optional, fills in the rest)</span></div>
       <div class="wf-row-btns" style="align-items:stretch">
-        <input type="text" id="lead-gm" style="flex:1;min-width:0" placeholder="Paste the Google Maps link">
+        <input type="text" id="lead-gm" style="flex:1;min-width:0" placeholder="Paste the Google Maps link or the café website">
         <button class="wf-btn-sm primary" id="lead-gm-btn" onclick="leadReadLink()">Read link</button>
       </div>
       <div class="wf-label" style="margin-top:8px">Café name</div>
       <input type="text" id="lead-ename" value="${escHtml(c.name)}">
       <div class="wf-label" style="margin-top:8px">Address</div>
       <input type="text" id="lead-eaddr" value="${escHtml(c.address || '')}">
-      <div class="wf-hint" id="lead-emsg" style="margin-top:6px">Saving also confirms the name and address.</div>
+      <div class="wf-hint" id="lead-emsg" style="margin-top:6px">Save the fix, then submit the website to finish this café.</div>
       <div class="lead-two" style="margin-bottom:0">
         <button class="lead-check" onclick="leadEditCancel()">Cancel</button>
-        <button class="lead-check on" id="lead-esave-btn" onclick="leadEditSave()">Save and confirm</button>
+        <button class="lead-check on" id="lead-esave-btn" onclick="leadEditSave()">Save changes</button>
       </div>
     </div>` : `
     <div class="lead-two">
-      <button id="lead-addr-btn" class="lead-check ${i.addr ? 'on' : ''}" onclick="leadToggleAddr()">${i.addr ? '&#10003; ' : ''}Name and address are correct</button>
       <button class="lead-check" onclick="leadEditOpen()">Edit name or address</button>
     </div>`}
     <div class="wf-section">
@@ -2231,7 +2234,7 @@ function renderLeadCard() {
         <input type="text" id="lead-web" style="flex:1;min-width:0" placeholder="https://" value="${escHtml(i.website || '')}" onkeydown="if(event.key==='Enter')leadSubmitLink()">
         <button class="wf-btn-sm primary" id="lead-submit-btn" onclick="leadSubmitLink()">Submit link</button>
       </div>
-      <div class="wf-hint" id="lead-msg" style="margin-top:6px">${i.link ? 'Link saved.' : 'Paste the café website, then tap Submit link.'}${i.link && !i.addr ? ' Now confirm the name and address to finish this café.' : ''}${!i.link && i.addr ? ' Address confirmed. Now submit the link to finish this café.' : ''}</div>
+      <div class="wf-hint" id="lead-msg" style="margin-top:6px">${i.link ? 'Link saved.' : 'Fix the name or address if needed, then paste the café website and tap Submit link. That marks it done.'}</div>
     </div>
   </div>`;
 }
@@ -2273,7 +2276,7 @@ async function leadEditSave() {
     await wfApi('editCafe', { cafe: old, fields: { name, address, borough: upd.borough, lat: upd.latitude, lng: upd.longitude } });
   } catch (e) {
     if (msg) msg.textContent = 'Not saved: ' + e.message;
-    if (btn) { btn.disabled = false; btn.textContent = 'Save and confirm'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Save changes'; }
     return;
   }
   c.name = name; c.address = address;
@@ -3108,19 +3111,25 @@ function applyFilters() {
   if (_applyRaf) cancelAnimationFrame(_applyRaf);
   _applyRaf = requestAnimationFrame(() => {
     _applyRaf = null;
-    shouldShow.forEach(id => {
-      const cafe = state.cafes.find(c => String(c.id) === String(id));
-      if (!cafe) return;
-      if (!markers[id]) createMarker(cafe);
-      if (!markerLayer.hasLayer(markers[id])) markerLayer.addLayer(markers[id]);
-      // Re-apply glow class if this cafe is currently glowing
-      if (glowingCafeIds.has(id) && markers[id]?._icon) {
-        markers[id]._icon.classList.add('marker-nearby');
+    const byId = new Map(state.cafes.map(c => [String(c.id), c]));
+    const ids = Array.from(shouldShow);
+    let k = 0;
+    const CHUNK = 120; // add markers in small batches so the map stays responsive
+    const step = () => {
+      const end = Math.min(k + CHUNK, ids.length);
+      for (; k < end; k++) {
+        const id = ids[k], cafe = byId.get(String(id));
+        if (!cafe) continue;
+        if (!markers[id]) createMarker(cafe);
+        if (!markerLayer.hasLayer(markers[id])) markerLayer.addLayer(markers[id]);
+        if (glowingCafeIds.has(id) && markers[id]?._icon) markers[id]._icon.classList.add('marker-nearby');
       }
-    });
-    leadStyleMarkers();
-    // Also refresh list view if active
-    if (state.listMode) renderListMode();
+      if (k < ids.length) { _applyRaf = requestAnimationFrame(step); return; }
+      _applyRaf = null;
+      leadStyleMarkers();
+      if (state.listMode) renderListMode();
+    };
+    step();
   });
 }
 
@@ -3642,7 +3651,7 @@ function updateDeadline(idx, val) {
 function zoomToCafe(id) {
   const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
-  map.setView([cafe.lat, cafe.lng], 16);
+  map.flyTo([cafe.lat, cafe.lng], 16, { duration: 0.6 });
   // Ensure marker is visible: switch tabs if needed
   if (!cafeMatchesTab(cafe)) {
     if (cafe.status === 'Ineligible Cafe') {
@@ -3778,9 +3787,9 @@ function ncHeaderHtml(d) {
     <div class="wf-eyebrow">New café you found</div>
     <div class="sg-note"><b>NEW CAFE SUBMISSION</b>: for a café that is not on the map yet and is small biz or independently owned. Fill it out like any visit. The team approves it before it goes on the map.</div>
     <div class="wf-section">
-      <div class="wf-label">Google Maps link <span class="wf-hint-inline">(or the café name)</span></div>
+      <div class="wf-label">Google Maps link or café website <span class="wf-hint-inline">(or the café name)</span></div>
       <div class="wf-row-btns" style="align-items:stretch">
-        <input type="text" id="nc-link" style="flex:1;min-width:0" placeholder="Paste link or type the name" value="${escHtml(nc.link || '')}" oninput="wfOnChange()">
+        <input type="text" id="nc-link" style="flex:1;min-width:0" placeholder="Paste a Maps link, the café website, or type the name" value="${escHtml(nc.link || '')}" oninput="wfOnChange()">
         <button class="wf-btn-sm primary" id="nc-find-btn" onclick="ncFind()">Find it</button>
       </div>
     </div>
@@ -3795,13 +3804,8 @@ function ncHeaderHtml(d) {
     <div class="wf-section" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div><div class="wf-label">Zip code</div>
         <input type="text" id="nc-zip" inputmode="numeric" maxlength="5" placeholder="Zip" value="${escHtml(nc.zip || '')}" oninput="wfOnChange()"></div>
-      <div></div>
-    </div>
-    <div class="wf-section" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div><div class="wf-label">Borough <span class="wf-req">*</span></div>
         <select id="nc-boro" onchange="wfOnChange()">${opts(NC_BOROUGHS, nc.borough, 'Choose')}</select></div>
-      <div><div class="wf-label">Type <span class="wf-req">*</span></div>
-        <select id="nc-type" onchange="wfOnChange()">${opts(NC_TYPES, nc.type, 'Choose')}</select></div>
     </div>`;
 }
 
@@ -3809,7 +3813,7 @@ function ncRushHtml() {
   return `
     <div class="wf-section wf-rush">
       <div class="wf-label">In a rush?</div>
-      <div class="wf-hint">Paste the Google Maps link below and tap this. We pull the café name, address, borough and zip code from the link, and that is all we need. Someone else will scout it later.</div>
+      <div class="wf-hint">Paste the Google Maps link or the café website below and tap this. We pull the café name, address, borough and zip code from it, and that is all we need. Someone else will scout it later.</div>
       <button class="wf-btn-sm" style="width:100%" onclick="ncQuickSend()">Send the location only</button>
     </div>`;
 }
@@ -3841,20 +3845,34 @@ async function ncFindZip(lat, lng, street) {
   return best || '';
 }
 async function ncLookup(input) {
-  let lat = null, lng = null, name = '', address = '', borough = '', zip = '', link = input;
+  let lat = null, lng = null, name = '', address = '', borough = '', zip = '', link = input, fromSite = false;
   if (/^https?:/i.test(input)) {
     // Phone share links (maps.app.goo.gl) hide the details: the backend opens them for us
     if (/^https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs)/i.test(input)) {
       try { const r = await wfApi('resolveMaps', { url: input }); if (r && r.url) link = r.url; } catch (e) {}
     }
-    const parsed = parseGoogleMapsUrl(link);
-    lat = parsed.lat; lng = parsed.lng; name = parsed.name; address = parsed.address; borough = parsed.borough;
+    if (!/google\.|goo\.gl|g\.co\//i.test(link)) {
+      // A café's own website: the backend reads the page for its name and address
+      fromSite = true;
+      try {
+        const w = await wfApi('readWebsite', { url: link });
+        name = w.name || ''; address = w.address || ''; zip = w.zip || '';
+        if (w.lat && w.lng) { lat = Number(w.lat); lng = Number(w.lng); }
+        const loc = String(w.locality || '').toLowerCase();
+        borough = /bronx/.test(loc) ? 'Bronx' : /brooklyn/.test(loc) ? 'Brooklyn' : /queens|astoria|flushing|jamaica|long island city|ridgewood|forest hills/.test(loc) ? 'Queens' : /staten/.test(loc) ? 'Staten Island' : /new york|manhattan|harlem/.test(loc) ? 'Manhattan' : '';
+      } catch (e) {}
+    } else {
+      const parsed = parseGoogleMapsUrl(link);
+      lat = parsed.lat; lng = parsed.lng; name = parsed.name; address = parsed.address; borough = parsed.borough;
+    }
     let raw = (link.match(/\/maps\/place\/([^/@?&]+)/) || ['', ''])[1].replace(/\+/g, ' ');
     try { raw = decodeURIComponent(raw); } catch (e) {}
     const zm = raw.match(/\b(1[0-4]\d{3})\b/);
     if (zm) zip = zm[1];
   }
-  if (lat && lng) {
+  if (fromSite) {
+    if (lat && lng && !borough) borough = detectNYCBorough(lat, lng);
+  } else if (lat && lng) {
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
         { headers: { 'User-Agent': 'WorkAndBrew-CafeMap/2.0 (cafe-scouting)' } });
@@ -3892,7 +3910,8 @@ async function ncLookup(input) {
     try {
       const z = await wfApi('lookupZip', { address, borough });
       if (z && z.zip) zip = String(z.zip).slice(0, 5);
-      if (!lat && z && z.lat) { lat = Number(z.lat); lng = Number(z.lng); } // no pin in the link: use the address position
+      if (!lat && z && z.lat) { lat = Number(z.lat); lng = Number(z.lng); }
+      if (!borough && lat && lng) borough = detectNYCBorough(lat, lng); // no pin in the link: use the address position
     } catch (e) {}
   }
   if (!zip && lat && lng) zip = await ncFindZip(lat, lng, address);
@@ -3918,7 +3937,7 @@ function ncFullAddress(nc) {
 async function ncFind() {
   const d = wfReadDraftFromForm('new');
   const input = (d.nc && d.nc.link) || '';
-  if (!input) { showToast('Paste a Google Maps link or type the café name first'); return; }
+  if (!input) { showToast('Paste a Google Maps link, the café website, or type the name first'); return; }
   const btn = document.getElementById('nc-find-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Looking'; }
   try {
@@ -3940,7 +3959,6 @@ function ncValidate(d) {
   if (!nc.name) m.push('café name');
   if (!nc.address) m.push('address');
   if (!nc.borough) m.push('borough');
-  if (!nc.type) m.push('type');
   return m;
 }
 
@@ -4071,7 +4089,11 @@ function setTab(tab) {
   renderScoutFilterBar();
   state.formCafeId = null; state.reviewCafeId = null;
   wfSyncFilterBar();
-  state.cafes.forEach(c => { if (markers[c.id] && c.status === 'Visit Completed') markers[c.id].setIcon(createMarkerIcon(getMarkerColor(c), c.status)); });
+  const _edNow = tab === 'edits';
+  if (_edNow !== !!setTab._wasEdits) {
+    setTab._wasEdits = _edNow; // completed pins only change colour when entering or leaving Edit Changes
+    state.cafes.forEach(c => { if (markers[c.id] && c.status === 'Visit Completed') markers[c.id].setIcon(createMarkerIcon(getMarkerColor(c), c.status)); });
+  }
   applyFilters();
   renderHomeBaseMarkers();
   renderPanel();
@@ -4168,11 +4190,11 @@ function sgBox() {
   return b;
 }
 function sgHide() { const b = document.getElementById('search-suggest'); if (b) b.style.display = 'none'; _sgItems = []; _sgIdx = -1; }
-function sgMatches(q) {
+function sgMatches(q, inel) {
   q = q.toLowerCase();
   const starts = [], words = [], contains = [];
   for (const c of state.cafes) {
-    if (c.status === 'Ineligible Cafe') continue;
+    if ((c.status === 'Ineligible Cafe') !== !!inel) continue;
     const n = (c.name || '').toLowerCase();
     if (n.startsWith(q)) starts.push(c);
     else if (n.split(/\s+/).some(w => w.startsWith(q))) words.push(c);
@@ -4190,12 +4212,21 @@ function sgRender(q) {
   const box = sgBox(), input = document.getElementById('search-input');
   if (!q || q.length < 2) { sgHide(); return; }
   _sgItems = sgMatches(q); _sgIdx = -1;
-  if (!_sgItems.length) { sgHide(); return; }
+  if (!_sgItems.length) _sgItems = sgMatches(q, true); // only ineligible cafés match: still show them, with a warning
+  const r0 = input.getBoundingClientRect();
+  if (!_sgItems.length) {
+    box.innerHTML = '<div class="sg sg-none"><div class="sg-info"><div class="sg-name">No result found</div><div class="sg-addr">This café is not on the map yet. Use "Found a new café?" to add it.</div></div></div>';
+    box.style.left = Math.max(8, Math.min(r0.left, window.innerWidth - 300)) + 'px';
+    box.style.top = (r0.bottom + 6) + 'px';
+    box.style.width = Math.max(260, r0.width + 120) + 'px';
+    box.style.display = 'block';
+    return;
+  }
   box.innerHTML = _sgItems.map((c, i) => `
     <div class="sg" data-i="${i}" onmousedown="event.preventDefault(); sgPick(${i})">
       <div class="sg-dot" style="background:${getMarkerColor(c)}"></div>
       <div class="sg-info"><div class="sg-name">${sgHighlight(c.name, q)}</div><div class="sg-addr">${escHtml(c.address)}${c.borough ? ' · ' + escHtml(c.borough) : ''}</div></div>
-      <span class="sg-st">${c.status === 'Visit Completed' ? '✓ done' : c.status === 'In Review' ? '⏳ review' : ''}</span>
+      <span class="sg-st">${c.status === 'Visit Completed' ? '✓ done' : c.status === 'In Review' ? '⏳ review' : c.status === 'Ineligible Cafe' ? '⚠ ineligible' : ''}</span>
     </div>`).join('');
   const r = input.getBoundingClientRect();
   box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 300)) + 'px';
@@ -4264,42 +4295,6 @@ document.getElementById('btn-export').onclick = function() {
   a.download = 'WorkAndBrew_data_' + new Date().toISOString().slice(0,10) + '.json';
   a.click();
   showToast('⬇ Data exported!');
-};
-
-document.getElementById('btn-import').onclick = function() {
-  document.getElementById('import-file').click();
-};
-document.getElementById('import-file').onchange = function(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (!confirm('Import this data? This will overwrite your current progress.')) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    try {
-      const imported = JSON.parse(ev.target.result);
-      // Merge
-      const importedMap = {};
-      (imported.cafes||[]).forEach(c => { importedMap[c.id] = c; });
-      state.cafes = state.cafes.map(c => importedMap[c.id] ? {...c, ...importedMap[c.id]} : c);
-      // Add new user-added cafes
-      (imported.cafes||[]).forEach(c => {
-        if (c.isNew && !state.cafes.find(x => x.id === c.id)) state.cafes.push(c);
-      });
-      if (imported.persons) state.persons = imported.persons;
-      // Rebuild markers
-      Object.values(markers).forEach(m => m.remove());
-      Object.keys(markers).forEach(k => delete markers[k]);
-      applyFilters();
-      updateStats();
-      renderPanel();
-      saveState();
-      showToast('⬆ Data imported successfully!');
-    } catch(err) {
-      showToast('❌ Import failed: invalid file');
-    }
-  };
-  reader.readAsText(file);
-  this.value = '';
 };
 
 // ============================================================
@@ -4778,7 +4773,7 @@ function applyScoutModeFromURL() {
   }
 
   // Hide admin-only elements
-  ['copy-all-btn','btn-export','btn-import'].forEach(id => {
+  ['copy-all-btn','btn-export'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -5188,6 +5183,7 @@ function wfInit(user) {
     setTimeout(() => openReview(reviewId), 400);
   }
   if (params.get('suggestions') && _wfIsApprover) setTimeout(() => sgShowModal(params.get('row')), 900);
+  if (params.get('corrections') && _wfIsApprover) setTimeout(() => scShowModal(params.get('cafe')), 900);
 }
 
 // ---------- drafts (per café, on this device only) ----------
@@ -5408,7 +5404,11 @@ function renderScoutForm(cafe) {
       ? `<div class="wf-flag-badge">⚠ Address or name flagged: we're on it</div>`
       : `<a class="wf-link" onclick="wfToggleAddrBox()">Wrong address or café name? Tell us</a>
          <div id="wf-addr-box" class="wf-addr-box" style="display:none">
-           <textarea id="wf-addr-note" rows="2" placeholder="What's the correct address or name? Or what's off about it?"></textarea>
+           <div class="wf-label">Correct café name <span class="wf-hint-inline">(if it's wrong)</span></div>
+           <input type="text" id="wf-addr-newname" value="${escHtml(cafe.name)}">
+           <div class="wf-label" style="margin-top:6px">Correct address <span class="wf-hint-inline">(if it's wrong)</span></div>
+           <input type="text" id="wf-addr-newaddr" value="${escHtml(cafe.address || '')}">
+           <textarea id="wf-addr-note" rows="2" style="margin-top:6px" placeholder="Anything else? (optional)"></textarea>
            <div class="wf-row-btns">
              <button class="wf-btn-sm" onclick="wfToggleAddrBox()">Cancel</button>
              <button class="wf-btn-sm primary" onclick="wfFlagAddress('${cafe.id}')">Send to team</button>
@@ -5556,7 +5556,6 @@ function wfReadDraftFromForm(id) {
     d.nc = Object.assign({}, prev, {
       link: wfText('nc-link'), name: wfText('nc-name'), address: addr, zip: wfText('nc-zip'),
       borough: (document.getElementById('nc-boro') || {}).value || '',
-      type: (document.getElementById('nc-type') || {}).value || '',
     });
     if (prev.address !== addr) { delete d.nc.lat; delete d.nc.lng; } // address changed: look the coordinates up again
   }
@@ -5644,10 +5643,12 @@ function wfRemovePhoto(id, idx) {
 async function wfFlagAddress(id) {
   const cafe = wfFindCafe(id);
   const note = wfText('wf-addr-note');
+  const newName = wfText('wf-addr-newname'), newAddress = wfText('wf-addr-newaddr');
   if (!cafe) return;
-  if (!note) { showToast('Tell us what\'s wrong with the address first'); return; }
+  const nameChanged = newName && newName !== cafe.name, addrChanged = newAddress && newAddress !== (cafe.address || '');
+  if (!nameChanged && !addrChanged && !note) { showToast('Fix the name or address first, or tell us what is off'); return; }
   try {
-    await wfApi('flagAddress', { cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address }, note, scoutName: _wfScoutName });
+    await wfApi('flagAddress', { cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address }, note, newName: nameChanged ? newName : '', newAddress: addrChanged ? newAddress : '', scoutName: _wfScoutName });
     cafe.addressFlag = 'reported';
     showToast('📍 Sent to the team: you can keep scouting');
     renderScoutForm(cafe);
@@ -5747,6 +5748,75 @@ function openReview(id) {
   renderPanel();
 }
 
+// ---------- name/address corrections (scout flagged, approver approves or rejects) ----------
+async function scShowModal(num) {
+  if (state.activeTab !== 'independent') setTab('independent');
+  let list = [];
+  try { const r = await wfApi('listCorrections', {}); list = r.corrections || []; } catch (e) { showToast(e.message); return; }
+  const old = document.getElementById('sc-modal'); if (old) old.remove();
+  list.sort((a, b) => (String(b.number) === String(num)) - (String(a.number) === String(num)));
+  const k = list[0];
+  const m = document.createElement('div');
+  m.id = 'sc-modal';
+  m.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  const close = '<button onclick="document.getElementById(\'sc-modal\').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#999;line-height:1">&times;</button>';
+  m.innerHTML = k ? `
+    <div style="background:#fff;border-radius:14px;padding:20px;max-width:400px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.35);font-family:Inter,sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:0.7rem;font-weight:700;letter-spacing:.06em;color:#8a6d1d">CORRECTION TO APPROVE${list.length > 1 ? ' · ' + (list.length - 1) + ' more waiting' : ''}</div>${close}
+      </div>
+      <div style="font-size:0.74rem;color:#777">Listed as</div>
+      <div style="font-size:0.95rem;font-weight:700;color:#2E1A0E">${escHtml(k.name)}</div>
+      <div style="font-size:0.82rem;margin-bottom:8px">${escHtml(k.address || '')}${k.borough ? ' · ' + escHtml(k.borough) : ''}</div>
+      <div class="wf-label">Corrected name</div>
+      <input type="text" id="sc-name" style="width:100%;box-sizing:border-box" value="${escHtml(k.newName || k.name)}">
+      <div class="wf-label" style="margin-top:8px">Corrected address</div>
+      <input type="text" id="sc-addr" style="width:100%;box-sizing:border-box" value="${escHtml(k.newAddress || k.address || '')}">
+      ${k.note ? '<div style="font-size:0.78rem;color:#777;margin-top:8px">Scout says: ' + escHtml(k.note) + '</div>' : ''}
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60;padding:11px" onclick="scDo('approve','${escHtml(k.number)}',this)">Approve correction</button>
+        <button class="wf-btn-sm" style="flex:1;padding:11px" onclick="scDo('reject','${escHtml(k.number)}',this)">Reject</button>
+      </div>
+    </div>` : `
+    <div style="background:#fff;border-radius:14px;padding:22px;max-width:360px;width:100%;text-align:center;font-family:Inter,sans-serif">
+      <div style="display:flex;justify-content:flex-end">${close}</div>
+      <div style="font-weight:700;color:#2E1A0E;margin-bottom:6px">No corrections waiting</div>
+      <div style="font-size:0.85rem;color:#777">This one was already approved or rejected.</div>
+    </div>`;
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  document.body.appendChild(m);
+}
+async function scDo(kind, num, btn) {
+  const name = ((document.getElementById('sc-name') || {}).value || '').trim();
+  const address = ((document.getElementById('sc-addr') || {}).value || '').trim();
+  const c = state.cafes.find(x => String(x.number) === String(num));
+  if (btn) { btn.disabled = true; btn.textContent = kind === 'approve' ? 'Saving…' : 'Closing…'; }
+  try {
+    if (kind === 'approve') {
+      if (!name || !address) throw new Error('Name and address are both needed.');
+      const upd = { name, address };
+      let lat = '', lng = '';
+      if (c && address !== (c.address || '')) {
+        const g = await sgGeocode(address, c.borough);
+        if (g) { lat = g[0]; lng = g[1]; upd.latitude = lat; upd.longitude = lng; }
+      }
+      if (c) { const { error } = await sb.from('cafes').update(upd).eq('id', c.id); if (error) throw new Error(error.message); }
+      await wfApi('resolveCorrection', { approve: true, cafe: { number: num, name: c ? c.name : name, address: c ? c.address : address }, name, address, lat, lng });
+      if (c) {
+        c.name = name; c.address = address; c.addressFlag = '';
+        if (lat) { c.lat = lat; c.lng = lng; if (markers[c.id]) markers[c.id].setLatLng([lat, lng]); }
+        if (markers[c.id]) markers[c.id].setPopupContent(buildPopupContent(c));
+      }
+      showToast('Correction approved');
+    } else {
+      await wfApi('resolveCorrection', { approve: false, cafe: { number: num, name: c ? c.name : name, address: c ? c.address : address } });
+      if (c) c.addressFlag = '';
+      showToast('Correction rejected');
+    }
+  } catch (e) { showToast(e.message); if (btn) { btn.disabled = false; btn.textContent = kind === 'approve' ? 'Approve correction' : 'Reject'; } return; }
+  const m = document.getElementById('sc-modal'); if (m) m.remove();
+  renderPanel();
+}
 let _sgPending = null;
 async function sgLoadPending() {
   try { const r = await wfApi('listSuggestions', {}); _sgPending = r.suggestions || []; }
@@ -5764,7 +5834,7 @@ function renderSuggestionsBlock() {
           <div class="cl-cafe-addr">${sg.kind === 'Full' ? 'Full submission · ' + (sg.photoCount || 0) + ' photo(s)' : 'Quick lead, not scouted yet'} · ${escHtml(sg.type || '')}</div>
           <div class="cl-cafe-addr">From ${escHtml(sg.by || '')} ${escHtml(sg.at || '')}${sg.mapsLink ? ' · <a href="' + escHtml(sg.mapsLink) + '" target="_blank" rel="noopener">Maps link</a>' : ''}</div></div>
         <div style="display:flex;gap:6px;width:100%;margin-top:6px">
-          <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60" onclick="sgApprove('${sg.row}')">Approve and add to map</button>
+          <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60" onclick="${sg.kind === 'Full' ? "sgShowModal('" + sg.row + "')" : "sgApprove('" + sg.row + "')"}">${sg.kind === 'Full' ? 'Review and approve' : 'Approve and add to map'}</button>
           <button class="wf-btn-sm" style="flex:1" onclick="sgReject('${sg.row}')">Reject</button>
         </div>
       </div>`).join('')}
@@ -5791,8 +5861,21 @@ async function sgShowModal(focusRow) {
       <div style="font-size:0.85rem;margin:4px 0">${wfMapsLink(sg.address, sg.name)}${sg.borough ? ' · ' + escHtml(sg.borough) : ''}</div>
       <div style="font-size:0.78rem;color:#777;margin-bottom:4px">${sg.kind === 'Full' ? 'Full submission · ' + (sg.photoCount || 0) + ' photo(s)' : 'Quick lead, not scouted yet'}${sg.type ? ' · ' + escHtml(sg.type) : ''}</div>
       <div style="font-size:0.78rem;color:#777">From ${escHtml(sg.by || '')} ${escHtml(sg.at || '')}${sg.mapsLink ? ' · <a href="' + escHtml(sg.mapsLink) + '" target="_blank" rel="noopener">Maps link</a>' : ''}</div>
+      ${sg.kind === 'Full' && (sg.photos || []).length ? `
+      <div style="margin-top:12px;font-size:0.74rem;font-weight:700;color:#2E1A0E">Pick the photos for the listing and name them <span style="font-weight:500;color:#777">(names are saved in Google Drive too)</span></div>
+      <div style="max-height:240px;overflow:auto;margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${(sg.photos || []).map(p => `
+          <div class="wf-thumb-wrap">
+            <label class="wf-thumb wf-pick on">
+              <input type="checkbox" class="sgm-photo" value="${p.id}" checked onchange="this.closest('.wf-thumb').classList.toggle('on', this.checked)">
+              ${p.isVideo ? '<div class="wf-thumb-video">▶ video</div>' : '<img src="' + p.thumb + '" alt="">'}
+              <a class="wf-thumb-open" href="${p.url}" target="_blank" title="Open full size">↗</a>
+            </label>
+            <input class="sgm-photo-name" data-id="${p.id}" value="${escHtml(wfBaseName(p.name))}" placeholder="Name it (front, seating…)">
+          </div>`).join('')}
+      </div>` : ''}
       <div style="display:flex;gap:8px;margin-top:16px">
-        <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60;padding:11px" onclick="sgModalDo('approve','${sg.row}',this)">Approve and add to map</button>
+        <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60;padding:11px" onclick="sgModalDo('approve','${sg.row}',this)">${sg.kind === 'Full' ? 'Approve and add to Complete' : 'Approve and add to map'}</button>
         <button class="wf-btn-sm" style="flex:1;padding:11px" onclick="sgModalDo('reject','${sg.row}',this)">Reject</button>
       </div>
     </div>` : `
@@ -5806,16 +5889,28 @@ async function sgShowModal(focusRow) {
 }
 async function sgModalDo(kind, row, btn) {
   if (btn) { btn.disabled = true; btn.textContent = kind === 'approve' ? 'Adding…' : 'Rejecting…'; }
-  if (kind === 'approve') await sgApprove(row); else await sgReject(row);
+  let extra = null;
+  if (kind === 'approve') {
+    const picks = Array.from(document.querySelectorAll('.sgm-photo:checked')).map(e => e.value);
+    if (document.querySelectorAll('.sgm-photo').length && !picks.length) {
+      showToast('Pick at least one photo for the listing');
+      if (btn) { btn.disabled = false; btn.textContent = 'Approve and add to Complete'; }
+      return;
+    }
+    const names = {};
+    document.querySelectorAll('.sgm-photo-name').forEach(el => { const n = el.value.trim(); if (n) names[el.dataset.id] = n; });
+    extra = { listingPhotoIds: picks, photoNames: names };
+  }
+  if (kind === 'approve') await sgApprove(row, extra); else await sgReject(row);
   const m = document.getElementById('sg-modal'); if (m) m.remove();
   if ((_sgPending || []).length) sgShowModal(null);
 }
-async function sgApprove(row) {
+async function sgApprove(row, extra) {
   const sg = (_sgPending || []).find(x => String(x.row) === String(row));
   if (!sg) return;
   showToast('Adding ' + sg.name);
   try {
-    const r = await wfApi('approveSuggestion', { row: Number(row), by: (_sbUser && _sbUser.email) || '' });
+    const r = await wfApi('approveSuggestion', Object.assign({ row: Number(row), by: (_sbUser && _sbUser.email) || '' }, extra || {}));
     const c = r.cafe;
     const status = c.status || 'Unvisited';
     const { data, error } = await sb.from('cafes').insert({
@@ -5831,8 +5926,10 @@ async function sgApprove(row) {
     applyFilters(); updateStats(); renderPanel();
     map.flyTo([newCafe.lat, newCafe.lng], 16, { duration: 0.8 });
     if (status === 'In Review') {
-      showToast(c.name + ' added as ' + c.number + '. Review it and publish.');
+      showToast(c.name + ' added as ' + c.number + ' but some info is missing. Finish it in the Review tab.');
       setTimeout(() => openReview(String(data.id)), 400);
+    } else if (status === 'Visit Completed') {
+      showToast(c.name + ' added to the Complete tab as ' + c.number);
     } else {
       showToast(c.name + ' added as ' + c.number + ' (highlighted yellow in the sheet)');
     }
