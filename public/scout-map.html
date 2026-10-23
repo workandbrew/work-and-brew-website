@@ -6565,5 +6565,30 @@ async function wfSetStatus(id, status) {
   <button class="bulk-apply-btn" onclick="bulkApply()">Apply</button>
   <button class="bulk-clear-btn" onclick="bulkClear()">✕ Clear</button>
 </div>
+<script>
+// iPhone/iPad: open Google Maps links straight in the Google Maps app (falls back to the website if the app is not installed)
+(function () {
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!isIOS) return;
+  document.addEventListener('click', function (e) {
+    const a = e.target.closest && e.target.closest('a[href*="google.com/maps"]');
+    if (!a) return;
+    let u; try { u = new URL(a.href); } catch (err) { return; }
+    const q = u.searchParams.get('query'), dest = u.searchParams.get('destination');
+    if (!q && !dest) return;
+    e.preventDefault(); e.stopPropagation();
+    const scheme = dest ? 'comgooglemaps://?daddr=' + encodeURIComponent(dest) : 'comgooglemaps://?q=' + encodeURIComponent(q);
+    let left = false;
+    const onHide = () => { left = true; };
+    document.addEventListener('visibilitychange', onHide, { once: true });
+    window.addEventListener('pagehide', onHide, { once: true });
+    try { (window.top || window).location.href = scheme; } catch (err) { window.location.href = scheme; }
+    setTimeout(function () {
+      document.removeEventListener('visibilitychange', onHide);
+      if (!left && !document.hidden) window.open(a.href, '_blank', 'noopener');
+    }, 1600);
+  }, true);
+})();
+</script>
 </body>
 </html>
