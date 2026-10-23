@@ -103,9 +103,9 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 }
 #toolbar::-webkit-scrollbar { display: none; }
 .tab-btn {
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.82);
+  background: var(--brown-mid);
+  border: 2px solid var(--tan);
+  color: #fff;
   border-radius: 999px;
   padding: 0 14px;
   height: 36px;
@@ -119,7 +119,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   font-family: 'Inter', sans-serif;
   touch-action: manipulation;
 }
-.tab-btn:hover:not(.active) { background: rgba(255,255,255,0.14); color: #fff; }
+.tab-btn:hover:not(.active) { background: #5d3a24; color: #fff; }
 .tab-btn:active { transform: scale(0.97); }
 .tab-btn.active { background: var(--tan); color: var(--brown); border-color: var(--tan); font-weight: 700; box-shadow: 0 2px 10px rgba(0,0,0,0.25); }
 .tab-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
@@ -415,7 +415,8 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 .cafe-popup h4 { font-size: 0.88rem; font-weight: 700; color: var(--brown); margin-bottom: 3px; line-height: 1.4; }
 .cafe-popup .popup-addr { font-size: 0.71rem; color: #777; margin-bottom: 8px; }
 .cafe-popup .popup-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
-.cafe-popup .popup-row label { font-size: 0.7rem; color: #888; white-space: nowrap; min-width: 68px; font-weight: 500; }
+.cafe-popup .popup-row label { font-size: 0.7rem; color: #888; white-space: nowrap; width: 68px; flex: 0 0 68px; font-weight: 500; }
+.cafe-popup .popup-row select { flex: 1 1 0; width: 0; min-width: 0; max-width: none; box-sizing: border-box; }
 .cafe-popup select {
   flex: 1;
   border: 1px solid var(--beige);
@@ -429,7 +430,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 }
 .cafe-popup select:focus { border-color: var(--accent); }
 .popup-dir-btn {
-  display: block;
+  display: flex; align-items: center; justify-content: center; box-sizing: border-box;
   width: 100%;
   background: var(--brown);
   color: var(--beige-light);
@@ -1365,8 +1366,56 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 /* Café names in every list: bold + underlined, click opens the pin */
 .cl-cafe-name, .list-mode-name, .cafe-item-mini > span:not(.boro-dot) { font-weight: 700 !important; cursor: pointer; }
 .checklist-item:hover .cl-cafe-name, .list-mode-item:hover .list-mode-name, .cafe-item-mini:hover > span { color: #C47F2E; }
+
+/* ---- clear tap feedback on every button ---- */
+button, .tab-btn, .boro-btn, .wf-back, .pencil-btn, .wf-edit-btn, .wf-btn-sm, .leaflet-control a, [role="button"], .checklist-item, .lead-row, .sg-btn { -webkit-tap-highlight-color: transparent; }
+button:not(:disabled):active, .wf-back:active, .wf-btn-sm:active, .tab-btn:active, .boro-btn:active, .pencil-btn:active, .wf-edit-btn:active, .leaflet-control a:active, .checklist-item:active, .lead-row:active {
+  transform: scale(.94) !important; filter: brightness(.82) saturate(1.15); transition: transform .06s, filter .06s !important;
+}
+.tap-pressed { filter: brightness(.82) saturate(1.15) !important; outline: 3px solid rgba(196,127,46,.55); outline-offset: 1px; }
+.tap-ripple { position: fixed; z-index: 99999; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; pointer-events: none;
+  background: rgba(196,127,46,.55); border: 2px solid rgba(196,127,46,.9); animation: tapripple .5s ease-out forwards; }
+@keyframes tapripple { from { transform: scale(.5); opacity: .95; } to { transform: scale(5); opacity: 0; } }
+
+/* phone: grab handle on the café list sheet */
+@media (max-width: 768px) {
+  #panel::before { content: ''; position: absolute; top: 6px; left: 50%; width: 44px; height: 5px; margin-left: -22px; border-radius: 3px; background: rgba(46,26,14,.28); z-index: 5; pointer-events: none; }
+  #panel-header { padding-top: 14px; touch-action: none; }
+  #panel.dragging { transition: none !important; }
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style id="hours-flow">
+.hr-q { font-size:0.8rem; font-weight:700; color:#2E1A0E; margin:10px 0 6px; }
+.hr-sub { font-size:0.7rem; color:#6b5b4a; margin:-2px 0 6px; }
+.hr-yn { display:flex; }
+.hr-yn button { flex:1; min-height:44px; border:1.5px solid #4A2C1A; background:#fff; color:#4A2C1A; font:600 0.9rem Inter,sans-serif; cursor:pointer; }
+.hr-yn button:first-child { border-radius:10px 0 0 10px; }
+.hr-yn button:last-child { border-radius:0 10px 10px 0; border-left:0; }
+.hr-yn button.on { background:#4A2C1A; color:#fff; }
+.hr-days { display:flex; gap:4px; margin-bottom:8px; }
+.hr-day { flex:1; min-height:44px; padding:0; border:1.5px solid #C4A882; border-radius:10px; background:#fff; color:#2E1A0E; font:600 0.78rem Inter,sans-serif; cursor:pointer; }
+.hr-day.on { background:#4A2C1A; border-color:#4A2C1A; color:#fff; }
+.hr-day.taken { background:#EFE8DF; color:#6b5b4a; border-style:dashed; }
+.hr-card { background:#fff; border:1px solid #D9CDBE; border-radius:12px; padding:10px; margin-bottom:8px; }
+.hr-card-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:0.72rem; font-weight:700; color:#6b5b4a; }
+.hr-x { min-width:44px; min-height:44px; border:0; background:transparent; color:#6b5b4a; font-size:1rem; cursor:pointer; }
+.hr-pair { display:grid; grid-template-columns:1fr auto 1fr; gap:6px; align-items:center; }
+.hr-add { width:100%; min-height:44px; border:1.5px dashed #6b5b4a; border-radius:10px; background:transparent; color:#4A2C1A; font:600 0.82rem Inter,sans-serif; cursor:pointer; margin-bottom:6px; }
+.hr-block { border-top:1px solid #E9E1D8; margin-top:12px; padding-top:4px; }
+.hr-usual { font-size:0.72rem; color:#2E1A0E; margin-bottom:6px; }
+</style>
+<style id="lead-mobile">
+#lead-mode-btn { display: none; }
+.lead-mapmode { display: none; }
+@media (max-width: 768px) {
+  body.lead-tab-on #lead-mode-btn { display: flex; align-items: center; justify-content: center; gap: 8px; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(22px + env(safe-area-inset-bottom)); z-index: 900; min-height: 56px; padding: 0 28px; border: 2px solid var(--tan); border-radius: 28px; background: var(--espresso, #2E1A0E); color: #fff; font: 700 1rem Inter, sans-serif; box-shadow: 0 6px 20px rgba(44,26,14,0.35); -webkit-tap-highlight-color: transparent; }
+  body.lead-tab-on.lead-panel-open #lead-mode-btn { display: none; }
+  .lead-mapmode { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; margin: 0 0 10px; border: 2px solid var(--brown-mid, #4A2C1A); border-radius: 12px; background: #fff; color: var(--brown-mid, #4A2C1A); font: 700 0.95rem Inter, sans-serif; }
+  #panel .lead-edit input, #panel #lead-web, #panel #lead-gm { font-size: 16px; min-height: 44px; }
+  #panel .wf-btn-sm { min-height: 44px; }
+}
+</style>
 <style id="wb-layout">
 /* One layout for every screen: header, toolbar and filter bar take what they need, the map and panel get the rest */
 html, body { height: 100%; height: 100dvh; }
@@ -1541,9 +1590,9 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   <button class="tab-btn" data-tab="completed"><span class="tl">✅ Completed</span><span class="ts">✅ Done</span></button>
   <button class="tab-btn" id="tab-official" data-tab="official"><span class="tl">⭐ Official Work &amp; Brew Map</span><span class="ts">⭐ Official</span></button>
   <button class="tab-btn" data-tab="scout"><span class="tl">🗺 Assigned Cafés</span><span class="ts">🗺 Assigned</span></button>
-  <button class="tab-btn" data-tab="assign" id="tab-assign" style="display:none"><span class="tl">Scout Cafe Assignments</span><span class="ts">Assign</span></button>
+  <button class="tab-btn" data-tab="assign" id="tab-assign" style="display:none"><span class="tl">📋 Scout Cafe Assignments</span><span class="ts">📋 Assign</span></button>
   <button class="tab-btn" data-tab="edits"><span class="tl">✏️ Edit Changes</span><span class="ts">✏️ Edits</span></button>
-  <button class="tab-btn" data-tab="lead" id="tab-lead" style="display:none"><span class="tl">Scout Lead</span><span class="ts">Scout Lead</span></button>
+  <button class="tab-btn" data-tab="lead" id="tab-lead" style="display:none"><span class="tl">🧭 Scout Lead</span><span class="ts">🧭 Scout Lead</span></button>
   <button class="tab-btn" data-tab="ineligible"><span class="tl">⚠️ Ineligible</span><span class="ts">⚠️ Inelig.</span></button>
   <button class="tab-btn" id="tab-chain" data-tab="chain"><span class="tl">⛓ Chain Cafés</span><span class="ts">⛓ Chains</span></button>
   <button class="tab-btn" data-tab="review" id="tab-review" style="display:none">🔎 Review</button>
@@ -1588,7 +1637,6 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   <select id="scout-filter-select" onchange="setScoutFilter(this.value==='all'?null:parseInt(this.value))">
     <option value="all">All Scouts</option>
   </select>
-  <button id="scout-near-btn" title="Lists your assigned cafés from closest to farthest, with directions">Sort by distance</button>
   <button id="scout-locate-btn">📍 Locate Me &amp; Glow Nearby</button>
   <span id="scout-glow-countdown"></span>
 </div>
@@ -1610,6 +1658,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
     </div>
   </div>
 </div>
+<button type="button" id="lead-mode-btn" onclick="leadListMode()">📋 List mode</button>
 
 <!-- SCOUT LEAD DONE -->
 <div id="lead-done-overlay">
@@ -1713,14 +1762,32 @@ let _sbUser = null;
 let _sbSyncTimer = null;
 let _sbInitialized = false;
 
+let _sheetSnap = {};
+let _lastCafeLoad = 0;
 async function loadFromSupabase() {
+  if (!_sbUser) return;
+  try {
+    const r = await wfApi('listCafes');
+    if (r && r.cafes && r.cafes.length) { applyLoadedCafes(r.cafes, 'sheet'); return; }
+  } catch (e) { console.warn('Sheet load failed, using the cloud copy:', e.message); showToast('Could not reach the sheet, showing the last saved copy'); }
+  return loadFromSupabaseLegacy();
+}
+async function loadFromSupabaseLegacy() {
   if (!_sbUser) return;
   try {
     const { data, error } = await sb.from('cafes')
       .select('id, number, name, address, borough, zipcode, latitude, longitude, status, assigned_to, description, wifi, secured, outlets, hot_food, restroom, seats, time_restrict, restrict_note, scout_name, notes')
       .order('id');
     if (error) { console.warn('Supabase load error:', error.message); return; }
-    if (data && data.length > 0) {
+    if (data && data.length > 0) applyLoadedCafes(data, 'cloud');
+  } catch(e) {
+    console.warn('Supabase load failed:', e);
+    showToast('⚠ Could not load data: ' + e.message);
+  }
+}
+function applyLoadedCafes(data, src) {
+  {
+    {
       const personNames = state.persons.map(p => (p.name || '').toLowerCase());
       state.cafes = data.map(row => {
         let assignedIdx = null;
@@ -1760,32 +1827,36 @@ async function loadFromSupabase() {
       applyFilters();
       updateStats();
       renderPanel();
+      _sheetSnap = {};
+      state.cafes.forEach(c => { _sheetSnap[c.number] = cafeSyncKey(c); });
+      _lastCafeLoad = Date.now();
       const completed = state.cafes.filter(c => c.status === 'Visit Completed').length;
-      showToast('☁ Loaded ' + data.length + ' cafes: ' + completed + ' completed');
+      showToast((src === 'sheet' ? '📄 Loaded ' : '☁ Loaded ') + data.length + ' cafes: ' + completed + ' completed');
     }
-  } catch(e) {
-    console.warn('Supabase load failed:', e);
-    showToast('⚠ Could not load data: ' + e.message);
   }
 }
+function cafeSyncKey(c) { return JSON.stringify([c.status || 'Unvisited', c.notes || '', c.assignedToName || '']); }
+// Pick up edits made straight in the spreadsheet when the person comes back to the tab
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && _sbUser && Date.now() - _lastCafeLoad > 90000) loadFromSupabase();
+});
 
 // Update existing rows only (an upsert tries to insert first and trips the not-null "name" column).
 // Cafés that share the same values go out as one request.
 async function sbUpdateRows(rows) {
-  const groups = {};
+  const out = [];
   rows.forEach(r => {
-    const { id, ...vals } = r;
-    const k = JSON.stringify(vals);
-    (groups[k] = groups[k] || { vals, ids: [] }).ids.push(id);
+    const c = state.cafes.find(x => String(x.id) === String(r.id));
+    if (!c || !c.number) return;
+    if (_sheetSnap[c.number] === cafeSyncKey(c)) return;
+    out.push({ number: c.number, status: c.status || 'Unvisited', notes: c.notes || '', assigned_to: c.assignedToName || '' });
   });
-  let firstError = null;
-  for (const g of Object.values(groups)) {
-    for (let i = 0; i < g.ids.length; i += 100) {
-      const { error } = await sb.from('cafes').update(g.vals).in('id', g.ids.slice(i, i + 100));
-      if (error && !firstError) firstError = error;
-    }
-  }
-  return { error: firstError };
+  if (!out.length) return { error: null };
+  try {
+    for (let i = 0; i < out.length; i += 150) await wfApi('syncCafes', { rows: out.slice(i, i + 150) });
+    out.forEach(o => { const c = state.cafes.find(x => x.number === o.number); if (c) _sheetSnap[c.number] = cafeSyncKey(c); });
+    return { error: null };
+  } catch (e) { return { error: e }; }
 }
 
 async function syncToSupabase() {
@@ -2112,6 +2183,28 @@ document.getElementById('sb-login-form').addEventListener('submit', async (e) =>
 // Saved permanently in the Google Sheet (Website column + two helper columns).
 // ============================================================
 const LEAD = { loaded: false, loading: false, byNum: {}, cafeId: null, celebrating: false, editing: false };
+function leadSyncModeBtn() {
+  const panel = document.getElementById('panel');
+  const mobile = window.innerWidth <= 768;
+  const open = !!(panel && panel.classList.contains('panel-open') && !panel.classList.contains('collapsed'));
+  document.body.classList.toggle('lead-tab-on', mobile && state.activeTab === 'lead' && _wfIsApprover);
+  document.body.classList.toggle('lead-panel-open', open);
+}
+function leadListMode() { wfOpenPanel(); renderLeadPanel(); leadSyncModeBtn(); setTimeout(() => { try { map.invalidateSize(); } catch (e) {} }, 300); }
+function leadMapMode() {
+  const panel = document.getElementById('panel');
+  state.panelOpen = false;
+  panel.classList.remove('panel-open'); panel.classList.add('collapsed');
+  const t = document.getElementById('panel-toggle'); if (t) t.textContent = '▲';
+  try { saveState(); } catch (e) {}
+  leadSyncModeBtn();
+  setTimeout(() => { try { map.invalidateSize(); } catch (e) {} }, 300);
+}
+(function () {
+  const panel = document.getElementById('panel');
+  if (panel) new MutationObserver(leadSyncModeBtn).observe(panel, { attributes: true, attributeFilter: ['class'] });
+  window.addEventListener('resize', leadSyncModeBtn);
+})();
 function leadNum(c) { return String(c.number || '').trim(); }
 function leadInfo(c) { return LEAD.byNum[leadNum(c)] || {}; }
 function leadFinished(c) { const i = leadInfo(c); return !!i.link; }
@@ -2181,6 +2274,7 @@ function renderLeadPanel() {
       ${fin ? '<span class="lead-tag">finished</span>' : ''}
     </div>`;
   container.innerHTML = `
+    <button class="lead-mapmode" onclick="leadMapMode()">🗺 Map mode</button>
     <div class="lead-head"><b>Assignment: confirm each café</b><br>Open a café, check the Google Maps address and name, fix the name or address if needed, paste its website and tap Submit link. It crosses off and moves to the bottom.
       <div style="margin-top:6px"><b>${nDone}</b> of <b>${all.length}</b> finished</div>
       <div class="lead-bar"><div style="width:${all.length ? Math.round(nDone / all.length * 100) : 0}%"></div></div>
@@ -2192,6 +2286,7 @@ function renderLeadPanel() {
 function leadOpen(id) {
   LEAD.cafeId = id; LEAD.editing = false;
   const c = wfFindCafe(id);
+  try { map.closePopup(); } catch (e) {}
   wfOpenPanel();
   if (c && c.lat && c.lng) map.flyTo([c.lat, c.lng], 16, { duration: 0.6 });
   renderLeadPanel();
@@ -2205,6 +2300,7 @@ function renderLeadCard() {
   const i = leadInfo(c);
   container.innerHTML = `
   <div class="wf-form">
+    <button class="lead-mapmode" onclick="leadMapMode()">🗺 Map mode</button>
     <button class="wf-back" onclick="leadBack()">Back to list</button>
     <div class="wf-title">${escHtml(c.name)}</div>
     <div class="wf-addr">${wfMapsLink(c.address, c.name)}</div>
@@ -2271,8 +2367,6 @@ async function leadEditSave() {
   if (pend.borough && NC_BOROUGHS.includes(pend.borough)) upd.borough = pend.borough;
   if (pend.lat) { upd.latitude = pend.lat; upd.longitude = pend.lng; }
   try {
-    const { error } = await sb.from('cafes').update(upd).eq('id', c.id);
-    if (error) throw new Error(error.message);
     await wfApi('editCafe', { cafe: old, fields: { name, address, borough: upd.borough, lat: upd.latitude, lng: upd.longitude } });
   } catch (e) {
     if (msg) msg.textContent = 'Not saved: ' + e.message;
@@ -2536,6 +2630,7 @@ function saveState() {
 // ============================================================
 // MAP SETUP
 // ============================================================
+L.Popup.mergeOptions({ autoPan: false }); // we centre the whole popup ourselves (see centerPopup)
 const map = L.map('map', {
   center: [40.7128, -73.9060],
   zoom: 11,
@@ -2739,6 +2834,17 @@ async function updateHomeBase(idx, hbIdx, newLabel, newAddr) {
 }
 
 function buildPopupContent(cafe) {
+  if (state.activeTab === 'lead' && _wfIsApprover) {
+    const bc = BORO_COLORS[cafe.borough] || '#9E9E9E';
+    const fin = typeof leadFinished === 'function' && leadFinished(cafe);
+    return `<div class="cafe-popup">
+      <h4 style="margin:0 0 3px">${cafe.name} <span class="boro-badge" style="background:${bc}">${cafe.borough}</span></h4>
+      <div class="popup-addr">${wfMapsLink(cafe.address, cafe.name)}</div>
+      ${fin ? '<div style="font-size:0.75rem;color:#2e7d32;font-weight:700;margin:6px 0">Finished</div>' : ''}
+      <button class="popup-scout-btn" style="background:#2E1A0E" onclick="leadOpen('${cafe.id}')">✏️ ${fin ? 'View or edit website' : 'Edit website or confirm'}</button>
+      <a class="popup-dir-btn" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(cafe.address)}" target="_blank">🗺 Get Directions</a>
+    </div>`;
+  }
   const borColor = BORO_COLORS[cafe.borough] || '#9E9E9E';
   const dirAddr = encodeURIComponent(cafe.address);
   const assignOptions = state.persons.map((p,i) =>
@@ -2955,14 +3061,7 @@ async function saveEditCafe(id) {
   const old = { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address };
 
   try {
-    const { error } = await sb.from('cafes').update({
-      name,
-      address: address || cafe.address,
-      borough,
-      latitude: isNaN(lat) ? cafe.lat : lat,
-      longitude: isNaN(lng) ? cafe.lng : lng,
-    }).eq('id', id);
-    if (error) { showToast('⚠ Could not save: ' + error.message); return; }
+    await wfApi('editCafe', { cafe: old, fields: { name, address: address || cafe.address, borough, lat: isNaN(lat) ? cafe.lat : lat, lng: isNaN(lng) ? cafe.lng : lng } });
 
     cafe.name = name;
     if (address) cafe.address = address;
@@ -2977,9 +3076,6 @@ async function saveEditCafe(id) {
     const modal = document.getElementById('cafe-edit-modal');
     if (modal) modal.remove();
     showToast('✏️ ' + cafe.name + ' updated');
-    // keep the Google Sheet in step (best effort)
-    wfApi('editCafe', { cafe: old, fields: { name: cafe.name, address: cafe.address, borough: cafe.borough, lat: cafe.lat, lng: cafe.lng } })
-      .catch(e => showToast('Saved on the map, but the sheet was not updated: ' + e.message));
   } catch(e) { showToast('⚠ Error: ' + e.message); }
 }
 
@@ -3095,7 +3191,9 @@ function applyFilters() {
   // Diff-based update: only add/remove changed markers (smoother, no full-clear flash)
   const shouldShow = new Set();
   state.cafes.forEach(cafe => {
-    if (cafeMatchesTab(cafe) && cafeMatchesBoro(cafe) && cafeMatchesScout(cafe) && cafeMatchesStatus(cafe) && cafeMatchesSearch(cafe)) {
+    // While searching, look in every tab, not just the one that is open
+    const _srch = !!(state.searchQuery && state.searchQuery.trim());
+    if ((_srch || (cafeMatchesTab(cafe) && cafeMatchesScout(cafe))) && cafeMatchesBoro(cafe) && cafeMatchesStatus(cafe) && cafeMatchesSearch(cafe)) {
       shouldShow.add(cafe.id);
     }
   });
@@ -3372,7 +3470,34 @@ function renderIneligiblePanel() {
   `;
 }
 
+// Which tab a café lives in (for search results from other tabs)
+function tabLabelFor(c) {
+  if (c.status === 'Ineligible Cafe') return 'Ineligible';
+  if (c.status === 'Official Cafe Listing') return 'Official Map';
+  if (c.status === 'Visit Completed') return 'Completed';
+  if (c.status === 'In Review') return 'Review';
+  if (c.status === 'Temporarily Unavailable' || c.isChain) return 'Chain Cafés';
+  if (c.assignedTo !== null && c.assignedTo !== undefined) return 'Assigned';
+  return 'Main Map';
+}
 function renderPanel() {
+  renderPanelCore();
+  const q = (state.searchQuery || '').trim();
+  const container = document.getElementById('persons-container');
+  if (!q || !container || state.listMode || state.formCafeId || state.reviewCafeId) return;
+  if (['lead', 'review', 'assign'].includes(state.activeTab)) return;
+  const others = state.cafes.filter(c => !cafeMatchesTab(c) && cafeMatchesSearch(c)).slice(0, 40);
+  if (!others.length) return;
+  container.insertAdjacentHTML('afterbegin', `
+    <div class="search-other" style="background:#fff8dc;border:1px solid #e0b000;border-radius:10px;padding:8px;margin-bottom:10px">
+      <div class="wf-eyebrow" style="margin-bottom:6px">Also found in other tabs · ${others.length}</div>
+      ${others.map(c => `<div class="near-item" style="cursor:pointer" onclick="zoomToCafe('${c.id}')">
+        <div class="near-info"><div class="near-name">${escHtml(c.name)}</div>
+        <div class="near-sub">${escHtml(c.address || '')}</div></div>
+        <span class="lead-tag">${escHtml(tabLabelFor(c))}</span></div>`).join('')}
+    </div>`);
+}
+function renderPanelCore() {
   const container = document.getElementById('persons-container');
   container.innerHTML = '';
 
@@ -3652,8 +3777,9 @@ function zoomToCafe(id) {
   const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
   map.flyTo([cafe.lat, cafe.lng], 16, { duration: 0.6 });
-  // Ensure marker is visible: switch tabs if needed
-  if (!cafeMatchesTab(cafe)) {
+  // Ensure marker is visible: switch tabs if needed (not while searching: a search shows every tab)
+  const _searching = !!(state.searchQuery && state.searchQuery.trim());
+  if (!_searching && !cafeMatchesTab(cafe)) {
     if (cafe.status === 'Ineligible Cafe') {
       setTab('ineligible');
     } else if (cafe.status === 'Visit Completed') {
@@ -3668,11 +3794,28 @@ function zoomToCafe(id) {
       setTab('independent');
     }
   }
-  setTimeout(() => {
-    const m = markers[cafe.id];
-    if (m) m.openPopup();
-  }, 200);
+  // Open the popup once the map has arrived, so it can be centred with the whole card in view
+  const openIt = () => { const m = markers[cafe.id]; if (m && !m.isPopupOpen()) { if (!markerLayer.hasLayer(m)) markerLayer.addLayer(m); m.openPopup(); } };
+  map.once('moveend', () => setTimeout(openIt, 60));
+  setTimeout(openIt, 900);
 }
+// Centre the marker AND its popup in the part of the map you can actually see (not under the phone sheet)
+function centerPopup(popup) {
+  try {
+    const el = popup && popup._container; if (!el || !popup._map) return;
+    const mapRect = map.getContainer().getBoundingClientRect();
+    let visW = mapRect.width, visH = mapRect.height;
+    const panel = document.getElementById('panel');
+    if (window.innerWidth <= 768 && panel && panel.classList.contains('panel-open')) {
+      visH = Math.max(140, panel.getBoundingClientRect().top - mapRect.top);
+    }
+    const h = el.offsetHeight + 24; // card + its little tip
+    const pt = map.latLngToContainerPoint(popup.getLatLng());
+    const dx = pt.x - visW / 2, dy = (pt.y - h / 2) - visH / 2;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) map.panBy([dx, dy], { animate: true, duration: 0.35 });
+  } catch (e) {}
+}
+map.on('popupopen', e => setTimeout(() => centerPopup(e.popup), 140));
 
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -4099,6 +4242,7 @@ function setTab(tab) {
   renderPanel();
   saveState();
   updateTabsToggle();
+  if (typeof leadSyncModeBtn === 'function') leadSyncModeBtn();
   document.getElementById('toolbar').classList.remove('tabs-open');
   setTimeout(() => { if (typeof map !== 'undefined') map.invalidateSize(); }, 150);
 }
@@ -4268,7 +4412,7 @@ document.getElementById('search-input').addEventListener('input', function() {
     renderPanel();
     // Auto-pan map to first matching cafe
     if (state.searchQuery && !state.listMode) {
-      const firstMatch = state.cafes.find(c => cafeMatchesTab(c) && cafeMatchesBoro(c) && cafeMatchesScout(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c));
+      const firstMatch = state.cafes.find(c => cafeMatchesBoro(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c));
       if (firstMatch) {
         map.flyTo([firstMatch.lat, firstMatch.lng], Math.max(map.getZoom(), 14), { duration: 0.7, easeLinearity: 0.5 });
       }
@@ -4322,10 +4466,9 @@ async function deleteCafe(id) {
   if (!_wfIsApprover) { showToast('Only Denisse, David or Armando can remove a café'); return; }
   const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
-  if (!confirm('Remove "' + cafe.name + '" permanently from Supabase?\nThis cannot be undone.')) return;
+  if (!confirm('Remove "' + cafe.name + '" permanently from the spreadsheet?\nThis cannot be undone.')) return;
   try {
-    const { error } = await sb.from('cafes').delete().eq('id', id);
-    if (error) { showToast('⚠ Could not delete: ' + error.message); return; }
+    await wfApi('deleteCafe', { cafe: { number: cafe.number, name: cafe.name, address: cafe.address } });
     state.cafes = state.cafes.filter(c => String(c.id) !== String(id));
     if (markers[id]) { markerLayer.removeLayer(markers[id]); delete markers[id]; }
     map.closePopup();
@@ -4606,7 +4749,7 @@ function setScoutFilter(idx) {
 
 // Sort by distance button: nearest-first list of the scout's cafés, with distance and Google Maps directions
 let _nearLoc = null;
-document.getElementById('scout-near-btn').onclick = function() { showNearestList(); };
+
 function showNearestList(useCached) {
   if (useCached && _nearLoc) { renderNearestList(_nearLoc.lat, _nearLoc.lng); return; }
   if (!navigator.geolocation) { showToast('Location is not supported on this browser'); return; }
@@ -4665,6 +4808,8 @@ document.getElementById('scout-locate-btn').onclick = function() {
       setTimeout(() => {
         createLocationMarker(lat, lng);
         glowNearbyCafes(lat, lng, 1.0, 30000);
+        // On Assigned, also bring up the closest-first list
+        if (state.activeTab === 'scout') { _nearLoc = { lat, lng }; renderNearestList(lat, lng); }
       }, 600);
     },
     err => {
@@ -5166,6 +5311,22 @@ function wfSyncFilterBar() {
 function setStatusFilter(v) {
   state.statusFilter = v || 'All';
   applyFilters(); renderPanel();
+  fitResultsOnMap();
+}
+// Zoom out so every café that matches the filters is on screen (the whole NYC area for big results)
+function fitResultsOnMap() {
+  try {
+    map.closePopup();
+    const searching = !!(state.searchQuery && state.searchQuery.trim());
+    const pts = state.cafes.filter(c => c.lat && c.lng && (searching || (cafeMatchesTab(c) && cafeMatchesScout(c))) && cafeMatchesBoro(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c))
+      .map(c => [Number(c.lat), Number(c.lng)]);
+    const pn = document.getElementById('panel');
+    const sheet = window.innerWidth <= 768 && pn && pn.classList.contains('panel-open') ? pn.getBoundingClientRect().height : 0;
+    const opts = { paddingTopLeft: [24, 24], paddingBottomRight: [24, 24 + sheet], maxZoom: 13, animate: true, duration: 0.8 };
+    if (!pts.length) { map.flyTo([40.7128, -73.9060], 11, { duration: 0.8 }); return; }
+    if (pts.length === 1) { map.flyTo(pts[0], 14, { duration: 0.8 }); return; }
+    map.flyToBounds(L.latLngBounds(pts), opts);
+  } catch (e) {}
 }
 
 let _wfLanded = false;
@@ -5273,8 +5434,8 @@ async function wfEditSubmission(id) {
   catch (e) { showToast('⚠ ' + e.message); return; }
   const toHHMM = t => { const m = String(t || '').match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i); if (!m) return ''; let h = +m[1] % 12; if (/pm/i.test(m[3])) h += 12; return String(h).padStart(2,'0') + ':' + m[2]; };
   const splitHours = str => { const parts = String(str || '').split(/\s+to\s+|\s*[-\u2013]\s*/); return [toHHMM(parts[0]), toHHMM(parts[1])]; };
-  let everyOpen = '', everyClose = '', hoursEx = [];
-  try { const hb = JSON.parse(sub.hoursByDay || ''); everyOpen = hb.every[0] || ''; everyClose = hb.every[1] || ''; hoursEx = hb.ex || []; }
+  let everyOpen = '', everyClose = '', hoursEx = [], afterOn = '', afterGroups = [];
+  try { const hb = JSON.parse(sub.hoursByDay || ''); everyOpen = hb.every[0] || ''; everyClose = hb.every[1] || ''; hoursEx = hb.ex || []; afterOn = hb.afterOn || ''; afterGroups = hb.after || []; }
   catch (e) { const [a, b] = splitHours(sub.hoursWeekday); everyOpen = a; everyClose = b; const [c2, d2] = splitHours(sub.hoursWeekend); if (c2 && (c2 !== a || d2 !== b)) hoursEx = [{ day:'Sat', o:c2, c:d2 }, { day:'Sun', o:c2, c:d2 }]; }
   const types = String(sub.seatsType || '').split(',').map(x => x.trim()).filter(Boolean);
   const other = types.find(t => /^other:/i.test(t));
@@ -5282,7 +5443,7 @@ async function wfEditSubmission(id) {
     cafeId: id, correction: true,
     photos: (sub.photos || []).map(p => ({ id: p.id, name: p.name, thumb: p.thumb, url: p.url, isVideo: !!p.isVideo })),
     folderUrl: sub.folderUrl,
-    everyOpen, everyClose, hoursEx,
+    everyOpen, everyClose, hoursEx, afterOn, afterGroups,
     weekendRestrict: sub.weekendRestrictions || '',
     environment: sub.environment || '', highlight: sub.highlight || '',
     wifi: sub.wifi || '', secured: sub.secured || '', outlets: sub.outlets || '', hotFood: sub.hotFood || '', restroom: sub.restroom || '',
@@ -5349,6 +5510,82 @@ function wfHoursExHtml(d) {
     <button class="wf-ico" title="${e.closed ? 'Set hours instead' : 'Mark this day closed'}" onclick="wfHoursEdit(${i},'closed',${!e.closed})">${e.closed ? '⏰' : '✕'}</button>
     <button class="wf-ico" title="Remove" onclick="wfHoursEdit(${i},'remove')">🗑</button>
   </div>`).join('');
+}
+// ---- two-step hours: same every day? -> closed days -> different days -> usual hours, then After hours
+function wfHoursInit(d) {
+  if (!d.hoursGroups || !d.closedDays) {
+    const ex = d.hoursEx || [];
+    d.closedDays = ex.filter(e => e.closed).map(e => e.day);
+    const g = {};
+    ex.filter(e => !e.closed).forEach(e => { const k = (e.o || '') + '|' + (e.c || ''); (g[k] = g[k] || { days: [], o: e.o || '', c: e.c || '' }).days.push(e.day); });
+    d.hoursGroups = Object.values(g);
+  }
+  if (!d.hoursSame) d.hoursSame = (d.hoursEx || []).length ? 'NO' : (d.everyOpen ? 'YES' : '');
+  d.afterGroups = d.afterGroups || [];
+  return d;
+}
+function wfHoursCompile(d) {
+  const ex = [];
+  (d.closedDays || []).forEach(day => ex.push({ day, o: '', c: '', closed: true }));
+  (d.hoursGroups || []).forEach(g => g.days.forEach(day => ex.push({ day, o: g.o, c: g.c, closed: false })));
+  d.hoursEx = d.hoursSame === 'NO' ? ex : [];
+}
+function wfHrsMut(fn) {
+  const id = state.formCafeId; if (!id) return;
+  const body = document.getElementById('panel-body'); const top = body ? body.scrollTop : 0;
+  const d = wfHoursInit(wfReadDraftFromForm(id)); fn(d); wfHoursCompile(d); wfSaveDraft(id, d);
+  const c = wfFindCafe(id); if (c) renderScoutForm(c);
+  const b2 = document.getElementById('panel-body'); if (b2) b2.scrollTop = top;
+}
+const wfToggleIn = (arr, x) => { const i = arr.indexOf(x); if (i === -1) arr.push(x); else arr.splice(i, 1); };
+const wfSortDays = arr => arr.sort((a, b) => WF_DAYS.indexOf(a) - WF_DAYS.indexOf(b));
+function wfHrsSame(v) { wfHrsMut(d => { d.hoursSame = v; }); }
+function wfHrsClosed(day) { wfHrsMut(d => { wfToggleIn(d.closedDays, day); if (d.closedDays.includes(day)) d.hoursGroups.forEach(g => { g.days = g.days.filter(x => x !== day); }); wfSortDays(d.closedDays); }); }
+function wfHrsGroupDay(i, day) { wfHrsMut(d => { const g = d.hoursGroups[i]; if (!g) return; wfToggleIn(g.days, day); if (g.days.includes(day)) { d.closedDays = d.closedDays.filter(x => x !== day); d.hoursGroups.forEach((o, j) => { if (j !== i) o.days = o.days.filter(x => x !== day); }); } wfSortDays(g.days); }); }
+function wfHrsGroupTime(i, key, val) { wfHrsMut(d => { if (d.hoursGroups[i]) d.hoursGroups[i][key] = val; }); }
+function wfHrsGroupAdd() { wfHrsMut(d => { d.hoursGroups.push({ days: [], o: '', c: '' }); }); }
+function wfHrsGroupRemove(i) { wfHrsMut(d => { d.hoursGroups.splice(i, 1); }); }
+function wfHrsAfter(v) { wfHrsMut(d => { d.afterOn = v; if (v === 'YES' && !d.afterGroups.length) d.afterGroups.push({ days: [], o: '', c: '' }); }); }
+function wfHrsAfterDay(i, day) { wfHrsMut(d => { const g = d.afterGroups[i]; if (g) { wfToggleIn(g.days, day); wfSortDays(g.days); } }); }
+function wfHrsAfterTime(i, key, val) { wfHrsMut(d => { if (d.afterGroups[i]) d.afterGroups[i][key] = val; }); }
+function wfHrsAfterAdd() { wfHrsMut(d => { d.afterGroups.push({ days: [], o: '', c: '' }); }); }
+function wfHrsAfterRemove(i) { wfHrsMut(d => { d.afterGroups.splice(i, 1); }); }
+function wfAfterSummary(d) {
+  return (d.afterOn === 'YES' ? (d.afterGroups || []).filter(g => g.days.length && g.o && g.c) : []).map(g => g.days.join(', ') + ' ' + wfFmtTime(g.o) + ' to ' + wfFmtTime(g.c)).join('; ');
+}
+function wfHoursLeftover(d) {
+  if (d.hoursSame !== 'NO') return WF_DAYS.slice();
+  const used = new Set((d.closedDays || []).concat(...(d.hoursGroups || []).map(g => g.days)));
+  return WF_DAYS.filter(x => !used.has(x));
+}
+function wfHoursFlowHtml(d) {
+  d = wfHoursInit(d);
+  const closed = d.closedDays || [], groups = d.hoursGroups || [];
+  const used = new Set(closed.concat(...groups.map(g => g.days)));
+  const yn = (fn, val) => `<div class="hr-yn"><button type="button" class="${val === 'YES' ? 'on' : ''}" onclick="${fn}('YES')">Yes</button><button type="button" class="${val === 'NO' ? 'on' : ''}" onclick="${fn}('NO')">No</button></div>`;
+  const chips = (sel, mk, taken) => `<div class="hr-days">${WF_DAYS.map(x => `<button type="button" class="hr-day ${sel.includes(x) ? 'on' : ''} ${!sel.includes(x) && taken && taken.has(x) ? 'taken' : ''}" onclick="${mk(x)}">${x}</button>`).join('')}</div>`;
+  const pair = (o, c, fo, fc) => `<div class="hr-pair"><select class="wf-time" onchange="${fo}"><option value="">--:--</option>${wfTimeOpts(o)}</select><span class="wf-to">to</span><select class="wf-time" onchange="${fc}"><option value="">--:--</option>${wfTimeOpts(c)}</select></div>`;
+  const left = wfHoursLeftover(d);
+  let html = `<div class="hr-q" style="margin-top:0">Same hours every day?</div>${yn('wfHrsSame', d.hoursSame)}`;
+  if (d.hoursSame === 'YES') {
+    html += `<div class="hr-q">Open every day</div><div class="hr-pair">${wfTime('wf-h-every-open', d.everyOpen)}<span class="wf-to">to</span>${wfTime('wf-h-every-close', d.everyClose)}</div>`;
+  } else if (d.hoursSame === 'NO') {
+    html += `<div class="hr-q">Which days is it closed all day?</div><div class="hr-sub">Skip this if it is never closed.</div>${chips(closed, x => `wfHrsClosed('${x}')`, used)}`;
+    html += `<div class="hr-q">Which days have different hours?</div><div class="hr-sub">For example shorter weekends. Add one card per set of days.</div>`;
+    html += groups.map((g, i) => `<div class="hr-card"><div class="hr-card-top"><span>Different hours ${groups.length > 1 ? i + 1 : ''}</span><button type="button" class="hr-x" aria-label="Remove" onclick="wfHrsGroupRemove(${i})">✕</button></div>${chips(g.days, x => `wfHrsGroupDay(${i},'${x}')`, used)}${pair(g.o, g.c, `wfHrsGroupTime(${i},'o',this.value)`, `wfHrsGroupTime(${i},'c',this.value)`)}</div>`).join('');
+    html += `<button type="button" class="hr-add" onclick="wfHrsGroupAdd()">＋ ${groups.length ? 'Another difference' : 'Add days with different hours'}</button>`;
+    html += `<div class="hr-q">${left.length ? 'Usual hours for all other days' : 'Every day is covered above'}</div>`;
+    if (left.length) html += `<div class="hr-usual"><b>${left.join(', ')}</b></div><div class="hr-pair">${wfTime('wf-h-every-open', d.everyOpen)}<span class="wf-to">to</span>${wfTime('wf-h-every-close', d.everyClose)}</div>`;
+  }
+  // After hours: its own question
+  const ag = d.afterGroups || [];
+  html += `<div class="hr-block"><div class="hr-q">After hours: does the café close, then reopen as a bar or evening spot?</div>${yn('wfHrsAfter', d.afterOn)}`;
+  if (d.afterOn === 'YES') {
+    html += `<div class="hr-q">Which days, and what time?</div>`;
+    html += ag.map((g, i) => `<div class="hr-card"><div class="hr-card-top"><span>After hours ${ag.length > 1 ? i + 1 : ''}</span><button type="button" class="hr-x" aria-label="Remove" onclick="wfHrsAfterRemove(${i})">✕</button></div>${chips(g.days, x => `wfHrsAfterDay(${i},'${x}')`, null)}${pair(g.o, g.c, `wfHrsAfterTime(${i},'o',this.value)`, `wfHrsAfterTime(${i},'c',this.value)`)}</div>`).join('');
+    html += `<button type="button" class="hr-add" onclick="wfHrsAfterAdd()">＋ Another after-hours time</button>`;
+  }
+  return html + '</div>';
 }
 function wfHoursAdd(id) {
   const d = wfReadDraftFromForm(id); d.hoursEx = d.hoursEx || [];
@@ -5424,17 +5661,15 @@ function renderScoutForm(cafe) {
         <span id="wf-drop-text">＋ Add photos or video</span>
       </label>
       <div class="wf-hint">Up to ${MAX_UPLOAD_MB} MB each. They go straight to the café's Drive folder.${d.folderUrl ? ` · <a href="${d.folderUrl}" target="_blank">open folder</a>` : ''}</div>
-      <div class="wf-row-btns" style="margin-top:6px;align-items:center">
-        <a class="wf-btn-sm" style="flex:1;text-align:center;text-decoration:none;white-space:nowrap" href="sms:+1${WORK_PHONE}?&body=${encodeURIComponent('Hi! Videos for ' + cafe.name + ' (' + (cafe.number || '') + ') from ' + (_wfScoutName || ''))}">📱 Text us your videos! ${WORK_PHONE_PRETTY}</a>
+      <div class="wf-row-btns" style="margin-top:6px;align-items:stretch">
+        <a class="wf-btn-sm" style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;white-space:nowrap;box-sizing:border-box" href="sms:+1${WORK_PHONE}?&body=${encodeURIComponent('Hi! Videos for ' + cafe.name + ' (' + (cafe.number || '') + ') from ' + (_wfScoutName || ''))}">📱 Text us your videos! ${WORK_PHONE_PRETTY}</a>
         <button class="wf-btn-sm wf-confirm ${d.videosTexted ? 'sent' : 'confirm'}" title="${d.videosTexted ? 'Videos sent' : 'Confirm you sent them'}" onclick="wfToggleVideosTexted('${cafe.id}')">${d.videosTexted ? '✓ Sent' : 'Sent?'}</button>
       </div>
     </div>
 
     <div class="wf-section">
-      <div class="wf-label">Café Hours <span class="wf-req">*</span> <span class="wf-hint-inline">(scroll to pick)</span></div>
-      <div class="wf-hrow"><span>Everyday</span>${wfTime('wf-h-every-open', d.everyOpen)}<span class="wf-to">to</span>${wfTime('wf-h-every-close', d.everyClose)}<span></span><span></span></div>
-      <div id="wf-hex">${wfHoursExHtml(d)}</div>
-      <button class="wf-btn-sm" style="width:100%" onclick="wfHoursAdd('${cafe.id}')">＋ Add special hours or closed days</button>
+      <div class="wf-label">Café Hours <span class="wf-req">*</span></div>
+      ${wfHoursFlowHtml(d)}
     </div>
 
     <div class="wf-section">
@@ -5660,8 +5895,13 @@ function wfValidate(d) {
   const missing = [];
   if (!(d.photos || []).length && !d.editRequest) missing.push('at least one photo');
   if (!d.videosTexted && !d.editRequest) missing.push('confirm you texted your videos (tap Sent?)');
-  if (!d.everyOpen || !d.everyClose) missing.push('everyday hours');
-  if ((d.hoursEx || []).some(e => !e.closed && (!e.o || !e.c))) missing.push('times on each special-hours row (or mark it closed)');
+  wfHoursInit(d);
+  if (!d.hoursSame) missing.push('same hours every day (Yes or No)');
+  if (d.hoursSame === 'NO' && !(d.closedDays || []).length && !(d.hoursGroups || []).length) missing.push('which days differ (or choose Yes for same hours)');
+  if (wfHoursLeftover(d).length && (!d.everyOpen || !d.everyClose)) missing.push('the usual hours');
+  if ((d.hoursGroups || []).some(g => !g.days.length || !g.o || !g.c)) missing.push('days and times on each different-hours card');
+  if (!d.afterOn) missing.push('after hours (Yes or No)');
+  if (d.afterOn === 'YES' && (!(d.afterGroups || []).length || d.afterGroups.some(g => !g.days.length || !g.o || !g.c))) missing.push('days and times for after hours');
   if (!d.weekendRestrict) missing.push('weekend laptop restrictions');
   if (!d.environment) missing.push('aesthetic / environment');
   if (!d.highlight) missing.push('highlight');
@@ -5701,7 +5941,8 @@ async function wfSubmit(id) {
     const form = {
       hoursWeekday: wfHoursSummary(wfHoursByDay(d), ['Mon','Tue','Wed','Thu','Fri']),
       hoursWeekend: wfHoursSummary(wfHoursByDay(d), ['Sat','Sun']),
-      hoursByDay: JSON.stringify({ every: [d.everyOpen, d.everyClose], ex: (d.hoursEx || []).map(e => ({ day: e.day, o: e.o, c: e.c, closed: !!e.closed })), byDay: wfHoursByDay(d) }),
+      hoursByDay: JSON.stringify({ every: [d.everyOpen, d.everyClose], ex: (d.hoursEx || []).map(e => ({ day: e.day, o: e.o, c: e.c, closed: !!e.closed })), byDay: wfHoursByDay(d), afterOn: d.afterOn || '', after: d.afterOn === 'YES' ? (d.afterGroups || []) : [] }),
+      afterHours: wfAfterSummary(d),
       weekendRestrictions: d.weekendRestrict,
       environment: d.environment,
       highlight: d.highlight,
@@ -5800,7 +6041,6 @@ async function scDo(kind, num, btn) {
         const g = await sgGeocode(address, c.borough);
         if (g) { lat = g[0]; lng = g[1]; upd.latitude = lat; upd.longitude = lng; }
       }
-      if (c) { const { error } = await sb.from('cafes').update(upd).eq('id', c.id); if (error) throw new Error(error.message); }
       await wfApi('resolveCorrection', { approve: true, cafe: { number: num, name: c ? c.name : name, address: c ? c.address : address }, name, address, lat, lng });
       if (c) {
         c.name = name; c.address = address; c.addressFlag = '';
@@ -5892,8 +6132,8 @@ async function sgModalDo(kind, row, btn) {
   let extra = null;
   if (kind === 'approve') {
     const picks = Array.from(document.querySelectorAll('.sgm-photo:checked')).map(e => e.value);
-    if (document.querySelectorAll('.sgm-photo').length && !picks.length) {
-      showToast('Pick at least one photo for the listing');
+    if (picks.length < 3) {
+      showToast('Pick at least 3 photos for the listing');
       if (btn) { btn.disabled = false; btn.textContent = 'Approve and add to Complete'; }
       return;
     }
@@ -5913,11 +6153,7 @@ async function sgApprove(row, extra) {
     const r = await wfApi('approveSuggestion', Object.assign({ row: Number(row), by: (_sbUser && _sbUser.email) || '' }, extra || {}));
     const c = r.cafe;
     const status = c.status || 'Unvisited';
-    const { data, error } = await sb.from('cafes').insert({
-      name: c.name, address: c.address, borough: c.borough, latitude: c.lat, longitude: c.lng,
-      number: c.number, status, source: 'scout-suggestion: ' + (c.type || '')
-    }).select('id').single();
-    if (error) throw new Error(error.message);
+    const data = { id: c.row || c.number };
     const newCafe = { id: data.id, number: c.number, name: c.name, address: c.address, borough: c.borough, zip: c.zip || '', lat: Number(c.lat), lng: Number(c.lng),
       isChain: false, isNew: true, suggestType: c.type, status, assignedTo: null, assignedToName: null,
       description: '', notes: '', wifi: null, outlets: null, restroom: null, seats: '', timeRestrict: false, restrictNote: '', scoutName: '' };
@@ -6014,7 +6250,7 @@ async function renderReviewPanel(cafe) {
 
     ${ro ? '' : `<div class="wf-section"><div class="wf-label">Website <span class="wf-hint-inline">(optional, yours to add)</span></div><input id="rv-website" value="${escHtml(s.website || '')}" placeholder="https://"></div>`}
     <div class="wf-section"><div class="wf-label">Hours</div>
-      ${(() => { try { const hb = JSON.parse(s.hoursByDay || ''); return '<div class="wf-daylist">' + WF_DAYS.map(x => `<div><span>${x}</span><span class="${hb.byDay[x]==='closed'?'cl':''}">${hb.byDay[x]==='closed' ? 'Closed' : hb.byDay[x] ? wfFmtTime(hb.byDay[x][0]) + ' to ' + wfFmtTime(hb.byDay[x][1]) : '?'}</span></div>`).join('') + '</div>'; } catch (e) { return ''; } })()}
+      ${(() => { try { const hb = JSON.parse(s.hoursByDay || ''); return '<div class="wf-daylist">' + WF_DAYS.map(x => `<div><span>${x}</span><span class="${hb.byDay[x]==='closed'?'cl':''}">${hb.byDay[x]==='closed' ? 'Closed' : hb.byDay[x] ? wfFmtTime(hb.byDay[x][0]) + ' to ' + wfFmtTime(hb.byDay[x][1]) : '?'}</span></div>`).join('') + '</div>' + (hb.after && hb.after.length ? '<div class="wf-hint" style="margin:4px 0 6px"><b>After hours:</b> ' + hb.after.map(g => g.days.join(', ') + ' ' + wfFmtTime(g.o) + ' to ' + wfFmtTime(g.c)).join('; ') + '</div>' : '<div class="wf-hint" style="margin:4px 0 6px"><b>After hours:</b> none</div>'); } catch (e) { return ''; } })()}
       <input id="rv-hours-wd" value="${escHtml(s.hoursWeekday || '')}" placeholder="Mon to Fri" ${dis}><input id="rv-hours-we" value="${escHtml(s.hoursWeekend || '')}" placeholder="Sat to Sun" style="margin-top:6px" ${dis}></div>
     <div class="wf-section wf-grid3">
       <div><div class="wf-label">Weekend restrictions</div>${tf('rv-weekend', s.weekendRestrictions)}</div>
@@ -6079,7 +6315,7 @@ async function wfApprove(id) {
   if (!cafe) return;
   const fields = wfReadReview();
   const err = document.getElementById('rv-error');
-  if (!fields.listingPhotoIds.length && document.querySelectorAll('.rv-photo').length) { err.style.display = 'block'; err.textContent = 'Pick at least one photo for the listing.'; return; }
+  if (fields.listingPhotoIds.length < 3) { err.style.display = 'block'; err.textContent = 'Pick at least 3 photos for the listing.'; return; }
   const btn = document.getElementById('rv-approve'); btn.disabled = true; btn.textContent = 'Publishing…';
   try {
     const r = await wfApi('approve', { cafe: { id: cafe.id, number: cafe.number, name: cafe.name, address: cafe.address }, fields, approvedBy: (_sbUser && _sbUser.email) || '' });
@@ -6198,15 +6434,15 @@ async function wfStartEditRequest(id) {
   if (sub && (sub.hoursWeekday || sub.wifi || sub.environment)) {
     const toHHMM = t => { const m = String(t || '').match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i); if (!m) return ''; let h = +m[1] % 12; if (/pm/i.test(m[3])) h += 12; return String(h).padStart(2,'0') + ':' + m[2]; };
     const splitHours = str => { const parts = String(str || '').split(/\s+to\s+|\s*[-\u2013]\s*/); return [toHHMM(parts[0]), toHHMM(parts[1])]; };
-    let everyOpen = '', everyClose = '', hoursEx = [];
-    try { const hb = JSON.parse(sub.hoursByDay || ''); everyOpen = hb.every[0] || ''; everyClose = hb.every[1] || ''; hoursEx = hb.ex || []; }
+    let everyOpen = '', everyClose = '', hoursEx = [], afterOn = '', afterGroups = [];
+    try { const hb = JSON.parse(sub.hoursByDay || ''); everyOpen = hb.every[0] || ''; everyClose = hb.every[1] || ''; hoursEx = hb.ex || []; afterOn = hb.afterOn || ''; afterGroups = hb.after || []; }
     catch (e) { const [a, b] = splitHours(sub.hoursWeekday); everyOpen = a; everyClose = b; }
     const types = String(sub.seatsType || '').split(',').map(x => x.trim()).filter(Boolean);
     const other = types.find(t => /^other:/i.test(t));
     d = {
       cafeId: id,
       photos: (sub.photos || []).map(p => ({ id: p.id, name: p.name, thumb: p.thumb, url: p.url, isVideo: !!p.isVideo })),
-      folderUrl: sub.folderUrl, everyOpen, everyClose, hoursEx,
+      folderUrl: sub.folderUrl, everyOpen, everyClose, hoursEx, afterOn, afterGroups,
       weekendRestrict: sub.weekendRestrictions || '', environment: sub.environment || '', highlight: sub.highlight || '',
       wifi: sub.wifi || '', secured: sub.secured || '', outlets: sub.outlets || '', hotFood: sub.hotFood || '', restroom: sub.restroom || '',
       seats: sub.seats || '', seatTypes: types.filter(t => SEAT_TYPES.includes(t)), seatOther: other ? other.replace(/^other:\s*/i, '') : '',
@@ -6238,6 +6474,76 @@ async function wfSetStatus(id, status) {
   }
 }
 
+
+// ---- tap feedback: a ring where you tapped (survives the button being redrawn) + a held "pressed" look
+(function () {
+  const SEL = 'button, .tab-btn, .boro-btn, .wf-back, .pencil-btn, .wf-edit-btn, .wf-btn-sm, .leaflet-control a, [role="button"], .checklist-item, .lead-row, .footer-btn, #panel-toggle';
+  document.addEventListener('pointerdown', function (e) {
+    const t = e.target.closest && e.target.closest(SEL);
+    if (!t || t.disabled) return;
+    t.classList.add('tap-pressed');
+    setTimeout(() => t.classList.remove('tap-pressed'), 260);
+    const r = document.createElement('div');
+    r.className = 'tap-ripple'; r.style.left = e.clientX + 'px'; r.style.top = e.clientY + 'px';
+    document.body.appendChild(r);
+    setTimeout(() => r.remove(), 550);
+  }, true);
+})();
+
+// ---- phone: keep the café list sheet below the filter bar, and swipe it down to put it away
+(function () {
+  const mobile = () => window.innerWidth <= 768;
+  function fitSheet() {
+    const panel = document.getElementById('panel'); if (!panel) return;
+    if (!mobile()) { panel.style.maxHeight = ''; panel.style.height = ''; return; }
+    const bar = document.getElementById('scout-filter-bar'), tool = document.getElementById('toolbar');
+    let top = 0;
+    [tool, bar].forEach(el => { if (el && el.offsetParent !== null) top = Math.max(top, el.getBoundingClientRect().bottom); });
+    const room = Math.max(160, window.innerHeight - top - 28); // leave the filter bar and the grab tab uncovered
+    const want = Math.round(window.innerHeight * 0.6);
+    const h = Math.min(room, want) + 'px';
+    panel.style.maxHeight = h; panel.style.height = h;
+  }
+  window.fitSheet = fitSheet;
+  ['resize', 'orientationchange'].forEach(ev => window.addEventListener(ev, () => setTimeout(fitSheet, 60)));
+  const mo = new MutationObserver(() => fitSheet());
+  const barEl = document.getElementById('scout-filter-bar');
+  if (barEl) mo.observe(barEl, { attributes: true, childList: true, subtree: true });
+  setTimeout(fitSheet, 300); setInterval(fitSheet, 1500);
+
+  const panel = document.getElementById('panel');
+  let y0 = null, dy = 0, fromHeader = false;
+  function closeSheet() {
+    state.panelOpen = false;
+    panel.classList.remove('panel-open'); panel.classList.add('collapsed');
+    const t = document.getElementById('panel-toggle'); if (t) t.textContent = '▲';
+    try { saveState(); } catch (e) {}
+    setTimeout(() => { try { map.invalidateSize(); } catch (e) {} }, 300);
+  }
+  panel.addEventListener('touchstart', function (e) {
+    if (!mobile() || !panel.classList.contains('panel-open')) return;
+    const body = document.getElementById('panel-body');
+    const onTop = e.target.closest('#panel-header') || e.target === document.getElementById('panel-toggle');
+    if (!onTop && body && body.scrollTop > 0) return;
+    y0 = e.touches[0].clientY; dy = 0; fromHeader = !!onTop;
+  }, { passive: true });
+  panel.addEventListener('touchmove', function (e) {
+    if (y0 === null) return;
+    dy = e.touches[0].clientY - y0;
+    if (dy <= 0) { panel.style.transform = ''; return; }
+    panel.classList.add('dragging');
+    panel.style.transform = 'translateY(' + dy + 'px)';
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+  function endDrag() {
+    if (y0 === null) return;
+    panel.classList.remove('dragging'); panel.style.transform = '';
+    if (dy > 90) closeSheet();
+    y0 = null; dy = 0;
+  }
+  panel.addEventListener('touchend', endDrag);
+  panel.addEventListener('touchcancel', endDrag);
+})();
 </script>
 
 <!-- Bulk action bar -->

@@ -37,7 +37,7 @@ var DEFAULT_APPROVERS = ['denissemedinaflores@gmail.com', 'davidatorres123@gmail
 var EXTRA_COLUMNS = [
   'ReviewStatus', 'Website', 'HoursWeekday', 'HoursWeekend', 'WeekendRestrictions', 'Environment',
   'SeatsType', 'Notes', 'DateScouted', 'SubmittedBy', 'PhotoIds', 'ListingPhotoIds', 'DriveFolderUrl',
-  'AssignedTo', 'AssignedAt', 'DueAt', 'LeadLink', 'LeadAddr', 'AddressFlag', 'AddressFlagNote', 'AddressFlagName', 'AddressFlagAddr', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted', 'HoursByDay', 'PrevStatus'
+  'AssignedTo', 'AssignedAt', 'DueAt', 'LeadLink', 'LeadAddr', 'AddressFlag', 'AddressFlagNote', 'AddressFlagName', 'AddressFlagAddr', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted', 'HoursByDay', 'PrevStatus', 'AfterHours'
 ];
 
 // ------------------------------------------------------------ entry points
@@ -71,6 +71,9 @@ function doPost(e) {
       case 'saveReview':    out = handleSaveReview_(body, user); break;
       case 'sendBack':      out = handleSendBack_(body, user); break;
       case 'setStatus':     out = handleSetStatus_(body, user); break;
+      case 'listCafes':     out = handleListCafes_(body, user); break;
+      case 'syncCafes':     out = handleSyncCafes_(body, user); break;
+      case 'deleteCafe':    out = handleDeleteCafe_(body, user); break;
       default: throw new Error('Unknown action: ' + body.action);
     }
     out.ok = true;
@@ -85,7 +88,7 @@ function doGet(e) {
   if (action === 'markers') {
     return ContentService.createTextOutput(buildMarkersCsv_()).setMimeType(ContentService.MimeType.CSV);
   }
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, service: 'workandbrew-scout-api', version: 'v19 new slack messages, corrections, photo pick' })).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, service: 'workandbrew-scout-api', version: 'v22 two-step hours + after hours' })).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ------------------------------------------------------------ auth
@@ -258,6 +261,7 @@ function handleSubmit_(body, user) {
     HoursWeekday: f.hoursWeekday || '',
     HoursWeekend: f.hoursWeekend || '',
     HoursByDay: f.hoursByDay || '',
+    AfterHours: f.afterHours || '',
     WeekendRestrictions: f.weekendRestrictions || '',
     Environment: f.environment || '',
     Highlight: f.highlight || '',
@@ -294,7 +298,7 @@ function handleSubmit_(body, user) {
   }
   var lines = [
     '*' + (cafe.name || 'Café') + '* · ' + (cafe.borough || '') + '\n' + (cafe.address || ''),
-    '*Scout:* ' + scoutName + '\n*Hours:* ' + f.hoursWeekday + '; ' + f.hoursWeekend,
+    '*Scout:* ' + scoutName + '\n*Hours:* ' + f.hoursWeekday + '; ' + f.hoursWeekend + '\n*After hours:* ' + (f.afterHours || 'None'),
     '*WiFi* ' + f.wifi + (f.wifi === 'YES' ? ' (secured ' + f.secured + ')' : '') + '  ·  *Outlets* ' + f.outlets + '  ·  *Hot food* ' + f.hotFood + '  ·  *Restroom* ' + f.restroom,
     '*Seats* ' + f.seats + ' · ' + f.seatsType,
     '*Weekend laptop restrictions:* ' + (f.weekendRestrictions === 'TRUE' ? 'Yes' : 'No') + '   *Other restrictions:* ' + (f.anyRestrictions === 'TRUE' ? f.restrictions : 'None'),
@@ -532,7 +536,7 @@ function handleApproveSuggestion_(body, user) {
     try { photos = JSON.parse(v[15] || '[]'); } catch (e) {}
     var folder = cafeFolder_({ name: c.name });
     var form = {
-      ReviewStatus: 'New cafe', HoursWeekday: f.hoursWeekday || '', HoursWeekend: f.hoursWeekend || '', HoursByDay: f.hoursByDay || '',
+      ReviewStatus: 'New cafe', HoursWeekday: f.hoursWeekday || '', HoursWeekend: f.hoursWeekend || '', HoursByDay: f.hoursByDay || '', AfterHours: f.afterHours || '',
       WeekendRestrictions: f.weekendRestrictions || '', Environment: f.environment || '', Highlight: f.highlight || '',
       WiFi: f.wifi || '', Secured: f.secured || '', Outlets: f.outlets || '', HotFood: f.hotFood || '', Restroom: f.restroom || '',
       Seats: f.seats || '', SeatsType: f.seatsType || '', TimeRestriction: f.anyRestrictions || '', RestrictionAmount: f.restrictions || '',
@@ -560,7 +564,7 @@ function handleApproveSuggestion_(body, user) {
     if (!picked.length) picked = photos.filter(function (p) { return !p.isVideo; }).map(function (p) { return p.id; });
     cells.PhotoIds = JSON.stringify(photos);
     cells.ListingPhotoIds = JSON.stringify(picked);
-    var complete = !!((f.hoursWeekday || f.hoursByDay) && f.environment && f.highlight && f.wifi && f.outlets && f.hotFood && f.restroom && f.seats && photos.length && picked.length);
+    var complete = !!((f.hoursWeekday || f.hoursByDay) && f.environment && f.highlight && f.wifi && f.outlets && f.hotFood && f.restroom && f.seats && photos.length && picked.length >= 3);
     c.status = complete ? 'Visit Completed' : 'In Review';
     cells.Status = c.status;
     cells.ReviewStatus = complete ? 'Approved' : 'New cafe';
@@ -576,6 +580,7 @@ function handleApproveSuggestion_(body, user) {
     : 'the Review tab (some info is still missing)';
   postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'Cafe added: ' + c.name,
     '*' + c.name + '* has successfully been added to ' + where + '. (' + c.number + ', yellow row in the spreadsheet. Approved by ' + user.email + '.)', []);
+  c.row = row;
   return { cafe: c };
 }
 // ---- name/address corrections a scout flagged
@@ -637,7 +642,7 @@ function handleGetSubmission_(body, user) {
   try { listing = JSON.parse(r.ListingPhotoIds || '[]'); } catch (e) {}
   return { submission: {
     submittedBy: r.ScoutName || r.SubmittedBy, dateScouted: r.DateScouted, submittedAt: r.SubmittedAt, reviewStatus: r.ReviewStatus, videosTexted: String(r.VideosTexted || ''), website: r.Website,
-    hoursWeekday: r.HoursWeekday, hoursWeekend: r.HoursWeekend, hoursByDay: r.HoursByDay, weekendRestrictions: String(r.WeekendRestrictions || ''),
+    hoursWeekday: r.HoursWeekday, hoursWeekend: r.HoursWeekend, hoursByDay: r.HoursByDay, afterHours: r.AfterHours, weekendRestrictions: String(r.WeekendRestrictions || ''),
     environment: r.Environment, highlight: r.Highlight, description: r.Description,
     chainFlag: String(r.ChainFlag || '') === 'reported' ? 'TRUE' : 'FALSE', isChain: String(r.isChain || '').toUpperCase(),
     wifi: String(r.WiFi || ''), secured: String(r.Secured || ''), outlets: String(r.Outlets || ''), hotFood: String(r.HotFood || ''), restroom: String(r.Restroom || ''),
@@ -653,6 +658,7 @@ function handleApprove_(body, user) {
   var cafe = body.cafe || {}, f = body.fields || {};
   var row = findRow_(sh, h, cafe);
   if (row === -1) throw new Error('This café is not in the spreadsheet.');
+  if ((f.listingPhotoIds || []).length < 3) throw new Error('Pick at least 3 photos for the listing.');
   // Rename photos in Drive to the names chosen on review: "<Café> - <name>.<ext>"
   var names = f.photoNames || {};
   var current = getRowObj_(sh, h, row);
@@ -882,6 +888,69 @@ function handleSetStatus_(body, user) {
   return { status: status };
 }
 
+// ------------------------------------------------------------ the sheet is the source of truth for the ops map
+function yesNoCell_(v) { return String(v === null || v === undefined ? '' : v).trim(); }
+// Any logged-in user: every café in the sheet, in the shape the map uses
+function handleListCafes_(body, user) {
+  var sh = sheet_(), h = ensureColumns_(sh), last = sh.getLastRow(), cafes = [];
+  if (last < 2) return { cafes: cafes };
+  var vals = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
+  var g = function (v, k) { return h[k] ? v[h[k] - 1] : ''; };
+  vals.forEach(function (v, i) {
+    var name = String(g(v, 'Name') || '').trim();
+    var lat = parseFloat(g(v, 'Latitude')), lng = parseFloat(g(v, 'Longitude'));
+    if (!name || isNaN(lat) || isNaN(lng)) return;
+    cafes.push({
+      id: i + 2, number: String(g(v, 'Number') || ''), name: name, address: String(g(v, 'Address') || ''),
+      borough: String(g(v, 'Borough') || ''), zipcode: String(g(v, 'Zipcode') || ''), latitude: lat, longitude: lng,
+      status: String(g(v, 'Status') || '') || 'Unvisited', assigned_to: String(g(v, 'AssignedTo') || '') || null,
+      description: String(g(v, 'Description') || ''),
+      wifi: yesNoCell_(g(v, 'WiFi')), secured: yesNoCell_(g(v, 'Secured')), outlets: yesNoCell_(g(v, 'Outlets')),
+      hot_food: yesNoCell_(g(v, 'HotFood')), restroom: yesNoCell_(g(v, 'Restroom')),
+      seats: String(g(v, 'Seats') || ''), time_restrict: String(g(v, 'TimeRestriction')).toUpperCase() === 'TRUE',
+      restrict_note: String(g(v, 'RestrictionAmount') || ''), scout_name: String(g(v, 'ScoutName') || ''),
+      notes: String(g(v, 'Notes') || '')
+    });
+  });
+  return { cafes: cafes };
+}
+// Any logged-in user: status, notes and assigned scout changes made on the map go straight into the sheet
+function handleSyncCafes_(body, user) {
+  var sh = sheet_(), h = ensureColumns_(sh), last = sh.getLastRow();
+  if (last < 2) return { updated: 0 };
+  var n = last - 1;
+  var nums = sh.getRange(2, h.Number, n, 1).getValues();
+  var rowByNum = {};
+  nums.forEach(function (v, i) { var k = norm_(v[0]); if (k) rowByNum[k] = i; });
+  var cS = sh.getRange(2, h.Status, n, 1).getValues();
+  var cN = sh.getRange(2, h.Notes, n, 1).getValues();
+  var cA = sh.getRange(2, h.AssignedTo, n, 1).getValues();
+  var done = 0;
+  (body.rows || []).forEach(function (r) {
+    var i = rowByNum[norm_(r.number)];
+    if (i === undefined) return;
+    if (r.status !== undefined && ALLOWED_STATUSES.indexOf(String(r.status)) !== -1) cS[i][0] = String(r.status) === 'Unvisited' ? '' : String(r.status);
+    if (r.notes !== undefined) cN[i][0] = String(r.notes || '');
+    if (r.assigned_to !== undefined) cA[i][0] = String(r.assigned_to || '');
+    done++;
+  });
+  sh.getRange(2, h.Status, n, 1).setValues(cS);
+  sh.getRange(2, h.Notes, n, 1).setValues(cN);
+  sh.getRange(2, h.AssignedTo, n, 1).setValues(cA);
+  CacheService.getScriptCache().remove('markers_csv');
+  return { updated: done };
+}
+// Approver removes a café: its row leaves the sheet
+function handleDeleteCafe_(body, user) {
+  requireApprover_(user);
+  var sh = sheet_(), h = ensureColumns_(sh);
+  var row = findRow_(sh, h, body.cafe || {});
+  if (row === -1) throw new Error('This café is not in the spreadsheet.');
+  sh.deleteRow(row);
+  CacheService.getScriptCache().remove('markers_csv');
+  return {};
+}
+
 // ------------------------------------------------------------ slack
 // ping = true adds @channel so everyone in the channel gets a notification
 function postSlack_(propName, title, text, images, ping) {
@@ -907,7 +976,7 @@ function buildMarkersCsv_() {
   if (cached) return cached;
   var sh = sheet_(), h = ensureColumns_(sh);
   var last = sh.getLastRow();
-  var cols = ['Name', 'Address', 'Zipcode', 'County', 'Latitude', 'Longitude', 'Description', 'Highlight', 'WiFi', 'Secured', 'Outlets', 'HotFood', 'Restroom', 'Seats', 'TimeRestriction', 'RestrictionAmount', 'ScoutName', 'Website', 'HoursWeekday', 'HoursWeekend', 'HoursByDay', 'WeekendRestrictions', 'SeatsType', 'Notes', 'Photo', 'Photos'];
+  var cols = ['Name', 'Address', 'Zipcode', 'County', 'Latitude', 'Longitude', 'Description', 'Highlight', 'WiFi', 'Secured', 'Outlets', 'HotFood', 'Restroom', 'Seats', 'TimeRestriction', 'RestrictionAmount', 'ScoutName', 'Website', 'HoursWeekday', 'HoursWeekend', 'HoursByDay', 'Special Hours', 'AfterHours', 'WeekendRestrictions', 'SeatsType', 'Notes', 'Photo', 'Photos'];
   var lines = [cols.join(',')];
   if (last >= 2) {
     var data = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
