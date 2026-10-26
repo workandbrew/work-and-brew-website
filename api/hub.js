@@ -39,7 +39,7 @@ async function extras() {
   const [templates, signups, cafes, pendingList, schedules, growth] = await Promise.all([
     optional(db().from("sms_templates").select("id, name, body, created_by").order("created_at"), null),
     optional(db().from("signup_requests").select("status, created_at").gte("created_at", since), null),
-    optional(db().from("cafes").select("status"), null),
+    optional(db().from("cafes").select("*").limit(2000), null),
     optional(db().from("signup_requests").select("id, name, phone, sms_consent, created_at").eq("status", "pending").order("created_at"), []),
     listSchedules().catch(() => null),
     growthSnapshot().catch((e) => ({ error: e.message })),
@@ -47,11 +47,20 @@ async function extras() {
   const pending = await optional(
     db().from("signup_requests").select("id", { count: "exact", head: true }).eq("status", "pending").then((r) => ({ data: r.count, error: r.error })), 0);
   const cafeCounts = cafes ? cafes.reduce((m, c) => ((m[c.status || "Unvisited"] = (m[c.status || "Unvisited"] || 0) + 1), m), {}) : null;
+  // A compact café list for the Cafés page (the table has more columns than the hub needs).
+  const yes = (v) => (v == null || v === "" ? null : /^(true|yes|y|1)$/i.test(String(v)) ? "Yes" : /^(false|no|n|0)$/i.test(String(v)) ? "No" : String(v));
+  const cafeList = cafes ? cafes.map((c) => ({
+    id: c.id, name: c.name || "Unnamed café", borough: c.borough || "", status: c.status || "Unvisited",
+    assignedTo: c.assigned_to || null, scout: c.scout_name || null,
+    wifi: yes(c.wifi), outlets: yes(c.outlets), seats: c.seats || null,
+    at: c.updated_at || c.visited_at || null,
+  })) : null;
   return {
     templates: templates && templates.length ? templates : DEFAULT_TEMPLATES,
     templatesSaved: !!templates,
     signups: signups ? { last30: signups.length, approved30: signups.filter((r) => r.status === "approved").length, pending } : null,
     cafes: cafeCounts,
+    cafeList,
     pendingSignups: pendingList.map(({ phone, ...r }) => ({ ...r, phoneLast4: last4(phone) })),
     schedules: schedules && schedules.map((s) => ({ ...s, weekdayName: WEEKDAYS[s.weekday] })),
     growth,
