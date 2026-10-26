@@ -577,7 +577,7 @@ function Signups({ data, onChange }) {
 }
 
 const SOCIAL = [
-  { key: "instagram", label: "Instagram", icon: "📸", unit: "followers", setup: "Needs a business account" },
+  { key: "instagram", label: "Instagram", icon: "📸", unit: "followers", setup: "Business or Creator account · no Facebook Page needed" },
   { key: "tiktok", label: "TikTok", icon: "🎵", unit: "followers", setup: "Needs a TikTok developer app" },
   { key: "youtube", label: "YouTube", icon: "▶️", unit: "subscribers", setup: "Free Google API key" },
   { key: "lemon8", label: "Lemon8", icon: "🍋", unit: "followers", setup: "No public API · update weekly by hand" },
@@ -599,6 +599,21 @@ function ManualEntry({ platform, onChange }) {
   );
 }
 
+function ConnectTikTok() {
+  const [msg, setMsg] = useState(null);
+  const go = async () => {
+    const r = await hubFetch("POST", { action: "tiktok-connect" });
+    if (r.ok && r.url) window.location.href = r.url; else setMsg(r.error || "Couldn't start the connection.");
+  };
+  return (
+    <div className="th-btns">
+      <button className="th-btn" onClick={go}>Connect TikTok</button>
+      <span className="th-hint">Log in with the Work &amp; Brew TikTok account. Read-only.</span>
+      {msg && <span className="th-note bad">{msg}</span>}
+    </div>
+  );
+}
+
 function SocialCard({ meta, src, manualReady, onChange }) {
   const live = src?.connected && !src.error;
   const manual = src?.manual;
@@ -614,12 +629,14 @@ function SocialCard({ meta, src, manualReady, onChange }) {
         </div>
       ) : src?.error ? <p className="th-note bad">Couldn't load: {src.error}</p>
         : <NotConnected icon={meta.icon} source={meta.label} what={`${meta.unit} and growth`} setup={meta.setup} />}
+      {meta.key === "tiktok" && src?.canConnect && <ConnectTikTok />}
       {!live && manualReady && <ManualEntry platform={meta.key} onChange={onChange} />}
     </Card>
   );
 }
 
 function Growth({ data, reload }) {
+  const [banner, setBanner] = useState(() => new URLSearchParams(window.location.search).get("connected"));
   const s = data.signups;
   const g = data.growth || {};
   const web = g.website || {};
@@ -638,6 +655,7 @@ function Growth({ data, reload }) {
         <Stat label="Social followers" value={followers ? followers.toLocaleString() : "—"} foot="Instagram, TikTok, YouTube, Lemon8" />
       </div>
 
+      {banner && <div className="th-card th-banner"><span>{banner}</span><button className="th-x plain" onClick={() => setBanner(null)}>Dismiss</button></div>}
       <Signups data={data} onChange={reload} />
 
       <div className="th-row">

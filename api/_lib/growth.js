@@ -5,9 +5,11 @@
 // Env (Vercel → Settings → Environment Variables):
 //   GA_PROPERTY_ID, GA_CLIENT_EMAIL, GA_PRIVATE_KEY          Google Analytics 4 (service account, Viewer access)
 //   BREVO_API_KEY, BREVO_LIST_ID (optional)                  Brevo email list
-//   INSTAGRAM_USER_ID, INSTAGRAM_ACCESS_TOKEN                Instagram business account (Graph API)
+//   INSTAGRAM_ACCESS_TOKEN                                   Instagram Business or Creator account ("Instagram API
+//                                                            with Instagram Login"; no Facebook Page needed). The daily
+//                                                            run refreshes it and keeps the newest copy in growth_tokens.
 //   YOUTUBE_API_KEY, YOUTUBE_CHANNEL_ID                      YouTube Data API
-//   TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REFRESH_TOKEN   TikTok Display API
+//   TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET                  TikTok (Login Kit); then "Connect TikTok" in the hub
 
 import { createSign } from "node:crypto";
 import { db } from "./sms.js";
@@ -82,11 +84,31 @@ export async function brevo() {
 
 // ---- Social ----
 
+// The newest Instagram token: the refreshed copy in the database if there is one, else the Vercel env value.
+async function instagramToken() {
+  try {
+    const { data } = await db().from("growth_tokens").select("token").eq("platform", "instagram").maybeSingle();
+    if (data?.token) return data.token;
+  } catch { /* table not set up yet: fall back to env */ }
+  return env("INSTAGRAM_ACCESS_TOKEN");
+}
+
 export async function instagram() {
-  const id = env("INSTAGRAM_USER_ID"), token = env("INSTAGRAM_ACCESS_TOKEN");
-  if (!id || !token) return { connected: false };
-  const d = await getJSON(`https://graph.facebook.com/v21.0/${id}?fields=followers_count,media_count,username&access_token=${encodeURIComponent(token)}`);
+  const token = await instagramToken();
+  if (!token) return { connected: false };
+  const d = await getJSON(`https://graph.instagram.com/v21.0/me?fields=followers_count,media_count,username&access_token=${encodeURIComponent(token)}`);
   return { connected: true, followers: d.followers_count ?? 0, posts: d.media_count ?? 0, handle: d.username ? `@${d.username}` : null };
+}
+
+// Long-lived Instagram tokens last 60 days; refreshing extends them another 60. Run by /api/cron.
+export async function refreshInstagramToken() {
+  const token = await instagramToken();
+  if (!token) return { skipped: true };
+  const d = await getJSON(`https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(token)}`);
+  const { error } = await db().from("growth_tokens")
+    .upsert({ platform: "instagram", token: d.access_token, refreshed_at: new Date().toISOString() }, { onConflict: "platform" });
+  if (error) throw new Error(`Couldn't store the refreshed token (${error.message}). Has supabase/sms.sql been run?`);
+  return { refreshed: true, expiresInDays: Math.round((d.expires_in || 0) / 86400) };
 }
 
 export async function youtube() {
@@ -98,13 +120,49 @@ export async function youtube() {
   return { connected: true, followers: Number(s.subscriberCount || 0), views: Number(s.viewCount || 0), posts: Number(s.videoCount || 0), handle: d.items[0].snippet?.customUrl || null };
 }
 
-export async function tiktok() {
-  const clientKey = env("TIKTOK_CLIENT_KEY"), secret = env("TIKTOK_CLIENT_SECRET"), refresh = env("TIKTOK_REFRESH_TOKEN");
-  if (!clientKey || !secret || !refresh) return { connected: false };
-  const tok = await getJSON("https://open.tiktokapis.com/v2/oauth/token/", {
-    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ client_key: clientKey, client_secret: secret, grant_type: "refresh_token", refresh_token: refresh }),
+// TikTok: a department head clicks "Connect TikTok" once (see /api/connect). TikTok hands back a
+// refresh token that rotates on every use, so the newest one always lives in growth_tokens.
+const TIKTOK_REDIRECT = "https://workandbrew.app/api/connect";
+
+async function storedToken(platform) {
+  try {
+    const { data } = await db().from("growth_tokens").select("token").eq("platform", platform).maybeSingle();
+    return data?.token || null;
+  } catch { return null; }
+}
+async function storeToken(platform, token) {
+  const { error } = await db().from("growth_tokens")
+    .upsert({ platform, token, refreshed_at: new Date().toISOString() }, { onConflict: "platform" });
+  if (error) throw new Error(`Couldn't store the ${platform} token (${error.message}). Has supabase/sms.sql been run?`);
+}
+
+const tiktokTokenCall = (params) => getJSON("https://open.tiktokapis.com/v2/oauth/token/", {
+  method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+  body: new URLSearchParams({ client_key: env("TIKTOK_CLIENT_KEY"), client_secret: env("TIKTOK_CLIENT_SECRET"), ...params }),
+});
+
+export const tiktokReady = () => !!(env("TIKTOK_CLIENT_KEY") && env("TIKTOK_CLIENT_SECRET"));
+
+// Where "Connect TikTok" sends the browser. `state` is checked when TikTok sends the person back.
+export function tiktokAuthUrl(state) {
+  return "https://www.tiktok.com/v2/auth/authorize/?" + new URLSearchParams({
+    client_key: env("TIKTOK_CLIENT_KEY"), scope: "user.info.basic,user.info.stats", response_type: "code",
+    redirect_uri: TIKTOK_REDIRECT, state,
   });
+}
+
+export async function tiktokFinishConnect(code) {
+  const tok = await tiktokTokenCall({ code, grant_type: "authorization_code", redirect_uri: TIKTOK_REDIRECT });
+  if (!tok.refresh_token) throw new Error(tok.error_description || "TikTok didn't return a token.");
+  await storeToken("tiktok", tok.refresh_token);
+}
+
+export async function tiktok() {
+  if (!tiktokReady()) return { connected: false };
+  const refresh = (await storedToken("tiktok")) || env("TIKTOK_REFRESH_TOKEN");
+  if (!refresh) return { connected: false, canConnect: true };
+  const tok = await tiktokTokenCall({ grant_type: "refresh_token", refresh_token: refresh });
+  if (tok.refresh_token && tok.refresh_token !== refresh) await storeToken("tiktok", tok.refresh_token);
   const d = await getJSON("https://open.tiktokapis.com/v2/user/info/?fields=follower_count,likes_count,video_count,display_name", {
     headers: { authorization: `Bearer ${tok.access_token}` },
   });
