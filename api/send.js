@@ -18,8 +18,8 @@ import { guard, readBody, deliver } from "./_lib/sms.js";
 
 export default async function handler(req, res) {
   if (!guard(req, res, ["POST"])) return;
-  const { to, message, dryRun } = readBody(req);
+  const { to, message, dryRun, sendAt } = readBody(req);
   const sentBy = String(req.headers["x-sent-by"] || "api").slice(0, 40);
-  const { status, json } = await deliver({ to, message, dryRun, sentBy });
+  const { status, json } = await deliver({ to, message, dryRun, sentBy, sendAt });
   res.status(status).json(json);
 }

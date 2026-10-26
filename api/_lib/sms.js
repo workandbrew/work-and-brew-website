@@ -179,7 +179,7 @@ export async function loadScouts() {
 
 // ---- Twilio ----
 
-export async function twilioSend(to, body) {
+export async function twilioSend(to, body, sendAt) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
   const user = process.env.TWILIO_API_KEY_SID || accountSid;
@@ -187,13 +187,17 @@ export async function twilioSend(to, body) {
   if (!accountSid || !messagingServiceSid || !pass) {
     throw new Error("Twilio credentials are not configured");
   }
+  // Scheduled send: a Messaging Service (which we use) + ScheduleType=fixed + SendAt tells Twilio
+  // to hold the message and send it itself at that UTC time (15 min to 7 days out).
+  const params = { To: to, MessagingServiceSid: messagingServiceSid, Body: body };
+  if (sendAt) { params.ScheduleType = "fixed"; params.SendAt = sendAt; }
   const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
     method: "POST",
     headers: {
       Authorization: "Basic " + Buffer.from(`${user}:${pass}`).toString("base64"),
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({ To: to, MessagingServiceSid: messagingServiceSid, Body: body }),
+    body: new URLSearchParams(params),
   });
   const data = await res.json().catch(() => ({}));
   return res.ok
@@ -203,6 +207,24 @@ export async function twilioSend(to, body) {
 
 // Twilio error 21610 = recipient replied STOP.
 export const TWILIO_OPTED_OUT = 21610;
+
+// Cancel a message Twilio is still holding for a scheduled send (status 'scheduled').
+export async function twilioCancel(sid) {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const user = process.env.TWILIO_API_KEY_SID || accountSid;
+  const pass = process.env.TWILIO_API_KEY_SECRET || process.env.TWILIO_AUTH_TOKEN;
+  if (!accountSid || !pass) throw new Error("Twilio credentials are not configured");
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages/${sid}.json`, {
+    method: "POST",
+    headers: {
+      Authorization: "Basic " + Buffer.from(`${user}:${pass}`).toString("base64"),
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ Status: "canceled" }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return res.ok ? { ok: true, status: data.status } : { ok: false, error: data.message || `Twilio HTTP ${res.status}` };
+}
 
 // ---- the one send path (used by /api/send for Gwen & co, and /api/hub for the Team Hub) ----
 
@@ -217,11 +239,22 @@ async function logMessage(row) {
 }
 
 // Validates, resolves recipients and (unless dryRun) sends. Returns { status, json } for the caller.
-export async function deliver({ to, message, dryRun, sentBy }) {
+export async function deliver({ to, message, dryRun, sentBy, sendAt }) {
   const text = String(message || "").trim();
   if (!text) return { status: 400, json: { ok: false, error: "message is required" } };
   if (text.length > MAX_MESSAGE_CHARS) {
     return { status: 400, json: { ok: false, error: `message is over ${MAX_MESSAGE_CHARS} characters` } };
+  }
+
+  // Optional scheduled send: sendAt is ISO 8601 UTC; Twilio allows 15 minutes to 7 days out.
+  let scheduleAt = null;
+  if (sendAt) {
+    const t = Date.parse(sendAt);
+    if (Number.isNaN(t)) return { status: 400, json: { ok: false, error: "sendAt is not a valid date/time" } };
+    const mins = (t - Date.now()) / 60000;
+    if (mins < 15) return { status: 400, json: { ok: false, error: "A scheduled text must be at least 15 minutes from now" } };
+    if (mins > 7 * 24 * 60) return { status: 400, json: { ok: false, error: "A scheduled text must be within 7 days" } };
+    scheduleAt = new Date(t).toISOString();
   }
 
   let scouts;
@@ -242,20 +275,20 @@ export async function deliver({ to, message, dryRun, sentBy }) {
 
   const template = withStopLine(text);
   const body = personalize(template, recipients[0]); // what the first person will see
-  if (dryRun) return { status: 200, json: { ok: true, dryRun: true, body, template, recipients: recipients.map(publicScout), skipped } };
+  if (dryRun) return { status: 200, json: { ok: true, dryRun: true, body, template, recipients: recipients.map(publicScout), skipped, scheduledAt: scheduleAt } };
 
   const batch_id = randomUUID(); // groups one send to many people in the log
   const results = [];
   for (const s of recipients) {
     let r;
     const personal = personalize(template, s);
-    try { r = await twilioSend(s.phone, personal); } catch (e) { r = { ok: false, error: e.message }; }
+    try { r = await twilioSend(s.phone, personal, scheduleAt); } catch (e) { r = { ok: false, error: e.message }; }
     results.push({ id: s.id, name: s.name, ok: r.ok, sid: r.sid, error: r.error });
     try {
       await logMessage({
         batch_id, scout_id: s.id, to_phone: s.phone, body: personal, twilio_sid: r.sid || null,
         status: r.ok ? r.status || "queued" : "failed", error: r.ok ? null : r.error,
-        sent_by: String(sentBy || "api").slice(0, 80),
+        sent_by: String(sentBy || "api").slice(0, 80), scheduled_for: scheduleAt,
       });
       if (r.code === TWILIO_OPTED_OUT) {
         await db().from("sms_contacts").update({ opted_out_at: new Date().toISOString() }).eq("id", s.id);
@@ -263,5 +296,5 @@ export async function deliver({ to, message, dryRun, sentBy }) {
     } catch { /* the log is best-effort; never block a send on it */ }
   }
   const sent = results.filter((r) => r.ok).length;
-  return { status: sent ? 200 : 502, json: { ok: sent === results.length, sent, failed: results.length - sent, body, template, results, skipped } };
+  return { status: sent ? 200 : 502, json: { ok: sent === results.length, sent, failed: results.length - sent, body, template, results, skipped, scheduledAt: scheduleAt } };
 }

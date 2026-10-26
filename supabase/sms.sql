@@ -101,6 +101,7 @@ alter table public.hub_admins enable row level security;  -- server-only
 grant all on public.hub_admins to service_role;
 
 alter table public.sms_messages add column if not exists batch_id uuid;
+alter table public.sms_messages add column if not exists scheduled_for timestamptz;  -- scheduled-send release time (null = immediate)
 create index if not exists sms_messages_created_at_idx on public.sms_messages (created_at desc);
 
 -- ---------------------------------------------------------------------------------------------
