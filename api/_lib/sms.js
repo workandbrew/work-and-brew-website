@@ -228,12 +228,18 @@ export async function twilioCancel(sid) {
 
 // ---- the one send path (used by /api/send for Gwen & co, and /api/hub for the Team Hub) ----
 
-// Logs one row; if the database is missing a newer column (e.g. batch_id), logs without it.
+// Logs one row. If the database is missing a newer optional column (batch_id, scheduled_for),
+// it retries without it, so a missing migration never empties the shared log.
+const OPTIONAL_LOG_COLUMNS = ["scheduled_for", "batch_id"];
 async function logMessage(row) {
-  let { error } = await db().from("sms_messages").insert(row);
-  if (error && row.batch_id) {
-    const { batch_id: _drop, ...rest } = row;
-    ({ error } = await db().from("sms_messages").insert(rest));
+  let attempt = { ...row };
+  let { error } = await db().from("sms_messages").insert(attempt);
+  for (const col of OPTIONAL_LOG_COLUMNS) {
+    if (!error) break;
+    if (!(col in attempt)) continue;
+    const { [col]: _drop, ...rest } = attempt;
+    attempt = rest;
+    ({ error } = await db().from("sms_messages").insert(attempt));
   }
   if (error) console.error("sms_messages log failed:", error.message);
 }

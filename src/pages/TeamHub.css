@@ -170,3 +170,5 @@
 .th-su-top { display: flex; flex-direction: column; gap: 2px; } .th-su-top b { font-size: 15px; } .th-su-top small { font-size: 12px; color: var(--ink2); }
 .th-social { display: flex; flex-direction: column; gap: 6px; }
 .th-manual { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; margin-top: auto; }
+.th-tag.d { color: var(--cream); border-color: var(--ink); background: var(--ink); }
+.th-search { max-width: 260px; min-width: 180px; flex: 0 1 260px; }

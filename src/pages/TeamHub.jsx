@@ -31,7 +31,7 @@ const Icon = ({ name }) => (
 const PAGES = [
   { key: "overview", label: "Overview", short: "Home", sub: null },
   { key: "messages", label: "Messages", short: "Messages", sub: "Text one person, a group or the whole team. Every text is logged." },
-  { key: "cafes", label: "Cafés", short: "Cafés", sub: "Where every café stands, from the scout map." },
+  { key: "cafes", label: "Cafés", short: "Cafés", sub: "Every café in the database, live from the scout map." },
   { key: "analytics", label: "Texting analytics", short: "Analytics", sub: "How the team is using texting · last 30 days" },
   { key: "growth", label: "Growth & Social", short: "Growth", sub: "Team sign-ups, website, email and social reach across Instagram, TikTok, YouTube and Lemon8." },
 ];
@@ -406,34 +406,92 @@ function Messages({ data, reload }) {
 
 const CAFE_ORDER = ["Visit Completed", "In Progress", "Backlogged Cafe", "Temporarily Unavailable", "Ineligible Cafe", "Permanently Closed"];
 
+const STATUS_TONE = { "Visit Completed": "g", "In Progress": "d", "Ineligible Cafe": "b", "Permanently Closed": "b", "Temporarily Unavailable": "b" };
+const shortStatus = (st) => st.replace(" Cafe", "");
+const tally = (rows, key) => {
+  const m = new Map();
+  for (const r of rows) if (r[key]) m.set(r[key], (m.get(r[key]) || 0) + 1);
+  return [...m].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+};
+
 function Cafes({ data }) {
+  const [status, setStatus] = useState("all");
+  const [borough, setBorough] = useState("all");
+  const [q, setQ] = useState("");
+  const [shown, setShown] = useState(25);
   if (!data.cafes) {
     return (
-      <Card title="Café statuses" sub="From the scout map">
-        <NotConnected icon="☕" source="the scout map" what="where every café stands" setup="Statuses appear once scouts start logging visits." />
+      <Card title="Café statuses" sub="From the café database">
+        <NotConnected icon="☕" source="the café database" what="where every café stands" setup="Cafés appear once they're in the database." />
       </Card>
     );
   }
   const c = data.cafes;
-  const rows = CAFE_ORDER.filter((k) => c[k]).map((k) => ({ label: k.replace(" Cafe", ""), value: c[k] }));
+  const list = data.cafeList || [];
+  const total = Object.values(c).reduce((n, v) => n + v, 0);
+  const rows = CAFE_ORDER.concat(["Unvisited"]).filter((k) => c[k]).map((k) => ({ label: shortStatus(k), value: c[k] }));
   const closed = (c["Ineligible Cafe"] || 0) + (c["Permanently Closed"] || 0) + (c["Temporarily Unavailable"] || 0);
+  const boroughs = [...new Set(list.map((x) => x.borough).filter(Boolean))].sort();
+  const statuses = [...new Set(list.map((x) => x.status))].sort((a, b) => CAFE_ORDER.indexOf(a) - CAFE_ORDER.indexOf(b));
+  const done = list.filter((x) => x.status === "Visit Completed");
+  const needle = q.trim().toLowerCase();
+  const filtered = list.filter((x) => (status === "all" || x.status === status) && (borough === "all" || x.borough === borough)
+    && (!needle || `${x.name} ${x.borough} ${x.assignedTo || ""} ${x.scout || ""}`.toLowerCase().includes(needle)));
+
   return (
     <>
       <div className="th-row th-stats">
-        <Stat label="Visits completed" value={c["Visit Completed"] || 0} foot="Scouted and logged" />
+        <Stat label="Cafés in the database" value={total} foot={`${boroughs.length || "All"} boroughs`} />
+        <Stat label="Visits completed" value={c["Visit Completed"] || 0} foot={total ? `${Math.round(((c["Visit Completed"] || 0) / total) * 100)}% of all cafés` : "Scouted and logged"} />
         <Stat label="In progress" value={c["In Progress"] || 0} foot="Assigned and underway" />
-        <Stat label="Backlogged" value={c["Backlogged Cafe"] || 0} foot="Saved for later" />
         <Stat label="Not a fit" value={closed} foot="Ineligible, closed or unavailable" />
       </div>
       <div className="th-row">
-        <Card title="Scouting pipeline" sub="Every café with a status on the scout map" className="th-grow">
+        <Card title="Scouting pipeline" sub="Every café by status" className="th-grow">
           <RankBars rows={rows} unit="Cafés" share={false} suffix="cafés" />
         </Card>
-        <Card title="Update a café" sub="Scouts log visits on the scout map" className="th-side-col">
-          <p className="th-p">Statuses here update the moment a scout saves a visit on the scout map.</p>
-          <Link to={SCOUT_MAP} className="th-btn">Open the scout map</Link>
+        <Card title="Visits completed by borough" sub="Where the team has scouted" className="th-grow">
+          {done.length ? <RankBars rows={tally(done, "borough")} unit="Visits" share={false} suffix="cafés" /> : <p className="th-empty">No completed visits yet.</p>}
+        </Card>
+        <Card title="Who's scouting" sub="Cafés assigned to each person" className="th-grow">
+          {tally(list, "assignedTo").length ? <RankBars rows={tally(list, "assignedTo").slice(0, 6)} unit="Cafés" avatars share={false} suffix="cafés" /> : <p className="th-empty">No assignments yet.</p>}
+          <Link to={SCOUT_MAP} className="th-link">Assign cafés on the scout map →</Link>
         </Card>
       </div>
+      {list.length > 0 && (
+        <Card title="All cafés" sub={`${filtered.length} of ${list.length} · statuses update when a scout logs a visit`}
+          right={<input className="th-input th-search" type="search" placeholder="Search cafés or scouts" value={q} onChange={(e) => { setQ(e.target.value); setShown(25); }} />}>
+          <div className="th-chips">
+            <button type="button" className={`th-chip sm ${status === "all" ? "on" : ""}`} onClick={() => setStatus("all")}>All statuses</button>
+            {statuses.map((st) => <button type="button" key={st} className={`th-chip sm ${status === st ? "on" : ""}`} onClick={() => { setStatus(st); setShown(25); }}>{shortStatus(st)} · {c[st] || 0}</button>)}
+          </div>
+          {boroughs.length > 1 && (
+            <div className="th-chips">
+              <button type="button" className={`th-chip sm ${borough === "all" ? "on" : ""}`} onClick={() => setBorough("all")}>All boroughs</button>
+              {boroughs.map((b) => <button type="button" key={b} className={`th-chip sm ${borough === b ? "on" : ""}`} onClick={() => { setBorough(b); setShown(25); }}>{b}</button>)}
+            </div>
+          )}
+          <div className="th-table-wrap">
+            <table className="th-table">
+              <thead><tr><th>Café</th><th>Borough</th><th>Assigned to</th><th>Wi-Fi</th><th>Outlets</th><th>Status</th></tr></thead>
+              <tbody>
+                {filtered.slice(0, shown).map((x) => (
+                  <tr key={x.id}>
+                    <td className="nm">{x.name}</td>
+                    <td>{x.borough || "n/a"}</td>
+                    <td>{x.assignedTo || x.scout || "Unassigned"}</td>
+                    <td>{x.wifi || "n/a"}</td>
+                    <td>{x.outlets || "n/a"}</td>
+                    <td><span className={`th-tag ${STATUS_TONE[x.status] || "n"}`}>{shortStatus(x.status)}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {!filtered.length && <p className="th-empty">No cafés match.</p>}
+          {filtered.length > shown && <button className="th-btn ghost" onClick={() => setShown(shown + 50)}>Show more ({filtered.length - shown} left)</button>}
+        </Card>
+      )}
     </>
   );
 }
