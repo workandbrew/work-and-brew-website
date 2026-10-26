@@ -13,13 +13,15 @@
 //   POST { action: "schedule-toggle" | "schedule-delete", id }
 //   POST { action: "signup-approve", id, chapters, role } / { action: "signup-reject", id }
 //   POST { action: "growth-manual", platform, followers }        → hand-entered follower count
+//   POST { action: "tiktok-connect" }                            → a one-time link to connect TikTok
 //
 // Sending goes through the same deliver() as Gwen, so the same rules apply: only active,
 // opted-in team members, STOP line always added, max 25 recipients per send.
 
 import { readBody, db, loadScouts, publicScout, deliver, last4, GROUP_LABELS, MAX_MESSAGE_CHARS } from "./_lib/sms.js";
 import { listSchedules, saveSchedule, updateSchedule, approveSignup, rejectSignup, WEEKDAYS } from "./_lib/automation.js";
-import { growthSnapshot, saveManual } from "./_lib/growth.js";
+import { growthSnapshot, saveManual, tiktokReady } from "./_lib/growth.js";
+import { makeState } from "./_lib/connectState.js";
 
 // Starter templates shown until the team saves its own (the sms_templates table may not exist yet).
 const DEFAULT_TEMPLATES = [
@@ -176,6 +178,10 @@ export default async function handler(req, res) {
       return reply(r.error ? r : { scout: r.scout, welcome: r.welcome });
     }
     if (action === "signup-reject") return reply(await rejectSignup(String(id)));
+    if (action === "tiktok-connect") {
+      if (!tiktokReady()) return reply({ status: 400, error: "Add TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET in Vercel first." });
+      return reply({ url: `/api/connect?start=${encodeURIComponent(makeState())}` });
+    }
     if (action === "growth-manual") return reply(await saveManual(extra.platform, extra.followers, by));
     if (action === "template-delete") {
       const { error } = await db().from("sms_templates").delete().eq("id", String(id || ""));
