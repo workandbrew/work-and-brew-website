@@ -147,3 +147,12 @@ create table if not exists public.growth_manual (
 );
 alter table public.growth_manual enable row level security;  -- server-only
 grant all on public.growth_manual to service_role;
+
+-- Refreshed access tokens for growth sources (Instagram tokens expire every 60 days)
+create table if not exists public.growth_tokens (
+  platform text primary key,
+  token text not null,
+  refreshed_at timestamptz not null default now()
+);
+alter table public.growth_tokens enable row level security;  -- server-only
+grant all on public.growth_tokens to service_role;

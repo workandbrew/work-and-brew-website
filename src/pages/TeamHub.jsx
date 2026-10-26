@@ -577,7 +577,7 @@ function Signups({ data, onChange }) {
 }
 
 const SOCIAL = [
-  { key: "instagram", label: "Instagram", icon: "📸", unit: "followers", setup: "Needs a business account" },
+  { key: "instagram", label: "Instagram", icon: "📸", unit: "followers", setup: "Business or Creator account · no Facebook Page needed" },
   { key: "tiktok", label: "TikTok", icon: "🎵", unit: "followers", setup: "Needs a TikTok developer app" },
   { key: "youtube", label: "YouTube", icon: "▶️", unit: "subscribers", setup: "Free Google API key" },
   { key: "lemon8", label: "Lemon8", icon: "🍋", unit: "followers", setup: "No public API · update weekly by hand" },

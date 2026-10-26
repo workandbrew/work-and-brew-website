@@ -5,7 +5,9 @@
 // Env (Vercel → Settings → Environment Variables):
 //   GA_PROPERTY_ID, GA_CLIENT_EMAIL, GA_PRIVATE_KEY          Google Analytics 4 (service account, Viewer access)
 //   BREVO_API_KEY, BREVO_LIST_ID (optional)                  Brevo email list
-//   INSTAGRAM_USER_ID, INSTAGRAM_ACCESS_TOKEN                Instagram business account (Graph API)
+//   INSTAGRAM_ACCESS_TOKEN                                   Instagram Business or Creator account ("Instagram API
+//                                                            with Instagram Login"; no Facebook Page needed). The daily
+//                                                            run refreshes it and keeps the newest copy in growth_tokens.
 //   YOUTUBE_API_KEY, YOUTUBE_CHANNEL_ID                      YouTube Data API
 //   TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REFRESH_TOKEN   TikTok Display API
 
@@ -82,11 +84,31 @@ export async function brevo() {
 
 // ---- Social ----
 
+// The newest Instagram token: the refreshed copy in the database if there is one, else the Vercel env value.
+async function instagramToken() {
+  try {
+    const { data } = await db().from("growth_tokens").select("token").eq("platform", "instagram").maybeSingle();
+    if (data?.token) return data.token;
+  } catch { /* table not set up yet: fall back to env */ }
+  return env("INSTAGRAM_ACCESS_TOKEN");
+}
+
 export async function instagram() {
-  const id = env("INSTAGRAM_USER_ID"), token = env("INSTAGRAM_ACCESS_TOKEN");
-  if (!id || !token) return { connected: false };
-  const d = await getJSON(`https://graph.facebook.com/v21.0/${id}?fields=followers_count,media_count,username&access_token=${encodeURIComponent(token)}`);
+  const token = await instagramToken();
+  if (!token) return { connected: false };
+  const d = await getJSON(`https://graph.instagram.com/v21.0/me?fields=followers_count,media_count,username&access_token=${encodeURIComponent(token)}`);
   return { connected: true, followers: d.followers_count ?? 0, posts: d.media_count ?? 0, handle: d.username ? `@${d.username}` : null };
+}
+
+// Long-lived Instagram tokens last 60 days; refreshing extends them another 60. Run by /api/cron.
+export async function refreshInstagramToken() {
+  const token = await instagramToken();
+  if (!token) return { skipped: true };
+  const d = await getJSON(`https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(token)}`);
+  const { error } = await db().from("growth_tokens")
+    .upsert({ platform: "instagram", token: d.access_token, refreshed_at: new Date().toISOString() }, { onConflict: "platform" });
+  if (error) throw new Error(`Couldn't store the refreshed token (${error.message}). Has supabase/sms.sql been run?`);
+  return { refreshed: true, expiresInDays: Math.round((d.expires_in || 0) / 86400) };
 }
 
 export async function youtube() {
