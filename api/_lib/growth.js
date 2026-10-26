@@ -206,7 +206,8 @@ export async function growthSnapshot() {
   for (const p of PLATFORMS) {
     const rows = manual?.[p];
     if (!rows?.length) continue;
-    social[p].manual = { followers: rows[0].followers, previous: rows[1]?.followers ?? null, on: rows[0].recorded_on, by: rows[0].recorded_by };
+    const ageDays = (Date.now() - new Date(`${rows[0].recorded_on}T12:00:00Z`).getTime()) / 864e5;
+    social[p].manual = { followers: rows[0].followers, previous: rows[1]?.followers ?? null, on: rows[0].recorded_on, by: rows[0].recorded_by, fresh: ageDays <= 7 };
   }
   return { website: ga, email, social, manualReady: !!manual };
 }

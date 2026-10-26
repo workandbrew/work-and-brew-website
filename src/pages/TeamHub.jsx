@@ -618,9 +618,10 @@ function SocialCard({ meta, src, manualReady, onChange }) {
   const live = src?.connected && !src.error;
   const manual = src?.manual;
   const value = live ? src.followers : manual?.followers;
+  const fresh = !!manual?.fresh; // hand-entered numbers count as fresh for a week
   return (
     <Card title={meta.label} sub={live ? `Live${src.handle ? ` · ${src.handle}` : ""}` : manual ? `Updated by hand · ${manual.on}` : "Not connected yet"} className="th-half"
-      right={live ? <span className="th-tag g">Live</span> : null}>
+      right={live ? <span className="th-tag g">Live</span> : manual ? <span className={`th-tag ${fresh ? "g" : "b"}`}>{fresh ? "Up to date" : "Update due"}</span> : null}>
       {value != null ? (
         <div className="th-social">
           <div className="th-stat-v">{Number(value).toLocaleString()}</div>
