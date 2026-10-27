@@ -637,7 +637,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 .cafe-marker-icon {
   border-radius: 50%;
   border: 2px solid rgba(255,255,255,0.9);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.35);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.35);
   transition: transform 0.13s;
   display: flex; align-items: center; justify-content: center;
   overflow: visible;
@@ -1572,11 +1572,11 @@ body { display: flex; flex-direction: column; overflow: hidden; }
     <div class="stat-chip">In Progress: <span id="s-inprogress">0</span></div>
     <div class="stat-chip">Completed: <span id="s-completed">0</span></div>
     <div class="stat-chip">Done: <span id="s-pct">0%</span></div>
-    <div class="stat-chip" style="background:#F28C28">⚠ Temp: <span id="s-hazard">0</span></div>
-    <div class="stat-chip" style="background:#37474F">✕ Closed: <span id="s-closed">0</span></div>
-    <div class="stat-chip" style="background:#FF6B00">↩ Incomplete: <span id="s-revisit">0</span></div>
+    <div class="stat-chip" style="background:#FFC8AA;color:#5A2D0C">⚠ Temp: <span id="s-hazard">0</span></div>
+    <div class="stat-chip" style="background:#B10202">✕ Closed: <span id="s-closed">0</span></div>
+    <div class="stat-chip" style="background:#FFCFC9;color:#8A1C1C">↩ Incomplete: <span id="s-revisit">0</span></div>
     <div class="stat-chip" style="background:#6366F1">⏳ Pending: <span id="s-pending">0</span></div>
-    <div class="stat-chip" style="background:#1b3a5c">🗺 Assigned: <span id="s-assigned">0</span></div>
+    <div class="stat-chip" style="background:#BFE1F6;color:#0B3D5C">🗺 Assigned: <span id="s-assigned">0</span></div>
   </div>
   <button id="btn-export">⬇ Export</button>
   <button id="copy-all-btn">📋 Copy All</button>
@@ -2691,31 +2691,42 @@ const markers = {}; // id -> L.marker
 const markerLayer = L.layerGroup().addTo(map);
 const homeBaseLayer = L.layerGroup().addTo(map);
 
+// Same colours as the Status dropdown in the spreadsheet
+const SHEET_STATUS_COLORS = {
+  'In Progress': '#FFE5A0',
+  'Ineligible Cafe': '#B10202',
+  'Assigned': '#BFE1F6',
+  'Ready To Be Assigned': '#E6E6E6',
+  'Visit Completed': '#11734B',
+  'Incomplete': '#FFCFC9',
+  'New Cafe Added': '#B3FFFD',
+  'In Review': '#FF9FC3',
+  'Official Cafe Listing': '#E6CFF2',
+  'Temporarily Unavailable': '#FFC8AA',
+  'Permanently Closed': '#B10202',
+  'Backlogged Cafe': '#753800',
+  'Pending Visit': '#6366F1',
+};
 function getMarkerColor(cafe) {
-  if (cafe.status === 'Visit Completed')        return state.activeTab === 'edits' ? '#1B5E20' : '#4CAF50';
-  if (cafe.status === 'Official Cafe Listing')   return '#7E57C2';
-  if (cafe.status === 'In Review')               return '#C47F2E';
-  if (cafe.status === 'Temporarily Unavailable') return '#F28C28';
-  if (cafe.status === 'Permanently Closed')      return '#37474F';
-  if (cafe.status === 'Incomplete')           return '#FF6B00';
-  if (cafe.status === 'New Cafe Added')          return '#22B8CF';
-  if (cafe.status === 'Pending Visit')           return '#6366F1';
-  if (cafe.status === 'Backlogged Cafe')         return '#8D6E63';
-  if (cafe.status === 'Ineligible Cafe')         return '#6B7280';
-  if (cafe.assignedTo !== null && cafe.assignedTo !== undefined) {
-    return state.persons[cafe.assignedTo]?.color || '#9E9E9E';
+  if (cafe.status === 'Visit Completed' && state.activeTab === 'edits') return '#0B4F33';
+  const assigned = cafe.assignedTo !== null && cafe.assignedTo !== undefined;
+  // On the scout tabs an assigned café shows its scout's colour so you can tell who has what
+  if (assigned && cafe.status === 'Assigned' && (state.activeTab === 'scout' || state.activeTab === 'assign')) {
+    return state.persons[cafe.assignedTo]?.color || SHEET_STATUS_COLORS.Assigned;
   }
-  return '#9E9E9E';
+  if (SHEET_STATUS_COLORS[cafe.status]) return SHEET_STATUS_COLORS[cafe.status];
+  if (assigned) return state.persons[cafe.assignedTo]?.color || '#9E9E9E';
+  return SHEET_STATUS_COLORS['Ready To Be Assigned'];
 }
 
 function createMarkerIcon(color, status) {
   let inner = '';
   if (status === 'Temporarily Unavailable') {
-    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-55%);font-size:8px;line-height:1;color:#fff;font-weight:900">T</span>';
+    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-55%);font-size:8px;line-height:1;color:#5A2D0C;font-weight:900">T</span>';
   } else if (status === 'Permanently Closed') {
     inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#fff;font-weight:900">✕</span>';
   } else if (status === 'Incomplete') {
-    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#fff;font-weight:900">↩</span>';
+    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#8A1C1C;font-weight:900">↩</span>';
   } else if (status === 'Pending Visit') {
     inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#fff;font-weight:900">⏳</span>';
   } else if (status === 'Backlogged Cafe') {
@@ -5055,19 +5066,7 @@ function renderListMode() {
   const listEl = document.getElementById('list-view');
   if (!listEl) return;
 
-  const STATUS_COLORS = {
-    'Visit Completed': '#4caf50',
-    'Official Cafe Listing': '#7E57C2',
-    'In Review': '#C47F2E',
-    'In Progress': '#2196F3',
-    'Pending Visit': '#6366F1',
-    'Temporarily Unavailable': '#F28C28',
-    'Permanently Closed': '#37474F',
-    'Incomplete': '#FF6B00',
-    'New Cafe Added': '#22B8CF',
-    'Backlogged Cafe': '#8D6E63',
-    'Ineligible Cafe': '#6B7280',
-  };
+  const STATUS_COLORS = SHEET_STATUS_COLORS;
 
   // List mode has its own three-tab system independent of the main tab bar
   const tab = state.listModeTab || 'small';
@@ -6235,7 +6234,7 @@ function renderNewCafesList() {
     <div class="wf-hint" style="margin-bottom:6px">Make sure the pin is in the right spot, then set the status to Ready To Be Assigned.</div>
     ${added.map(c => `
       <div class="checklist-item" onclick="zoomToCafe('${c.id}')" style="cursor:pointer">
-        <div class="cl-status-dot" style="background:#22B8CF"></div>
+        <div class="cl-status-dot" style="background:#B3FFFD"></div>
         <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.number ? c.number + ' · ' : '')}${escHtml(c.name)}</div><div class="cl-cafe-addr">${wfMapsLink(c.address, c.name)}</div></div>
         <span style="font-size:0.65rem;color:#0E7C8C;font-weight:700;white-space:nowrap">Check pin →</span>
       </div>`).join('') || '<div class="wf-hint" style="text-align:center;padding:10px 0">Nothing to check.</div>'}
@@ -6246,7 +6245,7 @@ function reviewRowsHtml(rows, title) {
     <div class="wf-eyebrow" style="margin-bottom:6px">${title} · ${rows.length}</div>
     ${rows.length ? rows.map(c => `
       <div class="checklist-item" onclick="openReview('${c.id}')" style="cursor:pointer">
-        <div class="cl-status-dot" style="background:#C47F2E"></div>
+        <div class="cl-status-dot" style="background:#FF9FC3"></div>
         <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.name)}</div><div class="cl-cafe-addr">${wfMapsLink(c.address, c.name)}</div></div>
         <span style="font-size:0.65rem;color:#C47F2E;font-weight:700;white-space:nowrap">Review →</span>
       </div>`).join('')
@@ -6277,7 +6276,7 @@ async function renderReviewPanel(cafe) {
     <div class="wf-head">
       <div class="wf-head-txt">
         <div class="wf-title">${escHtml(cafe.name)}${_wfIsApprover ? `<button class="pencil-btn" onclick="showEditCafe('${cafe.id}')" title="Edit café name">✏️</button>` : ''}</div>
-        <div class="popup-status" style="color:${getMarkerColor(cafe)}"><span class="popup-status-dot" style="background:${getMarkerColor(cafe)}"></span>${escHtml(cafe.status || 'Ready To Be Assigned')}</div>
+        <div class="popup-status" style="color:#2E1A0E"><span class="popup-status-dot" style="background:${getMarkerColor(cafe)}"></span>${escHtml(cafe.status || 'Ready To Be Assigned')}</div>
         <div class="wf-addr">${wfMapsLink(cafe.address, cafe.name)}${_wfIsApprover ? `<button class="pencil-btn" onclick="showEditCafe('${cafe.id}')" title="Edit address">✏️</button>` : ''}</div>
         <div class="wf-hint">Submitted by <b>${escHtml(s.submittedBy || '?')}</b>${s.submittedAt ? ' on ' + escHtml(s.submittedAt) : (s.dateScouted ? ' on ' + escHtml(s.dateScouted) : '')}${s.reviewStatus === 'Correction' ? ' · 🔁 correction' : ''}</div>
       </div>
@@ -6453,7 +6452,7 @@ function renderOfficialPanel() {
   container.innerHTML = `
     <div class="wf-eyebrow" style="margin-bottom:6px">⭐ Official Work &amp; Brew Map · ${rows.length} live on the public site</div>
     ${rows.length ? rows.map(c => `<div class="checklist-item" onclick="zoomToCafe('${c.id}')" style="cursor:pointer">
-        <div class="cl-status-dot" style="background:#7E57C2"></div>
+        <div class="cl-status-dot" style="background:#E6CFF2"></div>
         <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.name)}</div><div class="cl-cafe-addr">${wfMapsLink(c.address, c.name)}${c.borough ? ' · ' + escHtml(c.borough) : ''}</div></div>
         ${_wfIsApprover ? `<button class="cl-nav-btn" title="Back to Completed" onclick="event.stopPropagation(); wfSetStatus('${c.id}','Visit Completed')">↩</button>` : ''}
       </div>`).join('')
