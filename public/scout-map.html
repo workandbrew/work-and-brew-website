@@ -131,6 +131,9 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 #btn-logout:hover { background: var(--brown); color: var(--beige-light); }
 @media (max-width: 768px) { #btn-logout { padding: 8px 10px; font-size: 0.78rem; } }
 #btn-add-cafe:hover { background: #a3542a; border-color: #a3542a; }
+/* New café and Log out: same height and shape */
+#header #btn-add-cafe, #header #btn-logout { height: 36px !important; width: 100px; padding: 0 10px !important; font-size: 0.75rem !important; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; line-height: 1; border-width: 2px; border-radius: 7px; }
+@media (max-width: 768px) { #header #btn-add-cafe, #header #btn-logout { height: 38px !important; width: 92px; padding: 0 8px !important; font-size: 0.78rem !important; } }
 .sg-note { background: #fff4e5; border: 1px solid #f3c48a; color: #7a4a12; border-radius: 8px; padding: 8px 10px; font-size: 0.78rem; line-height: 1.35; margin-bottom: 12px; }
 .sg-note b { color: #9a4a0a; }
 #bulk-action-bar { display: none; position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 1200; background: var(--brown); color: var(--beige-light); padding: 8px 12px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.3); align-items: center; gap: 8px; font-size: 0.8rem; font-family: 'Inter', sans-serif; max-width: calc(100vw - 24px); flex-wrap: wrap; }
@@ -522,6 +525,10 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   padding: 12px 14px;
 }
 #list-view.active { display: block; }
+.map-list-btn { background: var(--brown); color: var(--beige-light); border: 2px solid rgba(255,255,255,0.9); border-radius: 8px; padding: 7px 12px; font: 700 0.75rem 'Inter', sans-serif; cursor: pointer; box-shadow: 0 1px 5px rgba(0,0,0,0.35); }
+.map-list-btn:hover { background: var(--brown-mid); }
+.list-back-btn { display: block; margin: 0 0 10px auto; background: var(--brown); color: var(--beige-light); border: none; border-radius: 8px; padding: 8px 14px; font: 700 0.75rem 'Inter', sans-serif; cursor: pointer; }
+.list-back-btn:hover { background: var(--brown-mid); }
 /* café number (#203) in the top right corner of the popup and list rows */
 .cafe-num { font-size: 0.62rem; font-weight: 700; color: #9a8570; letter-spacing: 0.02em; white-space: nowrap; font-family: 'Inter', sans-serif; }
 .popup-num { flex-shrink: 0; margin: 2px 18px 0 0; }
@@ -1583,9 +1590,9 @@ body { display: flex; flex-direction: column; overflow: hidden; }
     <div class="stat-chip" style="background:#6366F1">⏳ Pending: <span id="s-pending">0</span></div>
     <div class="stat-chip" style="background:#BFE1F6;color:#0B3D5C">🗺 Assigned: <span id="s-assigned">0</span></div>
   </div>
-  <button id="btn-export">⬇ Export</button>
-  <button id="copy-all-btn">📋 Copy All</button>
-  <button id="btn-add-cafe" title="Suggest a café that is not on the map yet"><span class="tl">Found a new café?</span><span class="ts">New café?</span></button>
+  <button id="btn-export" style="display:none">⬇ Export</button>
+  <button id="copy-all-btn" style="display:none">📋 Copy All</button>
+  <button id="btn-add-cafe" title="Found a new café? Suggest one that is not on the map yet">New café?</button>
   <button id="btn-logout" type="button" title="Log out of the scout map">Log out</button>
 </div>
 
@@ -1619,7 +1626,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   <button class="boro-btn" data-boro="Queens">Queens</button>
   <div style="margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);height:20px;flex-shrink:0;"></div>
   <div id="wide-filters"></div>
-  <button id="list-mode-btn" title="Toggle list view">☰ List</button>
+  <button id="list-mode-btn" title="Toggle list view" style="display:none">☰ List</button>
 </div>
 
 <!-- SCOUT MODE BANNER -->
@@ -2675,6 +2682,18 @@ const map = L.map('map', {
   inertiaDeceleration: 2500,
   tapHold: false
 });
+// List button in the map's top right corner: turns the pins on screen into a list
+L.Control.ListBtn = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd() {
+    const b = L.DomUtil.create('button', 'map-list-btn');
+    b.type = 'button'; b.title = 'See these cafés as a list'; b.textContent = '☰ List';
+    L.DomEvent.disableClickPropagation(b);
+    b.onclick = () => toggleListMode();
+    return b;
+  }
+});
+new L.Control.ListBtn().addTo(map);
 
 // Base map: MapTiler (same style + key as the public homepage map). The key is locked to
 // workandbrew.app in MapTiler Cloud; add localhost there to preview locally.
@@ -5075,14 +5094,18 @@ function renderListMode() {
   const STATUS_COLORS = SHEET_STATUS_COLORS;
 
   // List mode has its own three-tab system independent of the main tab bar
-  const tab = state.listModeTab || 'small';
+  const tab = _wfIsAdmin ? (state.listModeTab || 'small') : 'small';
   const typeFilter = c => {
     if (tab === 'ineligible') return c.status === 'Ineligible Cafe';
     if (tab === 'small')      return !c.isChain && !c.isMultiLoc && c.status !== 'Ineligible Cafe';
     /* chain */               return (c.isChain || c.isMultiLoc) && c.status !== 'Ineligible Cafe';
   };
 
-  const matching = state.cafes.filter(c => typeFilter(c) && cafeMatchesBoro(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c));
+  const backBtn = '<button class="list-back-btn" onclick="toggleListMode()">🗺 Back to map</button>';
+  const onMap = c => (state.searchQuery && state.searchQuery.trim()) || (cafeMatchesTab(c) && cafeMatchesScout(c));
+  const matching = _wfIsAdmin
+    ? state.cafes.filter(c => typeFilter(c) && cafeMatchesBoro(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c))
+    : state.cafes.filter(c => onMap(c) && cafeMatchesBoro(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c));
 
   // For ineligible tab: sort alphabetically. For others: incomplete first, done at bottom.
   const sorted = tab === 'ineligible'
@@ -5094,12 +5117,12 @@ function renderListMode() {
   const backlogCount = tab !== 'ineligible' ? matching.filter(c => c.status !== 'Visit Completed').length : 0;
   const doneCount    = tab !== 'ineligible' ? matching.filter(c => c.status === 'Visit Completed').length : 0;
 
-  const tabHtml = `
+  const tabHtml = backBtn + (!_wfIsAdmin ? '' : `
     <div class="list-mode-tabs">
       <button class="list-mode-tab-btn ${tab==='small' ? 'active' : ''}" onclick="setListModeTab('small')">☕ Small Businesses</button>
       <button class="list-mode-tab-btn ${tab==='chain' ? 'active' : ''}" onclick="setListModeTab('chain')">🏢 Corporate &amp; Chain</button>
       <button class="list-mode-tab-btn ${tab==='ineligible' ? 'active' : ''}" onclick="setListModeTab('ineligible')" style="${tab==='ineligible'?'':''}">❌ Ineligible</button>
-    </div>
+    </div>`) + `
     <div class="list-mode-meta">
       <span>${matching.length} cafés${tab==='ineligible' ? ' ineligible' : ' total'}</span>
       ${tab !== 'ineligible' ? `<span style="color:#92400E;font-weight:600">· ${backlogCount} backlog</span>
@@ -5241,6 +5264,9 @@ const APPROVER_EMAILS = [
   'abishop039@gmail.com',
   'workandbrew.app@gmail.com',
 ];
+// Admins also get Export and Copy All (approvers plus Sayraliz)
+const ADMIN_EMAILS = APPROVER_EMAILS.concat(['sayraliz.rivas@gmail.com']);
+let _wfIsAdmin = false;
 const SEAT_TYPES = ['Chairs','Booths','Couches','Soft seating','Counter/bar','Communal table','Outdoor'];
 const SEAT_COUNTS = ['Few (1-8)','Some (9-15)','Many (15-25)','Ample (25+)'];
 const MAX_UPLOAD_MB = 40;
@@ -5288,6 +5314,8 @@ async function wfApi(action, payload) {
 function wfDetectRole(user) {
   const email = ((user && user.email) || '').toLowerCase();
   _wfIsApprover = APPROVER_EMAILS.map(e => e.toLowerCase()).includes(email);
+  _wfIsAdmin = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
+  ['btn-export', 'copy-all-btn'].forEach(id => { const b = document.getElementById(id); if (b) b.style.display = _wfIsAdmin ? '' : 'none'; });
   const params = new URLSearchParams(window.location.search);
   const scoutParam = params.get('scout');
   const meta = (user && user.user_metadata) || {};
