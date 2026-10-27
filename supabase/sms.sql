@@ -156,3 +156,14 @@ create table if not exists public.growth_tokens (
 );
 alter table public.growth_tokens enable row level security;  -- server-only
 grant all on public.growth_tokens to service_role;
+
+-- ---------------------------------------------------------------------------------------------
+-- Team-only navbar links: everyone here sees "Café Map"; hub_admins also see "Team Hub".
+-- ---------------------------------------------------------------------------------------------
+create table if not exists public.team_access (
+  email text primary key,                  -- the email they log into the website with
+  name text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.team_access enable row level security;  -- server-only
+grant all on public.team_access to service_role;

@@ -4,6 +4,7 @@
 // (Den, David, Armando, Sayraliz). The browser sends its Supabase login token:
 //   Authorization: Bearer <supabase access token>
 //
+//   GET ?access=1                               → { map, hub }: which team links this user sees in the navbar
 //   GET                                         → { me, team, chapters, groups, log, templates, signups, cafes, ... }
 //   POST { action: "preview", to, message }     → who would get it + the exact text (sends nothing)
 //   POST { action: "send",    to, message }     → sends, logged with the sender's name
@@ -67,6 +68,22 @@ async function extras() {
     schedules: schedules && schedules.map((s) => ({ ...s, weekdayName: WEEKDAYS[s.weekday] })),
     growth,
   };
+}
+
+// Which team-only links a logged-in website user should see in the top navigation.
+// Café Map: everyone in team_access (plus hub admins). Team Hub: hub_admins only.
+async function navAccess(req) {
+  const header = req.headers?.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
+  if (!token) return { map: false, hub: false };
+  const { data } = await db().auth.getUser(token);
+  const email = data?.user?.email?.toLowerCase();
+  if (!email) return { map: false, hub: false };
+  const [admin, member] = await Promise.all([
+    optional(db().from("hub_admins").select("email").ilike("email", email).maybeSingle(), null),
+    optional(db().from("team_access").select("email").ilike("email", email).maybeSingle(), null),
+  ]);
+  return { hub: !!admin, map: !!admin || !!member };
 }
 
 async function hubUser(req) {
@@ -138,6 +155,10 @@ export default async function handler(req, res) {
   if (!["GET", "POST"].includes(req.method)) {
     res.setHeader("Allow", "GET, POST");
     return res.status(405).json({ ok: false, error: "GET/POST only" });
+  }
+  if (req.method === "GET" && req.query?.access) {
+    try { return res.status(200).json({ ok: true, ...(await navAccess(req)) }); }
+    catch { return res.status(200).json({ ok: true, map: false, hub: false }); }
   }
   let who;
   try { who = await hubUser(req); } catch (e) { return res.status(500).json({ ok: false, error: e.message }); }
