@@ -1882,7 +1882,24 @@ function debouncedSync() {
   _sbSyncTimer = setTimeout(syncToSupabase, 1500);
 }
 
+// Only the Work & Brew team (team_access list, checked by the website server) may use the map.
+async function sbIsTeamMember() {
+  try {
+    const { data } = await sb.auth.getSession();
+    const token = data && data.session ? data.session.access_token : null;
+    if (!token) return false;
+    const res = await fetch('/api/hub?access=1', { headers: { Authorization: 'Bearer ' + token } });
+    const json = await res.json();
+    return !!(json && json.map);
+  } catch (e) { return false; }
+}
+
 async function sbOnAuthSuccess(user) {
+  if (!(await sbIsTeamMember())) {
+    await sb.auth.signOut();
+    alert('The café map is for Work & Brew team members only. If you should have access, ask Denisse to add your email.');
+    return;
+  }
   _sbUser = user;
   adminUnlocked = true;
 
