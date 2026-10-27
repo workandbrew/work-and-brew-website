@@ -6091,7 +6091,7 @@ function renderSuggestionsBlock() {
           <div class="cl-cafe-addr">${sg.kind === 'Full' ? 'Full submission · ' + (sg.photoCount || 0) + ' photo(s)' : 'Quick lead, not scouted yet'} · ${escHtml(sg.type || '')}</div>
           <div class="cl-cafe-addr">From ${escHtml(sg.by || '')} ${escHtml(sg.at || '')}${sg.mapsLink ? ' · <a href="' + escHtml(sg.mapsLink) + '" target="_blank" rel="noopener">Maps link</a>' : ''}</div></div>
         <div style="display:flex;gap:6px;width:100%;margin-top:6px">
-          <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60" onclick="${sg.kind === 'Full' ? "sgShowModal('" + sg.row + "')" : "sgApprove('" + sg.row + "')"}">${sg.kind === 'Full' ? 'Review and approve' : 'Approve and add to map'}</button>
+          <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60" onclick="${sg.kind === 'Full' ? "sgShowModal('" + sg.row + "')" : "sgApprove('" + sg.row + "')"}">${sg.kind === 'Full' ? 'Review and approve' : 'Approve &amp; Add to Main Map'}</button>
           <button class="wf-btn-sm" style="flex:1" onclick="sgReject('${sg.row}')">Reject</button>
         </div>
       </div>`).join('')}
@@ -6132,7 +6132,7 @@ async function sgShowModal(focusRow) {
           </div>`).join('')}
       </div>` : ''}
       <div style="display:flex;gap:8px;margin-top:16px">
-        <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60;padding:11px" onclick="sgModalDo('approve','${sg.row}',this)">${sg.kind === 'Full' ? 'Approve and add to Complete' : 'Approve and add to map'}</button>
+        <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60;padding:11px" onclick="sgModalDo('approve','${sg.row}',this)">${sg.kind === 'Full' ? 'Approve and add to Complete' : 'Approve &amp; Add to Main Map'}</button>
         <button class="wf-btn-sm" style="flex:1;padding:11px" onclick="sgModalDo('reject','${sg.row}',this)">Reject</button>
       </div>
     </div>` : `
@@ -6147,7 +6147,9 @@ async function sgShowModal(focusRow) {
 async function sgModalDo(kind, row, btn) {
   if (btn) { btn.disabled = true; btn.textContent = kind === 'approve' ? 'Adding…' : 'Rejecting…'; }
   let extra = null;
-  if (kind === 'approve') {
+  const sg = (_sgPending || []).find(x => String(x.row) === String(row));
+  // Quick leads (just a location) have no photos yet: they go on the map as Unvisited, ready to assign.
+  if (kind === 'approve' && sg && sg.kind === 'Full' && (sg.photos || []).length) {
     const picks = Array.from(document.querySelectorAll('.sgm-photo:checked')).map(e => e.value);
     if (picks.length < 3) {
       showToast('Pick at least 3 photos for the listing');
@@ -6184,7 +6186,7 @@ async function sgApprove(row, extra) {
     } else if (status === 'Visit Completed') {
       showToast(c.name + ' added to the Complete tab as ' + c.number);
     } else {
-      showToast(c.name + ' added as ' + c.number + ' (highlighted yellow in the sheet)');
+      showToast(c.name + ' added to the map as ' + c.number + ', ready to be assigned for scouting');
     }
   } catch (e) { showToast(e.message); }
 }
