@@ -49,11 +49,13 @@ async function extras() {
   ]);
   const pending = await optional(
     db().from("signup_requests").select("id", { count: "exact", head: true }).eq("status", "pending").then((r) => ({ data: r.count, error: r.error })), 0);
-  const cafeCounts = cafes ? cafes.reduce((m, c) => ((m[c.status || "Unvisited"] = (m[c.status || "Unvisited"] || 0) + 1), m), {}) : null;
+  // Same names as the spreadsheet (older rows may still say Unvisited or Needs Revisit).
+  const statusOf = (st) => (!st || st === "Unvisited" ? "Ready To Be Assigned" : st === "Needs Revisit" ? "Incomplete" : st);
+  const cafeCounts = cafes ? cafes.reduce((m, c) => ((m[statusOf(c.status)] = (m[statusOf(c.status)] || 0) + 1), m), {}) : null;
   // A compact café list for the Cafés page (the table has more columns than the hub needs).
   const yes = (v) => (v == null || v === "" ? null : /^(true|yes|y|1)$/i.test(String(v)) ? "Yes" : /^(false|no|n|0)$/i.test(String(v)) ? "No" : String(v));
   const cafeList = cafes ? cafes.map((c) => ({
-    id: c.id, name: c.name || "Unnamed café", borough: c.borough || "", status: c.status || "Unvisited",
+    id: c.id, name: c.name || "Unnamed café", borough: c.borough || "", status: statusOf(c.status),
     assignedTo: c.assigned_to || null, scout: c.scout_name || null,
     wifi: yes(c.wifi), outlets: yes(c.outlets), seats: c.seats || null,
     at: c.updated_at || c.visited_at || null,

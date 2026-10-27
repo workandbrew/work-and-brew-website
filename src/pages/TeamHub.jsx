@@ -402,9 +402,10 @@ function Messages({ data, reload, notify }) {
 
 // ---------------------------------------------------------------- Cafés
 
-const CAFE_ORDER = ["Visit Completed", "In Progress", "Backlogged Cafe", "Temporarily Unavailable", "Ineligible Cafe", "Permanently Closed"];
+const CAFE_ORDER = ["Visit Completed", "In Review", "In Progress", "Assigned", "Ready To Be Assigned", "New Cafe Added", "Incomplete",
+  "Backlogged Cafe", "Temporarily Unavailable", "Ineligible Cafe", "Permanently Closed"];
 
-const STATUS_TONE = { "Visit Completed": "g", "In Progress": "d", "Ineligible Cafe": "b", "Permanently Closed": "b", "Temporarily Unavailable": "b" };
+const STATUS_TONE = { "Visit Completed": "g", "In Progress": "d", "Incomplete": "b", "Ineligible Cafe": "b", "Permanently Closed": "b", "Temporarily Unavailable": "b" };
 const shortStatus = (st) => st.replace(" Cafe", "");
 const tally = (rows, key) => {
   const m = new Map();
@@ -427,7 +428,7 @@ function Cafes({ data }) {
   const c = data.cafes;
   const list = data.cafeList || [];
   const total = Object.values(c).reduce((n, v) => n + v, 0);
-  const rows = CAFE_ORDER.concat(["Unvisited"]).filter((k) => c[k]).map((k) => ({ label: shortStatus(k), value: c[k] }));
+  const rows = CAFE_ORDER.concat(Object.keys(c).filter((k) => !CAFE_ORDER.includes(k))).filter((k) => c[k]).map((k) => ({ label: shortStatus(k), value: c[k] }));
   const closed = (c["Ineligible Cafe"] || 0) + (c["Permanently Closed"] || 0) + (c["Temporarily Unavailable"] || 0);
   const boroughs = [...new Set(list.map((x) => x.borough).filter(Boolean))].sort();
   const statuses = [...new Set(list.map((x) => x.status))].sort((a, b) => CAFE_ORDER.indexOf(a) - CAFE_ORDER.indexOf(b));
