@@ -6147,7 +6147,9 @@ async function sgShowModal(focusRow) {
 async function sgModalDo(kind, row, btn) {
   if (btn) { btn.disabled = true; btn.textContent = kind === 'approve' ? 'Adding…' : 'Rejecting…'; }
   let extra = null;
-  if (kind === 'approve') {
+  const sg = (_sgPending || []).find(x => String(x.row) === String(row));
+  // Quick leads (just a location) have no photos yet: they go on the map as Unvisited, ready to assign.
+  if (kind === 'approve' && sg && sg.kind === 'Full' && (sg.photos || []).length) {
     const picks = Array.from(document.querySelectorAll('.sgm-photo:checked')).map(e => e.value);
     if (picks.length < 3) {
       showToast('Pick at least 3 photos for the listing');
@@ -6184,7 +6186,7 @@ async function sgApprove(row, extra) {
     } else if (status === 'Visit Completed') {
       showToast(c.name + ' added to the Complete tab as ' + c.number);
     } else {
-      showToast(c.name + ' added as ' + c.number + ' (highlighted yellow in the sheet)');
+      showToast(c.name + ' added to the map as ' + c.number + ', ready to be assigned for scouting');
     }
   } catch (e) { showToast(e.message); }
 }
