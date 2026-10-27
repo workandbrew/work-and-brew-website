@@ -15,7 +15,7 @@
  *   POST assign / assignmentList / editCafe → assignments with due dates, café name/address fixes
  *   POST leadList/leadSave/leadReset → Scout Lead assignment (approvers only)
  *   POST approve       → finalizes the row (Status = Visit Completed), pings Slack
- *   POST sendBack      → Status = Needs Revisit, pings Slack with the note
+ *   POST sendBack      → Status = Incomplete, pings Slack with the note
  *   POST removeUpload  → trashes a file the scout removed before submitting
  *   POST setStatus     → approver moves a café (e.g. Visit Completed → Official Cafe Listing)
  *   GET  ?action=markers → CSV of Official Cafe Listing cafés for the public map (60s cache)
@@ -191,8 +191,9 @@ function statusLabel_(st) {
   if (st === 'Official Cafe Listing') return 'Official Cafe Listing (live on the public map)';
   if (st === 'Visit Completed') return 'Complete (scouted, not on the official map yet)';
   if (st === 'In Review') return 'In Review (still waiting for approval)';
-  if (st === 'Needs Revisit') return 'Needs Revisit (sent back to the scout)';
-  if (st === 'Assigned' || st === 'Unvisited' || st === '') return 'Not scouted yet (' + (st || 'Unvisited') + ')';
+  if (st === 'Needs Revisit' || st === 'Incomplete') return 'Incomplete (sent back to the scout)';
+  if (st === 'New Cafe Added') return 'New Cafe Added (location being checked)';
+  if (st === 'Assigned' || st === 'Unvisited' || st === 'Ready To Be Assigned' || st === '') return 'Not scouted yet (' + (st === 'Assigned' ? st : 'Ready To Be Assigned') + ')';
   return st;
 }
 function now_() { return Utilities.formatDate(new Date(), 'America/New_York', 'MMM d, yyyy h:mm a'); }
@@ -346,8 +347,8 @@ function handleFlagAddress_(body, user) {
 //   Full  = a complete café form (photos, hours, everything) for a café that is not in the database yet
 //   Quick = only the location ("in a rush"), for someone else to scout later
 // Both wait on the "Café Suggestions" tab until an approver accepts them from the Review tab. Only then
-// do they join the main sheet (yellow row) and the map. A Full one lands in In Review so the usual
-// review and publish step follows; a Quick one lands as Unvisited.
+// do they join the main sheet and the map. A Full one lands in In Review so the usual review and
+// publish step follows; a Quick one lands as New Cafe Added until David checks its location.
 var SUGGEST_SHEET = 'Café Suggestions';
 var SUGGEST_COLS = ['SuggestedAt', 'SuggestedBy', 'Name', 'Address', 'Borough', 'Type', 'Latitude', 'Longitude', 'Decision', 'DecidedBy', 'DecidedAt', 'Note', 'Kind', 'MapsLink', 'FormJson', 'PhotoIds'];
 function suggestSheet_() {
@@ -470,9 +471,14 @@ function handleReadWebsite_(body, user) {
 }
 // Zip code from the US Census address finder (more reliable than map data, and a browser is not allowed to call it)
 function handleLookupZip_(body, user) {
-  var addr = String(body.address || '').replace(/\s+/g, ' ').trim();
-  if (!addr) return { zip: '' };
-  var boro = String(body.borough || '').trim();
+  if (!String(body.address || '').trim()) return { zip: '' };
+  return geocode_(body.address, body.borough);
+}
+// Address -> zip and coordinates: the US Census finder first, Google Maps if it has no match
+function geocode_(address, borough) {
+  var addr = String(address || '').replace(/\s+/g, ' ').trim();
+  if (!addr) return { zip: '', lat: '', lng: '' };
+  var boro = String(borough || '').trim();
   var q = /new york|, ny\b|bronx|brooklyn|queens|manhattan|staten island/i.test(addr) ? addr : addr + ', ' + boro + ', NY';
   var zip = '', lat = '', lng = '';
   try {
@@ -480,6 +486,12 @@ function handleLookupZip_(body, user) {
     var m = JSON.parse(res.getContentText()).result.addressMatches;
     if (m && m.length) { zip = String((m[0].addressComponents || {}).zip || ''); lat = (m[0].coordinates || {}).y || ''; lng = (m[0].coordinates || {}).x || ''; }
   } catch (e) {}
+  if (!lat || !lng) {
+    try {
+      var g = Maps.newGeocoder().geocode(q);
+      if (g.status === 'OK' && g.results.length) { lat = g.results[0].geometry.location.lat; lng = g.results[0].geometry.location.lng; }
+    } catch (e) {}
+  }
   return { zip: zip, lat: lat, lng: lng };
 }
 function handleListSuggestions_(body, user) {
@@ -505,7 +517,7 @@ function handleApproveSuggestion_(body, user) {
   var v = ssh.getRange(r, 1, 1, SUGGEST_COLS.length).getValues()[0];
   if (String(v[8]) !== 'Pending') throw new Error('This suggestion was already handled.');
   var full = String(v[12]) === 'Full';
-  var c = { name: v[2], address: v[3], borough: v[4], type: v[5], lat: v[6], lng: v[7], kind: full ? 'Full' : 'Quick', status: full ? 'In Review' : 'Unvisited' };
+  var c = { name: v[2], address: v[3], borough: v[4], type: v[5], lat: v[6], lng: v[7], kind: full ? 'Full' : 'Quick', status: full ? 'In Review' : 'New Cafe Added' };
   var sh = sheet_(), h = ensureColumns_(sh);
   var last = sh.getLastRow(), maxNum = 0;
   // Already on the map? Stop here so approving a repeat cannot add the café twice.
@@ -577,16 +589,21 @@ function handleApproveSuggestion_(body, user) {
     cells.ReviewStatus = complete ? 'Approved' : 'New cafe';
     if (complete) { cells.ApprovedBy = user.email; cells.ApprovedAt = now_(); }
   }
+  // No pin yet? Look the address up so the café lands on the map.
+  if (!c.lat || !c.lng) {
+    var geo = geocode_(c.address, c.borough);
+    if (geo.lat && geo.lng) { c.lat = geo.lat; c.lng = geo.lng; cells.Latitude = geo.lat; cells.Longitude = geo.lng; }
+    if (!c.zip && geo.zip) { c.zip = geo.zip; cells.Zipcode = geo.zip; }
+  }
   setCells_(sh, h, row, cells);
-  sh.getRange(row, 1, 1, sh.getLastColumn()).setBackground('#fff59d'); // yellow = new café from a scout
-  SpreadsheetApp.flush(); // write the new row and its yellow colour now
+  SpreadsheetApp.flush();
   ssh.getRange(r, 9, 1, 3).setValues([['Approved', user.email, now_()]]);
   CacheService.getScriptCache().remove('markers_csv');
-  var where = !full ? 'the main map, ready for scouting like the rest of the cafes'
+  var where = !full ? 'the main map as New Cafe Added (David checks the location, then it is Ready To Be Assigned)'
     : c.status === 'Visit Completed' ? 'the Complete list, ready to be pushed to the official map'
     : 'the Review tab (some info is still missing)';
   postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'Cafe added: ' + c.name,
-    '*' + c.name + '* has successfully been added to ' + where + '. (' + c.number + ', yellow row in the spreadsheet. Approved by ' + user.email + '.)', []);
+    '*' + c.name + '* has successfully been added to ' + where + '. (' + c.number + '. Approved by ' + user.email + '.)', []);
   c.row = row;
   return { cafe: c };
 }
@@ -772,11 +789,11 @@ function handleAssign_(body, user) {
     cAssigned[i][0] = scout;
     var st = String(cStatus[i][0] || '');
     if (scout) {
-      if (st === '' || st === 'Unvisited') cStatus[i][0] = 'Assigned';
+      if (st === '' || st === 'Unvisited' || st === 'Ready To Be Assigned') cStatus[i][0] = 'Assigned';
       cAt[i][0] = String(body.assignedAt || '');
       cDue[i][0] = String(body.dueAt || '');
     } else {
-      if (st === 'Assigned') cStatus[i][0] = 'Unvisited';
+      if (st === 'Assigned') cStatus[i][0] = 'Ready To Be Assigned';
       cAt[i][0] = ''; cDue[i][0] = '';
     }
     done++;
@@ -868,12 +885,12 @@ function handleSendBack_(body, user) {
   var sh = sheet_(), h = ensureColumns_(sh);
   var cafe = body.cafe || {};
   var row = findRow_(sh, h, cafe);
-  if (row !== -1) setCells_(sh, h, row, { Status: 'Needs Revisit', ReviewStatus: 'Sent back', SendBackNote: (body.note || '') + ' (' + user.email + ', ' + now_() + ')' });
+  if (row !== -1) setCells_(sh, h, row, { Status: 'Incomplete', ReviewStatus: 'Sent back', SendBackNote: (body.note || '') + ' (' + user.email + ', ' + now_() + ')' });
   postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '↩ Sent back: ' + (cafe.name || ''), '*' + (cafe.name || '') + '* was sent back to the scout.\n*Note:* ' + (body.note || '') + '\n_From: ' + user.email + '_', []);
   return {};
 }
 
-var ALLOWED_STATUSES = ['Unvisited', 'Assigned', 'In Progress', 'Pending Visit', 'In Review', 'Visit Completed', 'Official Cafe Listing', 'Needs Revisit', 'Backlogged Cafe', 'Temporarily Unavailable', 'Permanently Closed', 'Ineligible Cafe'];
+var ALLOWED_STATUSES = ['New Cafe Added', 'Ready To Be Assigned', 'Incomplete', 'Unvisited', 'Assigned', 'In Progress', 'Pending Visit', 'In Review', 'Visit Completed', 'Official Cafe Listing', 'Needs Revisit', 'Backlogged Cafe', 'Temporarily Unavailable', 'Permanently Closed', 'Ineligible Cafe'];
 
 // Approver moves a café between statuses (mainly Visit Completed <-> Official Cafe Listing)
 function handleSetStatus_(body, user) {
@@ -903,14 +920,25 @@ function handleListCafes_(body, user) {
   if (last < 2) return { cafes: cafes };
   var vals = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
   var g = function (v, k) { return h[k] ? v[h[k] - 1] : ''; };
+  var looked = 0;
   vals.forEach(function (v, i) {
     var name = String(g(v, 'Name') || '').trim();
     var lat = parseFloat(g(v, 'Latitude')), lng = parseFloat(g(v, 'Longitude'));
+    // A café typed into the sheet without coordinates: look them up once and save them
+    if (name && (isNaN(lat) || isNaN(lng)) && g(v, 'Address') && h.Latitude && h.Longitude && looked < 10) {
+      looked++;
+      var geo = geocode_(g(v, 'Address'), g(v, 'Borough'));
+      if (geo.lat && geo.lng) {
+        lat = Number(geo.lat); lng = Number(geo.lng);
+        sh.getRange(i + 2, h.Latitude).setValue(lat);
+        sh.getRange(i + 2, h.Longitude).setValue(lng);
+      }
+    }
     if (!name || isNaN(lat) || isNaN(lng)) return;
     cafes.push({
       id: i + 2, number: String(g(v, 'Number') || ''), name: name, address: String(g(v, 'Address') || ''),
       borough: String(g(v, 'Borough') || ''), zipcode: String(g(v, 'Zipcode') || ''), latitude: lat, longitude: lng,
-      status: String(g(v, 'Status') || '') || 'Unvisited', assigned_to: String(g(v, 'AssignedTo') || '') || null,
+      status: String(g(v, 'Status') || '') || 'Ready To Be Assigned', assigned_to: String(g(v, 'AssignedTo') || '') || null,
       description: String(g(v, 'Description') || ''),
       wifi: yesNoCell_(g(v, 'WiFi')), secured: yesNoCell_(g(v, 'Secured')), outlets: yesNoCell_(g(v, 'Outlets')),
       hot_food: yesNoCell_(g(v, 'HotFood')), restroom: yesNoCell_(g(v, 'Restroom')),
@@ -937,7 +965,7 @@ function handleSyncCafes_(body, user) {
   (body.rows || []).forEach(function (r) {
     var i = rowByNum[norm_(r.number)];
     if (i === undefined) return;
-    if (r.status !== undefined && ALLOWED_STATUSES.indexOf(String(r.status)) !== -1) cS[i][0] = String(r.status) === 'Unvisited' ? '' : String(r.status);
+    if (r.status !== undefined && ALLOWED_STATUSES.indexOf(String(r.status)) !== -1) cS[i][0] = String(r.status) === 'Unvisited' ? 'Ready To Be Assigned' : String(r.status);
     if (r.notes !== undefined) cN[i][0] = String(r.notes || '');
     if (r.assigned_to !== undefined) cA[i][0] = String(r.assigned_to || '');
     done++;

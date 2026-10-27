@@ -1568,13 +1568,13 @@ body { display: flex; flex-direction: column; overflow: hidden; }
     <div class="stat-chip">☕ Small Biz: <span id="s-indie">0</span></div>
     <div class="stat-chip">⛓ Chains: <span id="s-chains">0</span></div>
     <div class="stat-chip">⭐ Official: <span id="s-official">0</span></div>
-    <div class="stat-chip">Unvisited: <span id="s-unvisited">0</span></div>
+    <div class="stat-chip">To Assign: <span id="s-unvisited">0</span></div>
     <div class="stat-chip">In Progress: <span id="s-inprogress">0</span></div>
     <div class="stat-chip">Completed: <span id="s-completed">0</span></div>
     <div class="stat-chip">Done: <span id="s-pct">0%</span></div>
     <div class="stat-chip" style="background:#CA9A04">⚠ Temp: <span id="s-hazard">0</span></div>
     <div class="stat-chip" style="background:#DC2626">✕ Closed: <span id="s-closed">0</span></div>
-    <div class="stat-chip" style="background:#FF6B00">↩ Revisit: <span id="s-revisit">0</span></div>
+    <div class="stat-chip" style="background:#FF6B00">↩ Incomplete: <span id="s-revisit">0</span></div>
     <div class="stat-chip" style="background:#6366F1">⏳ Pending: <span id="s-pending">0</span></div>
     <div class="stat-chip" style="background:#1b3a5c">🗺 Assigned: <span id="s-assigned">0</span></div>
   </div>
@@ -1630,9 +1630,9 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   <span class="scout-filter-label" id="status-filter-label">Status:</span>
   <select id="status-filter" title="Filter by status" onchange="setStatusFilter(this.value)">
     <option value="All">All statuses</option>
-    <option>Unvisited</option><option>Assigned</option><option>In Progress</option><option>Pending Visit</option>
+    <option>New Cafe Added</option><option>Ready To Be Assigned</option><option>Assigned</option><option>In Progress</option><option>Pending Visit</option>
     <option>In Review</option><option>Visit Completed</option><option>Official Cafe Listing</option>
-    <option>Needs Revisit</option><option>Backlogged Cafe</option><option>Temporarily Unavailable</option>
+    <option>Incomplete</option><option>Backlogged Cafe</option><option>Temporarily Unavailable</option>
     <option>Permanently Closed</option><option>Ineligible Cafe</option>
   </select>
   <span class="scout-filter-label" id="scout-filter-label">Scout:</span>
@@ -1787,6 +1787,13 @@ async function loadFromSupabaseLegacy() {
     showToast('⚠ Could not load data: ' + e.message);
   }
 }
+// Older sheet values from before the status rename
+function normStatus(st) {
+  st = String(st || '').trim();
+  if (!st || st === 'Unvisited') return 'Ready To Be Assigned';
+  if (st === 'Needs Revisit') return 'Incomplete';
+  return st;
+}
 function applyLoadedCafes(data, src) {
   {
     {
@@ -1807,7 +1814,7 @@ function applyLoadedCafes(data, src) {
           zip: row.zipcode || '',
           lat: row.latitude,
           lng: row.longitude,
-          status: row.status || 'Unvisited',
+          status: normStatus(row.status),
           assignedTo: assignedIdx,
           assignedToName: row.assigned_to || null,
           description: row.description || '',
@@ -1838,7 +1845,7 @@ function applyLoadedCafes(data, src) {
     }
   }
 }
-function cafeSyncKey(c) { return JSON.stringify([c.status || 'Unvisited', c.notes || '', c.assignedToName || '']); }
+function cafeSyncKey(c) { return JSON.stringify([c.status || 'Ready To Be Assigned', c.notes || '', c.assignedToName || '']); }
 // Pick up edits made straight in the spreadsheet when the person comes back to the tab
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && _sbUser && Date.now() - _lastCafeLoad > 90000) loadFromSupabase();
@@ -1852,7 +1859,7 @@ async function sbUpdateRows(rows) {
     const c = state.cafes.find(x => String(x.id) === String(r.id));
     if (!c || !c.number) return;
     if (_sheetSnap[c.number] === cafeSyncKey(c)) return;
-    out.push({ number: c.number, status: c.status || 'Unvisited', notes: c.notes || '', assigned_to: c.assignedToName || '' });
+    out.push({ number: c.number, status: c.status || 'Ready To Be Assigned', notes: c.notes || '', assigned_to: c.assignedToName || '' });
   });
   if (!out.length) return { error: null };
   try {
@@ -1866,10 +1873,10 @@ async function syncToSupabase() {
   if (!_sbUser) return;
   try {
     const toSync = state.cafes
-      .filter(c => c.status !== 'Unvisited' || c.notes)
+      .filter(c => c.status !== 'Ready To Be Assigned' || c.notes)
       .map(c => ({
         id: c.id,
-        status: c.status || 'Unvisited',
+        status: c.status || 'Ready To Be Assigned',
         notes: c.notes || null,
         assigned_to: c.assignedToName || null,
       }));
@@ -1980,7 +1987,7 @@ function renderBacklogPanel() {
   const container = document.getElementById('persons-container');
   const q = state.searchQuery ? state.searchQuery.toLowerCase() : '';
   let cafes = state.cafes.filter(c =>
-    c.status === 'Unvisited' && c.assignedTo == null && !c.ineligibleReason
+    c.status === 'Ready To Be Assigned' && c.assignedTo == null && !c.ineligibleReason
   );
   if (state.boroughFilter !== 'All') cafes = cafes.filter(c => c.borough === state.boroughFilter);
   if (q) cafes = cafes.filter(c =>
@@ -2084,11 +2091,11 @@ function wireDragSelect(container) {
 
 
 function exportSQL() {
-  const rows = state.cafes.filter(c => c.status !== 'Unvisited' || c.ineligibleReason || c.assignedTo != null);
+  const rows = state.cafes.filter(c => c.status !== 'Ready To Be Assigned' || c.ineligibleReason || c.assignedTo != null);
   if (rows.length === 0) { alert('No data to export.'); return; }
   const esc = v => v ? v.replace(/'/g, "''") : '';
   const lines = rows.map(c => {
-    const status = esc(c.status || 'Unvisited');
+    const status = esc(c.status || 'Ready To Be Assigned');
     const reason = c.ineligibleReason ? `'${esc(c.ineligibleReason)}'` : 'NULL';
     const notes  = c.notes  ? `'${esc(c.notes)}'`  : 'NULL';
     const scout  = c.assignedTo != null ? c.assignedTo : 'NULL';
@@ -2109,10 +2116,10 @@ async function manualSync() {
   btn.style.background = '#2a4a35';
   try {
     const toSync = state.cafes
-      .filter(c => c.status !== 'Unvisited' || c.ineligibleReason)
+      .filter(c => c.status !== 'Ready To Be Assigned' || c.ineligibleReason)
       .map(c => ({
         id: c.id,
-        status: c.status || 'Unvisited',
+        status: c.status || 'Ready To Be Assigned',
         ineligible_reason: c.ineligibleReason || null,
         notes: c.notes || null,
       }));
@@ -2476,10 +2483,10 @@ function leadConfetti() {
 // Assigned cafés get the status "Assigned", move to the Assigned tab, and show "Assigned ... Due ..." in fine print.
 // ============================================================
 const ASSN = { sel: new Set(), byNum: {}, loaded: false };
-const ASSN_SKIP = ['Visit Completed', 'Official Cafe Listing', 'In Review', 'Ineligible Cafe', 'Permanently Closed', 'Temporarily Unavailable'];
+const ASSN_SKIP = ['New Cafe Added', 'Visit Completed', 'Official Cafe Listing', 'In Review', 'Ineligible Cafe', 'Permanently Closed', 'Temporarily Unavailable'];
 function assnAssignable(c) {
   if (ASSN_SKIP.includes(c.status)) return false;
-  return c.status === 'Unvisited' || c.assignedTo === null || c.assignedTo === undefined;
+  return c.status === 'Ready To Be Assigned' || c.assignedTo === null || c.assignedTo === undefined;
 }
 function assnYmd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function assnPlusDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return assnYmd(d); }
@@ -2516,10 +2523,10 @@ function assnSet(cafes, idx, dueAt) {
     c.assignedTo = idx;
     c.assignedToName = p ? p.name : null;
     if (p) {
-      if (!c.status || c.status === 'Unvisited') c.status = 'Assigned';
+      if (!c.status || c.status === 'Ready To Be Assigned') c.status = 'Assigned';
       c.assignedAt = today; c.dueAt = dueAt || '';
     } else {
-      if (c.status === 'Assigned') c.status = 'Unvisited';
+      if (c.status === 'Assigned') c.status = 'Ready To Be Assigned';
       c.assignedAt = ''; c.dueAt = '';
     }
     const k = String(c.number || '').trim();
@@ -2563,7 +2570,7 @@ function renderAssignPanel() {
   container.innerHTML = `
     <div class="wf-eyebrow" style="margin-bottom:6px">Scout Cafe Assignments · ${list.length} to assign</div>
     <div class="assn-ctrl">
-      <div class="wf-hint" style="margin-bottom:8px">Unvisited and not yet assigned cafés. Tick some, pick a scout and a due date, and assign. They move to that scout's Assigned tab.</div>
+      <div class="wf-hint" style="margin-bottom:8px">Cafés ready to be assigned. Tick some, pick a scout and a due date, and assign. They move to that scout's Assigned tab.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div><label>Scout</label><select id="assn-scout"><option value="">Choose</option>${opts}</select></div>
         <div><label>Due date</label><input type="date" id="assn-due" value="${keepDue}"></div>
@@ -2690,7 +2697,8 @@ function getMarkerColor(cafe) {
   if (cafe.status === 'In Review')               return '#C47F2E';
   if (cafe.status === 'Temporarily Unavailable') return '#FACC15';
   if (cafe.status === 'Permanently Closed')      return '#DC2626';
-  if (cafe.status === 'Needs Revisit')           return '#FF6B00';
+  if (cafe.status === 'Incomplete')           return '#FF6B00';
+  if (cafe.status === 'New Cafe Added')          return '#22B8CF';
   if (cafe.status === 'Pending Visit')           return '#6366F1';
   if (cafe.status === 'Backlogged Cafe')         return '#D97706';
   if (cafe.status === 'Ineligible Cafe')         return '#6B7280';
@@ -2706,7 +2714,7 @@ function createMarkerIcon(color, status) {
     inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-55%);font-size:8px;line-height:1;color:#7A5B00;font-weight:900">T</span>';
   } else if (status === 'Permanently Closed') {
     inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#fff;font-weight:900">✕</span>';
-  } else if (status === 'Needs Revisit') {
+  } else if (status === 'Incomplete') {
     inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#fff;font-weight:900">↩</span>';
   } else if (status === 'Pending Visit') {
     inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#fff;font-weight:900">⏳</span>';
@@ -2886,8 +2894,8 @@ function buildPopupContent(cafe) {
     ${inReview ? `<div style="font-size:0.75rem;color:#C47F2E;font-weight:700;margin:6px 0 2px">⏳ In review: submitted, waiting for approval</div>
       <button class="popup-review-btn" onclick="openReview('${cafe.id}')">${_wfIsApprover ? '🔎 Review submission' : '👁 View my submission'}</button>
       ${_wfIsApprover ? '' : `<button class="popup-scout-btn" onclick="wfEditSubmission('${cafe.id}')">✏️ Edit my submission</button>`}` : ''}
-    ${(isCompleted || isOfficial || cafe.status === 'Needs Revisit') ? `<button class="popup-review-btn" onclick="openReview('${cafe.id}')">👁 View submission</button>` : ''}
-    ${cafe.status === 'Needs Revisit' && cafe.notes ? `<div style="font-size:0.7rem;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:5px 7px;margin:4px 0">${escHtml(cafe.notes)}</div>` : ''}
+    ${(isCompleted || isOfficial || cafe.status === 'Incomplete') ? `<button class="popup-review-btn" onclick="openReview('${cafe.id}')">👁 View submission</button>` : ''}
+    ${cafe.status === 'Incomplete' && cafe.notes ? `<div style="font-size:0.7rem;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:5px 7px;margin:4px 0">${escHtml(cafe.notes)}</div>` : ''}
     ${isOfficial ? `
     <div style="font-size:0.75rem;color:#B8860B;font-weight:700;margin-bottom:6px;">⭐ Official Work &amp; Brew listing: live on the public map</div>
     ${_wfIsApprover ? `<button class="popup-undo-btn" onclick="wfSetStatus('${cafe.id}','Visit Completed')">↩ Back to Completed</button>` : ''}
@@ -2902,14 +2910,16 @@ function buildPopupContent(cafe) {
     <div class="popup-row">
       <label>Status:</label>
       <select id="popup-status-${cafe.id}" onchange="onStatusChange('${cafe.id}',this.value)">
-        <option ${cafe.status==='Unvisited'?'selected':''}>Unvisited</option>
+        <option ${cafe.status==='New Cafe Added'?'selected':''}>New Cafe Added</option>
+        <option ${cafe.status==='Ready To Be Assigned'?'selected':''}>Ready To Be Assigned</option>
+        <option ${cafe.status==='Assigned'?'selected':''}>Assigned</option>
         <option ${cafe.status==='In Progress'?'selected':''}>In Progress</option>
         <option ${cafe.status==='In Review'?'selected':''}>In Review</option>
         <option ${cafe.status==='Visit Completed'?'selected':''}>Visit Completed</option>
         ${_wfIsApprover ? `<option ${cafe.status==='Official Cafe Listing'?'selected':''}>Official Cafe Listing</option>` : ''}
         <option ${cafe.status==='Temporarily Unavailable'?'selected':''}>Temporarily Unavailable</option>
         <option ${cafe.status==='Permanently Closed'?'selected':''}>Permanently Closed</option>
-        <option ${cafe.status==='Needs Revisit'?'selected':''}>Needs Revisit</option>
+        <option ${cafe.status==='Incomplete'?'selected':''}>Incomplete</option>
         <option ${cafe.status==='Pending Visit'?'selected':''}>Pending Visit</option>
         <option ${cafe.status==='Backlogged Cafe'?'selected':''}>Backlogged Cafe</option>
         <option ${cafe.status==='Ineligible Cafe'?'selected':''}>Ineligible Cafe</option>
@@ -2970,7 +2980,7 @@ function updateStatus(id, val) {
   } else if (val === 'Permanently Closed') {
     showToast('🔴 ' + cafe.name + ' marked permanently closed');
     applyFilters();
-  } else if (val === 'Needs Revisit') {
+  } else if (val === 'Incomplete') {
     showToast('🟠 ' + cafe.name + ' flagged for revisit');
     applyFilters();
   } else if (val === 'Pending Visit') {
@@ -3117,7 +3127,7 @@ function markAsChain(id) {
 function undoCompleted(id) {
   const cafe = state.cafes.find(c => String(c.id) === String(id));
   if (!cafe) return;
-  cafe.status = 'Unvisited';
+  cafe.status = 'Ready To Be Assigned';
   refreshMarker(cafe);
   map.closePopup();
   applyFilters();
@@ -3162,7 +3172,7 @@ function cafeMatchesTab(cafe) {
   if (tab === 'official') return cafe.status === 'Official Cafe Listing';
   if (tab === 'completed') return cafe.status === 'Visit Completed';
   if (tab === 'review') return cafe.status === 'In Review' && !cafe.newCafe;
-  if (tab === 'newcafes') return cafe.status === 'In Review' && !!cafe.newCafe;
+  if (tab === 'newcafes') return cafe.status === 'New Cafe Added' || (cafe.status === 'In Review' && !!cafe.newCafe);
   if (tab === 'scout') {
     // No scout selected = show only assigned cafes (combined view)
     if (state.scoutFilter === null || state.scoutFilter === undefined) {
@@ -3191,7 +3201,7 @@ function cafeMatchesScout(cafe) {
 // Status filter (filter bar dropdown). 'All' = no filter.
 function cafeMatchesStatus(cafe) {
   if (!state.statusFilter || state.statusFilter === 'All') return true;
-  return (cafe.status || 'Unvisited') === state.statusFilter;
+  return (cafe.status || 'Ready To Be Assigned') === state.statusFilter;
 }
 
 function cafeMatchesBoro(cafe) {
@@ -3264,9 +3274,9 @@ function updateStats() {
   const inProgress = state.cafes.filter(c => c.status === 'In Progress').length;
   const tempUnavail = state.cafes.filter(c => c.status === 'Temporarily Unavailable').length;
   const permClosed  = state.cafes.filter(c => c.status === 'Permanently Closed').length;
-  const needsRevisit = state.cafes.filter(c => c.status === 'Needs Revisit').length;
+  const needsRevisit = state.cafes.filter(c => c.status === 'Incomplete').length;
   const pendingVisit = state.cafes.filter(c => c.status === 'Pending Visit').length;
-  const unvisited  = total - completed - inProgress - tempUnavail - permClosed - needsRevisit - pendingVisit;
+  const unvisited  = state.cafes.filter(c => c.status === 'Ready To Be Assigned').length;
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   document.getElementById('s-total').textContent = total;
   document.getElementById('s-indie').textContent = indie;
@@ -3598,7 +3608,7 @@ function renderMainList(container) {
       <span style="width:12px;height:12px;border-radius:50%;flex-shrink:0;background:${getMarkerColor(c)}"></span>
       <div style="flex:1;min-width:0">
         <div class="ar-name">${c.status === 'Ineligible Cafe' ? '⚠️ ' : ''}${escHtml(c.name)}</div>
-        <div class="ar-sub">${escHtml(c.address || '')}${c.borough ? ' · ' + escHtml(c.borough) : ''}${p ? ' · ' + escHtml(p.name) : ''}${c.status && c.status !== 'Unvisited' ? ' · ' + escHtml(c.status) : ''}</div>
+        <div class="ar-sub">${escHtml(c.address || '')}${c.borough ? ' · ' + escHtml(c.borough) : ''}${p ? ' · ' + escHtml(p.name) : ''}${c.status && c.status !== 'Ready To Be Assigned' ? ' · ' + escHtml(c.status) : ''}</div>
       </div>
     </div>`;
   });
@@ -4519,11 +4529,11 @@ function confirmScout(idx) {
     });
     showToast(`✅ ${person.name}'s list complete! ${backloggedCount} café${backloggedCount !== 1 ? 's' : ''} backlogged.`);
   } else {
-    // Unmark: restore this scout's backlogged cafes back to Unvisited
+    // Unmark: restore this scout's backlogged cafes back to Ready To Be Assigned
     let restoredCount = 0;
     state.cafes.forEach(cafe => {
       if (cafe.assignedTo === idx && cafe.status === 'Backlogged Cafe') {
-        cafe.status = 'Unvisited';
+        cafe.status = 'Ready To Be Assigned';
         refreshMarker(cafe);
         restoredCount++;
       }
@@ -5053,7 +5063,8 @@ function renderListMode() {
     'Pending Visit': '#6366F1',
     'Temporarily Unavailable': '#FACC15',
     'Permanently Closed': '#DC2626',
-    'Needs Revisit': '#FF6B00',
+    'Incomplete': '#FF6B00',
+    'New Cafe Added': '#22B8CF',
     'Backlogged Cafe': '#D97706',
     'Ineligible Cafe': '#6B7280',
   };
@@ -5657,7 +5668,7 @@ function renderScoutForm(cafe) {
   <div class="wf-form">
     <button class="wf-back" onclick="closeScoutForm(true)">🗺 Back to map</button>
     ${isNew ? ncHeaderHtml(d) : `
-    <div class="wf-eyebrow">${d.editRequest ? '✏️ Café edit · ' + escHtml(cafe.status || '') : d.correction ? '✏️ Editing your submission · resubmits as a correction' : 'Assigned to you · ' + escHtml(cafe.status || 'Unvisited')}</div>
+    <div class="wf-eyebrow">${d.editRequest ? '✏️ Café edit · ' + escHtml(cafe.status || '') : d.correction ? '✏️ Editing your submission · resubmits as a correction' : 'Assigned to you · ' + escHtml(cafe.status || 'Ready To Be Assigned')}</div>
     ${d.editRequest ? '<div class="sg-note"><b>CAFÉ EDIT</b>: update only what changed, then send. The listing stays as is until the team approves.</div>' : ''}
     <div class="wf-title">${escHtml(cafe.name)}${_wfIsApprover ? `<button class="pencil-btn" onclick="showEditCafe('${cafe.id}')" title="Edit café name">✏️</button>` : ''}</div>
     <div class="wf-addr">${wfMapsLink(cafe.address, cafe.name)}${_wfIsApprover ? `<button class="pencil-btn" onclick="showEditCafe('${cafe.id}')" title="Edit address">✏️</button>` : ''}</div>
@@ -6155,7 +6166,7 @@ async function sgModalDo(kind, row, btn) {
   if (btn) { btn.disabled = true; btn.textContent = kind === 'approve' ? 'Adding…' : 'Rejecting…'; }
   let extra = null;
   const sg = (_sgPending || []).find(x => String(x.row) === String(row));
-  // Quick leads (just a location) have no photos yet: they go on the map as Unvisited, ready to assign.
+  // Quick leads (just a location) have no photos yet: they go on the map as New Cafe Added until David checks the location.
   if (kind === 'approve' && sg && sg.kind === 'Full' && (sg.photos || []).length) {
     const picks = Array.from(document.querySelectorAll('.sgm-photo:checked')).map(e => e.value);
     if (picks.length < 3) {
@@ -6178,7 +6189,7 @@ async function sgApprove(row, extra) {
   try {
     const r = await wfApi('approveSuggestion', Object.assign({ row: Number(row), by: (_sbUser && _sbUser.email) || '' }, extra || {}));
     const c = r.cafe;
-    const status = c.status || 'Unvisited';
+    const status = c.status || 'Ready To Be Assigned';
     const data = { id: c.row || c.number };
     const newCafe = { id: data.id, number: c.number, name: c.name, address: c.address, borough: c.borough, zip: c.zip || '', lat: Number(c.lat), lng: Number(c.lng),
       isChain: false, isNew: true, newCafe: status === 'In Review', suggestType: c.type, status, assignedTo: null, assignedToName: null,
@@ -6193,7 +6204,7 @@ async function sgApprove(row, extra) {
     } else if (status === 'Visit Completed') {
       showToast(c.name + ' added to the Complete tab as ' + c.number);
     } else {
-      showToast(c.name + ' added to the map as ' + c.number + ', ready to be assigned for scouting');
+      showToast(c.name + ' added to the map as ' + c.number + '. Check the pin, then set it to Ready To Be Assigned.');
     }
   } catch (e) { showToast(e.message); }
 }
@@ -6218,7 +6229,17 @@ function renderReviewList() {
 function renderNewCafesList() {
   const container = document.getElementById('persons-container');
   const rows = state.cafes.filter(c => c.status === 'In Review' && c.newCafe);
-  container.innerHTML = (_wfIsApprover ? renderSuggestionsBlock() : '') + reviewRowsHtml(rows, 'New cafés missing info');
+  const added = state.cafes.filter(c => c.status === 'New Cafe Added');
+  container.innerHTML = (_wfIsApprover ? renderSuggestionsBlock() : '') + `
+    <div class="wf-eyebrow" style="margin-bottom:6px">Check the location · ${added.length}</div>
+    <div class="wf-hint" style="margin-bottom:6px">Make sure the pin is in the right spot, then set the status to Ready To Be Assigned.</div>
+    ${added.map(c => `
+      <div class="checklist-item" onclick="zoomToCafe('${c.id}')" style="cursor:pointer">
+        <div class="cl-status-dot" style="background:#22B8CF"></div>
+        <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.number ? c.number + ' · ' : '')}${escHtml(c.name)}</div><div class="cl-cafe-addr">${wfMapsLink(c.address, c.name)}</div></div>
+        <span style="font-size:0.65rem;color:#0E7C8C;font-weight:700;white-space:nowrap">Check pin →</span>
+      </div>`).join('') || '<div class="wf-hint" style="text-align:center;padding:10px 0">Nothing to check.</div>'}
+    <div style="height:10px"></div>` + reviewRowsHtml(rows, 'New cafés missing info');
 }
 function reviewRowsHtml(rows, title) {
   return `
@@ -6256,11 +6277,11 @@ async function renderReviewPanel(cafe) {
     <div class="wf-head">
       <div class="wf-head-txt">
         <div class="wf-title">${escHtml(cafe.name)}${_wfIsApprover ? `<button class="pencil-btn" onclick="showEditCafe('${cafe.id}')" title="Edit café name">✏️</button>` : ''}</div>
-        <div class="popup-status" style="color:${getMarkerColor(cafe)}"><span class="popup-status-dot" style="background:${getMarkerColor(cafe)}"></span>${escHtml(cafe.status || 'Unvisited')}</div>
+        <div class="popup-status" style="color:${getMarkerColor(cafe)}"><span class="popup-status-dot" style="background:${getMarkerColor(cafe)}"></span>${escHtml(cafe.status || 'Ready To Be Assigned')}</div>
         <div class="wf-addr">${wfMapsLink(cafe.address, cafe.name)}${_wfIsApprover ? `<button class="pencil-btn" onclick="showEditCafe('${cafe.id}')" title="Edit address">✏️</button>` : ''}</div>
         <div class="wf-hint">Submitted by <b>${escHtml(s.submittedBy || '?')}</b>${s.submittedAt ? ' on ' + escHtml(s.submittedAt) : (s.dateScouted ? ' on ' + escHtml(s.dateScouted) : '')}${s.reviewStatus === 'Correction' ? ' · 🔁 correction' : ''}</div>
       </div>
-      ${(cafe.status === 'In Review' || cafe.status === 'Needs Revisit') ? `<button class="wf-edit-btn" onclick="wfEditSubmission('${cafe.id}')">✏️ Edit Changes</button>` : ''}
+      ${(cafe.status === 'In Review' || cafe.status === 'Incomplete') ? `<button class="wf-edit-btn" onclick="wfEditSubmission('${cafe.id}')">✏️ Edit Changes</button>` : ''}
     </div>
     ${s.addressFlag === 'reported' ? `<div class="wf-flag-badge">⚠ Address or name flagged: ${escHtml(s.addressFlagNote || '')}</div>` : ''}
 
@@ -6310,7 +6331,7 @@ async function renderReviewPanel(cafe) {
       <label class="wf-chip" style="justify-content:flex-start;${s.chainFlag === 'TRUE' ? 'border-color:#6366F1;background:#eef2ff' : ''}"><input type="checkbox" id="rv-ischain" ${(s.chainFlag === 'TRUE' || s.isChain === 'TRUE') ? 'checked' : ''} ${dis}>⛓ Chain café${ro ? '' : ' (moves to the Chain tab on approve)'}</label>
       ${!ro && s.chainFlag === 'TRUE' ? '<div class="wf-hint">The scout flagged this as a chain. Untick if they were wrong.</div>' : ''}
     </div>
-    ${ro ? `<div class="wf-hint">${cafe.status === 'In Review' ? 'Waiting for the team to review. You\'ll hear back in Slack if anything needs fixing.' : cafe.status === 'Needs Revisit' ? 'This was sent back. Open the café card to see the note, then use 📝 Scout this café to resubmit.' : 'This submission has been reviewed.'}</div>` : `
+    ${ro ? `<div class="wf-hint">${cafe.status === 'In Review' ? 'Waiting for the team to review. You\'ll hear back in Slack if anything needs fixing.' : cafe.status === 'Incomplete' ? 'This was sent back. Open the café card to see the note, then use 📝 Scout this café to resubmit.' : 'This submission has been reviewed.'}</div>` : `
     <div class="wf-section"><div class="wf-label">Send back note <span class="wf-hint-inline">(only if sending back)</span></div><textarea id="rv-sendback" rows="2" placeholder="What should the scout fix or add?"></textarea></div>
     <div id="rv-error" class="wf-error" style="display:none"></div>
     <button id="rv-save" class="wf-btn-sm" style="width:100%;margin-bottom:8px;border-color:#27AE60;color:#1e8e4e;font-weight:700" onclick="wfSaveReview('${cafe.id}')">Save changes (does not approve or submit)</button>
@@ -6396,7 +6417,7 @@ async function wfSendBack(id) {
   if (!note.trim()) { err.style.display = 'block'; err.textContent = 'Add a send-back note so the scout knows what to fix.'; return; }
   try {
     await wfApi('sendBack', { cafe: { id: cafe.id, number: cafe.number, name: cafe.name }, note: note.trim(), by: (_sbUser && _sbUser.email) || '' });
-    cafe.status = 'Needs Revisit';
+    cafe.status = 'Incomplete';
     wfForgetSubmission(id);
     cafe.notes = 'Sent back: ' + note.trim();
     state.reviewCafeId = null;
@@ -6585,13 +6606,14 @@ async function wfSetStatus(id, status) {
   <span id="bulk-count">0 selected</span>
   <select id="bulk-status-select">
     <option value="">Change status to…</option>
-    <option>Unvisited</option>
+    <option>New Cafe Added</option>
+    <option>Ready To Be Assigned</option>
     <option>In Progress</option>
     <option>Upcoming</option>
     <option>Pending Visit</option>
     <option>Visit Completed</option>
     <option>Official Cafe Listing</option>
-    <option>Needs Revisit</option>
+    <option>Incomplete</option>
     <option>Temporarily Unavailable</option>
     <option>Permanently Closed</option>
     <option>Ineligible Cafe</option>
