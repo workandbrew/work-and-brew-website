@@ -1711,7 +1711,7 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
   .leaflet-bottom { bottom: 64px !important; }
   #toast-wrap { bottom: 80px !important; }
   #toolbar:not(.tabs-open) { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr) !important; }
-  #toolbar:not(.tabs-open) #tabs-toggle, #toolbar:not(.tabs-open) #search-input { grid-column: auto !important; }
+  #toolbar:not(.tabs-open) #tabs-toggle { grid-column: auto !important; }
   #scout-filter-bar { display: flex !important; flex-wrap: nowrap !important; gap: 6px !important; }
   #scout-filter-bar:not(.visible) { display: none !important; }
   #scout-filter-bar > * { flex: 1 1 0 !important; min-width: 0 !important; }
@@ -1821,11 +1821,25 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
 #scout-glow-countdown { color: var(--wb-navy) !important; background: var(--wb-white); border-radius: 999px; padding: 6px 10px; box-shadow: var(--wb-shadow); }
 .leaflet-top.leaflet-right { top: calc(var(--wb-top, 150px) + 12px); }
 @media (max-width: 768px) {
-  #toolbar.tabs-open #addr-lookup-wrap, #toolbar:not(.tabs-open) #addr-lookup-wrap { grid-column: 1 / -1 !important; flex: none; min-width: 0; width: 100%; box-sizing: border-box; height: 44px; }
+  #addr-lookup-wrap { grid-column: auto !important; flex: none; min-width: 0; width: 100%; box-sizing: border-box; height: 44px; order: 1; }
+  #search-input { grid-column: 1 / -1 !important; order: 2; }
   #addr-lookup-input { height: 42px; font-size: 16px !important; }
   #scout-filter-bar { top: calc(var(--wb-top, 170px) + 10px); }
   #scout-locate-btn { height: 42px !important; }
 }
+/* address box comes first, then search */
+@media (min-width: 769px) { #addr-lookup-wrap { order: 1; } #search-input { order: 2; } #wide-filters { order: 3; } #list-mode-btn { order: 4; } }
+/* Locate me sits in the map's top-left corner; the list panel drops below it while it is showing */
+#scout-filter-bar { left: 12px !important; transform: none !important; }
+@media (min-width: 769px) {
+  body:has(#scout-filter-bar.visible:not([style*="display: none"]) > #scout-locate-btn:not([style*="display: none"])) #panel { top: calc(var(--wb-top, 150px) + 70px); }
+}
+/* List button matches Locate me */
+.map-list-btn { height: 44px !important; padding: 0 20px !important; font: 700 0.85rem 'Inter', sans-serif !important; display: inline-flex; align-items: center; border: 0 !important; }
+@media (max-width: 768px) { .map-list-btn { height: 42px !important; } #scout-filter-bar { left: 10px !important; } #toolbar.tabs-open #addr-lookup-wrap { grid-column: 1 / -1 !important; } }
+/* List and Locate me on the same line */
+.leaflet-top.leaflet-right { top: calc(var(--wb-top, 150px) + 2px) !important; }
+@media (max-width: 768px) { .leaflet-top.leaflet-right { top: var(--wb-top, 170px) !important; } }
 </style>
 </head>
 <body>
