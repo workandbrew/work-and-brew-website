@@ -235,6 +235,9 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   overflow: hidden;
 }
 
+#panel-hide { display: none; background: rgba(255,255,255,0.12); color: var(--beige-light); border: 1.5px solid rgba(255,255,255,0.35); border-radius: 8px; width: 34px; height: 30px; font-size: 0.8rem; line-height: 1; cursor: pointer; margin-left: auto; }
+#panel-hide:hover { background: rgba(255,255,255,0.25); }
+@media (max-width: 768px) { #panel-hide { display: inline-flex; align-items: center; justify-content: center; } }
 #panel-header {
   background: var(--brown);
   color: var(--beige-light);
@@ -1173,9 +1176,9 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   border: 1.5px solid rgba(255,255,255,0.4);
 }
 #scout-locate-btn {
-  background: rgba(66,133,244,0.2);
-  border: 1.5px solid rgba(66,133,244,0.5);
-  color: #7ab3f8;
+  background: #1C2E52;
+  border: 1.5px solid #2E5482;
+  color: #E0D9CF;
   border-radius: 20px;
   padding: 3px 12px;
   font-size: 0.72rem;
@@ -1187,11 +1190,11 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   margin-left: auto;
   flex-shrink: 0;
 }
-#scout-locate-btn:hover { background: rgba(66,133,244,0.35); color: #afd0ff; }
+#scout-locate-btn:hover { background: #2E5482; color: #fff; }
 #scout-near-btn {
-  background: rgba(39,174,96,0.2);
-  border: 1.5px solid rgba(39,174,96,0.55);
-  color: #7fe0a6;
+  background: #1C2E52;
+  border: 1.5px solid #2E5482;
+  color: #E0D9CF;
   border-radius: 20px;
   padding: 3px 12px;
   font-size: 0.72rem;
@@ -1203,18 +1206,19 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   margin-left: auto;
   flex-shrink: 0;
 }
-#scout-near-btn:hover { background: rgba(39,174,96,0.35); color: #b6f2cd; }
+#scout-near-btn:hover { background: #2E5482; color: #fff; }
 #scout-near-btn + #scout-locate-btn { margin-left: 0; }
 .near-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
 .near-head .nh-title { flex:1; font-weight:800; font-size:0.85rem; color:var(--espresso, #2c1810); }
 .near-item { display:flex; align-items:center; gap:10px; padding:10px; margin-bottom:6px; background:#fff; border:1px solid var(--tan, #e4d6c3); border-radius:10px; }
 .near-item.done { opacity:0.55; }
-.near-rank { width:26px; height:26px; border-radius:50%; background:#27AE60; color:#fff; font-size:0.75rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.near-go:hover { background:#2E5482; }
+.near-rank { width:26px; height:26px; border-radius:50%; background:#1C2E52; color:#fff; font-size:0.75rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .near-info { flex:1; min-width:0; cursor:pointer; }
 .near-name { font-weight:700; font-size:0.82rem; }
 .near-sub { font-size:0.7rem; color:#8a7a6a; }
-.near-dist { font-size:0.75rem; font-weight:800; color:#1e8e4e; white-space:nowrap; }
-.near-go { background:#27AE60; color:#fff; text-decoration:none; font-weight:700; font-size:0.72rem; padding:8px 12px; border-radius:8px; white-space:nowrap; min-height:36px; display:inline-flex; align-items:center; }
+.near-dist { font-size:0.75rem; font-weight:800; color:#1C2E52; white-space:nowrap; }
+.near-go { background:#1C2E52; color:#fff; text-decoration:none; font-weight:700; font-size:0.72rem; padding:8px 12px; border-radius:8px; white-space:nowrap; min-height:36px; display:inline-flex; align-items:center; }
 #scout-glow-countdown {
   font-size: 0.68rem; color: #FFD700; font-weight: 700;
   white-space: nowrap; flex-shrink: 0; display: none;
@@ -1664,6 +1668,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
     <div id="panel-inner">
       <div id="panel-header">
         <span>👥 Scouts</span>
+        <button id="panel-hide" type="button" title="Put the list away" aria-label="Put the list away">▼</button>
       </div>
       <div id="panel-body">
         <div id="persons-container"></div>
@@ -1812,7 +1817,9 @@ function applyLoadedCafes(data, src) {
       const personNames = state.persons.map(p => (p.name || '').toLowerCase());
       state.cafes = data.map(row => {
         let assignedIdx = null;
-        if (row.assigned_to) {
+        // A name left in AssignedTo on a café that is Ready To Be Assigned (or brand new) is not a live assignment
+        const openStatus = ['Ready To Be Assigned', 'New Cafe Added'].includes(normStatus(row.status));
+        if (row.assigned_to && !openStatus) {
           const firstName = row.assigned_to.split(' ')[0].toLowerCase();
           const idx = personNames.findIndex(n => n === firstName || n === row.assigned_to.toLowerCase());
           if (idx >= 0) assignedIdx = idx;
@@ -5473,6 +5480,25 @@ async function wfManualComplete(cafe) {
 
 // ---------- open / close the form ----------
 // Opens the side panel on desktop, or the bottom drawer on phones (which uses a different class)
+// ▼ on the Scouts heading: drop the list out of the way straight away and show the map
+function hidePanelNow() {
+  const panel = document.getElementById('panel'), toggle = document.getElementById('panel-toggle');
+  if (!panel) return;
+  state.panelOpen = false;
+  state.formCafeId = null; state.reviewCafeId = null;
+  panel.style.transition = 'none';
+  panel.classList.remove('panel-open'); panel.classList.add('collapsed');
+  if (toggle) toggle.textContent = window.innerWidth <= 768 ? '▲' : '◀';
+  requestAnimationFrame(() => { panel.style.transition = ''; });
+  try { saveState(); } catch (e) {}
+  setTimeout(() => { try { map.invalidateSize(); } catch (e) {} }, 50);
+}
+(function () {
+  const b = document.getElementById('panel-hide');
+  if (!b) return;
+  ['touchstart', 'mousedown'].forEach(ev => b.addEventListener(ev, e => e.stopPropagation(), { passive: true }));
+  b.addEventListener('click', e => { e.stopPropagation(); hidePanelNow(); renderPanel(); });
+})();
 function wfOpenPanel() {
   const panel = document.getElementById('panel');
   const toggle = document.getElementById('panel-toggle');
