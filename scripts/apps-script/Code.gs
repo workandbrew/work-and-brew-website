@@ -368,6 +368,11 @@ function suggestSheet_() {
   return sh;
 }
 function handleSuggestCafe_(body, user) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return suggestCafeLocked_(body, user); } finally { lock.releaseLock(); }
+}
+function suggestCafeLocked_(body, user) {
   var c = body.cafe || {}, f = body.form || {};
   if (!c.name) throw new Error('Café name is required.');
   var full = !!body.full;
@@ -512,6 +517,12 @@ function handleListSuggestions_(body, user) {
 }
 function handleApproveSuggestion_(body, user) {
   requireApprover_(user);
+  // Two taps in a row must not add the same café twice: the second waits for the first, then sees it is handled
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return approveSuggestionLocked_(body, user); } finally { lock.releaseLock(); }
+}
+function approveSuggestionLocked_(body, user) {
   var ssh = suggestSheet_(), r = Number(body.row);
   if (!r || r < 2) throw new Error('Bad suggestion row');
   var v = ssh.getRange(r, 1, 1, SUGGEST_COLS.length).getValues()[0];
