@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useTeamAccess } from "../hooks/useTeamAccess";
 import "./Navbar.css";
 
 export default function Navbar() {
@@ -8,6 +9,7 @@ export default function Navbar() {
   const location  = useLocation();
   const { user }  = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const access    = useTeamAccess(user); // team-only links: Café Map (all 9), Team Hub (leads)
 
   const close = () => setMenuOpen(false);
 
@@ -27,6 +29,8 @@ export default function Navbar() {
           <Link to="/for-owners">Business Inquiries</Link>
           {user && <Link to="/dashboard">My Cafés</Link>}
           {user && <Link to="/event">Events</Link>}
+          {access.map && <Link to="/ops/teambrew26" className="navbar-team">Café Map</Link>}
+          {access.hub && <Link to="/team" className="navbar-team">Team Hub</Link>}
         </div>
       )}
 
@@ -66,6 +70,8 @@ export default function Navbar() {
             <Link to="/for-owners" onClick={close}>Business Inquiries</Link>
             {user && <Link to="/dashboard" onClick={close}>My Cafés</Link>}
             {user && <Link to="/event" onClick={close}>Events</Link>}
+            {access.map && <Link to="/ops/teambrew26" onClick={close}>Café Map</Link>}
+            {access.hub && <Link to="/team" onClick={close}>Team Hub</Link>}
           </>
         )}
 
