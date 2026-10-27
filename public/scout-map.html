@@ -474,15 +474,16 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   letter-spacing: 0.03em;
 }
 .new-badge {
+  display: inline-block;
   background: var(--accent);
-  color: #fff;
   border-radius: 5px;
-  padding: 1px 5px;
-  font-size: 0.58rem;
+  padding: 1px 7px;
+  font-size: 0.6rem;
   font-weight: 700;
-  margin-left: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  color: #fff;
+  margin-left: 5px;
+  vertical-align: middle;
+  letter-spacing: 0.02em;
 }
 .popup-undo-btn {
   display: block; width: 100%;
@@ -1595,6 +1596,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   <button class="tab-btn" data-tab="lead" id="tab-lead" style="display:none"><span class="tl">🧭 Scout Lead</span><span class="ts">🧭 Scout Lead</span></button>
   <button class="tab-btn" data-tab="ineligible"><span class="tl">⚠️ Ineligible</span><span class="ts">⚠️ Inelig.</span></button>
   <button class="tab-btn" id="tab-chain" data-tab="chain"><span class="tl">⛓ Chain Cafés</span><span class="ts">⛓ Chains</span></button>
+  <button class="tab-btn" data-tab="newcafes" id="tab-newcafes" style="display:none"><span class="tl">🆕 New Cafés for Review</span><span class="ts">🆕 New</span></button>
   <button class="tab-btn" data-tab="review" id="tab-review" style="display:none">🔎 Review</button>
   <div style="margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);height:20px;"></div>
   <input id="search-input" type="text" placeholder="🔍 Search cafés...">
@@ -1822,6 +1824,7 @@ function applyLoadedCafes(data, src) {
           ineligibleReason: null,
           isChain: false,
           isNew: false,
+          newCafe: !!row.new_cafe,
         };
       });
       applyFilters();
@@ -3158,7 +3161,8 @@ function cafeMatchesTab(cafe) {
   if (tab === 'chain') return (cafe.isChain || cafe.status === 'Temporarily Unavailable') && !doneish;
   if (tab === 'official') return cafe.status === 'Official Cafe Listing';
   if (tab === 'completed') return cafe.status === 'Visit Completed';
-  if (tab === 'review') return cafe.status === 'In Review';
+  if (tab === 'review') return cafe.status === 'In Review' && !cafe.newCafe;
+  if (tab === 'newcafes') return cafe.status === 'In Review' && !!cafe.newCafe;
   if (tab === 'scout') {
     // No scout selected = show only assigned cafes (combined view)
     if (state.scoutFilter === null || state.scoutFilter === undefined) {
@@ -3492,7 +3496,7 @@ function tabLabelFor(c) {
   if (c.status === 'Ineligible Cafe') return 'Ineligible';
   if (c.status === 'Official Cafe Listing') return 'Official Map';
   if (c.status === 'Visit Completed') return 'Completed';
-  if (c.status === 'In Review') return 'Review';
+  if (c.status === 'In Review') return c.newCafe ? 'New Cafés' : 'Review';
   if (c.status === 'Temporarily Unavailable' || c.isChain) return 'Chain Cafés';
   if (c.assignedTo !== null && c.assignedTo !== undefined) return 'Assigned';
   return 'Main Map';
@@ -3502,7 +3506,7 @@ function renderPanel() {
   const q = (state.searchQuery || '').trim();
   const container = document.getElementById('persons-container');
   if (!q || !container || state.listMode || state.formCafeId || state.reviewCafeId) return;
-  if (['lead', 'review', 'assign'].includes(state.activeTab)) return;
+  if (['lead', 'review', 'newcafes', 'assign'].includes(state.activeTab)) return;
   const others = state.cafes.filter(c => !cafeMatchesTab(c) && cafeMatchesSearch(c)).slice(0, 40);
   if (!others.length) return;
   container.insertAdjacentHTML('afterbegin', `
@@ -3533,6 +3537,7 @@ function renderPanelCore() {
     state.reviewCafeId = null;
   }
   if (state.activeTab === 'review') { renderReviewList(); return; }
+  if (state.activeTab === 'newcafes') { renderNewCafesList(); return; }
   if (state.activeTab === 'edits') { renderEditsPanel(); return; }
   if (state.activeTab === 'lead') { renderLeadPanel(); return; }
   if (state.activeTab === 'assign') { renderAssignPanel(); return; }
@@ -3804,7 +3809,7 @@ function zoomToCafe(id) {
     } else if (cafe.status === 'Official Cafe Listing') {
       setTab('official');
     } else if (cafe.status === 'In Review' && _wfIsApprover) {
-      setTab('review');
+      setTab(cafe.newCafe ? 'newcafes' : 'review');
     } else if (cafe.isChain || cafe.status === 'Temporarily Unavailable') {
       setTab('chain');
     } else {
@@ -5274,6 +5279,8 @@ function wfDetectRole(user) {
   _wfScoutName = scoutParam || meta.full_name || meta.name || (byEmail && byEmail.name) || email;
   const tab = document.getElementById('tab-review');
   if (tab) tab.style.display = _wfIsApprover ? '' : 'none';
+  const newTab = document.getElementById('tab-newcafes');
+  if (newTab) newTab.style.display = _wfIsApprover ? '' : 'none';
   const assignTab = document.getElementById('tab-assign');
   if (assignTab) assignTab.style.display = _wfIsApprover ? '' : 'none';
   const leadTab = document.getElementById('tab-lead');
@@ -6078,7 +6085,7 @@ let _sgPending = null;
 async function sgLoadPending() {
   try { const r = await wfApi('listSuggestions', {}); _sgPending = r.suggestions || []; }
   catch (e) { _sgPending = []; }
-  if (state.activeTab === 'review' && !state.formCafeId && !state.reviewCafeId) renderReviewList();
+  if (state.activeTab === 'newcafes' && !state.formCafeId && !state.reviewCafeId) renderNewCafesList();
 }
 function renderSuggestionsBlock() {
   if (_sgPending === null) { sgLoadPending(); return '<div class="wf-hint" style="margin-bottom:10px">Checking for new café submissions</div>'; }
@@ -6174,14 +6181,14 @@ async function sgApprove(row, extra) {
     const status = c.status || 'Unvisited';
     const data = { id: c.row || c.number };
     const newCafe = { id: data.id, number: c.number, name: c.name, address: c.address, borough: c.borough, zip: c.zip || '', lat: Number(c.lat), lng: Number(c.lng),
-      isChain: false, isNew: true, suggestType: c.type, status, assignedTo: null, assignedToName: null,
+      isChain: false, isNew: true, newCafe: status === 'In Review', suggestType: c.type, status, assignedTo: null, assignedToName: null,
       description: '', notes: '', wifi: null, outlets: null, restroom: null, seats: '', timeRestrict: false, restrictNote: '', scoutName: '' };
     state.cafes.push(newCafe); createMarker(newCafe);
     _sgPending = _sgPending.filter(x => String(x.row) !== String(row));
     applyFilters(); updateStats(); renderPanel();
     map.flyTo([newCafe.lat, newCafe.lng], 16, { duration: 0.8 });
     if (status === 'In Review') {
-      showToast(c.name + ' added as ' + c.number + ' but some info is missing. Finish it in the Review tab.');
+      showToast(c.name + ' added as ' + c.number + ' but some info is missing. Finish it in the New Cafés for Review tab.');
       setTimeout(() => openReview(String(data.id)), 400);
     } else if (status === 'Visit Completed') {
       showToast(c.name + ' added to the Complete tab as ' + c.number);
@@ -6204,10 +6211,18 @@ async function sgReject(row) {
 
 function renderReviewList() {
   const container = document.getElementById('persons-container');
-  const rows = state.cafes.filter(c => c.status === 'In Review');
-  container.innerHTML = `
-    ${_wfIsApprover ? renderSuggestionsBlock() : ''}
-    <div class="wf-eyebrow" style="margin-bottom:6px">Waiting for approval · ${rows.length}</div>
+  const rows = state.cafes.filter(c => c.status === 'In Review' && !c.newCafe);
+  container.innerHTML = reviewRowsHtml(rows, 'Waiting for approval');
+}
+// New cafés scouts found: quick leads and full submissions waiting to go on the map, plus approved ones still missing info
+function renderNewCafesList() {
+  const container = document.getElementById('persons-container');
+  const rows = state.cafes.filter(c => c.status === 'In Review' && c.newCafe);
+  container.innerHTML = (_wfIsApprover ? renderSuggestionsBlock() : '') + reviewRowsHtml(rows, 'New cafés missing info');
+}
+function reviewRowsHtml(rows, title) {
+  return `
+    <div class="wf-eyebrow" style="margin-bottom:6px">${title} · ${rows.length}</div>
     ${rows.length ? rows.map(c => `
       <div class="checklist-item" onclick="openReview('${c.id}')" style="cursor:pointer">
         <div class="cl-status-dot" style="background:#C47F2E"></div>

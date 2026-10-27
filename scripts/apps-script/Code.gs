@@ -916,7 +916,8 @@ function handleListCafes_(body, user) {
       hot_food: yesNoCell_(g(v, 'HotFood')), restroom: yesNoCell_(g(v, 'Restroom')),
       seats: String(g(v, 'Seats') || ''), time_restrict: String(g(v, 'TimeRestriction')).toUpperCase() === 'TRUE',
       restrict_note: String(g(v, 'RestrictionAmount') || ''), scout_name: String(g(v, 'ScoutName') || ''),
-      notes: String(g(v, 'Notes') || '')
+      notes: String(g(v, 'Notes') || ''),
+      new_cafe: String(g(v, 'ReviewStatus') || '') === 'New cafe'
     });
   });
   return { cafes: cafes };
