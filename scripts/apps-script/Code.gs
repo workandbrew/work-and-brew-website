@@ -92,6 +92,8 @@ function doGet(e) {
 }
 
 // ------------------------------------------------------------ auth
+var TEAM_ACCESS_URL = 'https://workandbrew.app/api/hub?access=1';
+
 function verifyUser_(token) {
   if (!token) throw new Error('Please log in to the scout map first.');
   var cache = CacheService.getScriptCache();
@@ -105,6 +107,11 @@ function verifyUser_(token) {
   if (res.getResponseCode() !== 200) throw new Error('Your login expired. Refresh the map and log in again.');
   var u = JSON.parse(res.getContentText());
   var user = { email: (u.email || '').toLowerCase(), name: (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || '' };
+  // Team members only: the website checks the email against its team_access list.
+  var team = UrlFetchApp.fetch(TEAM_ACCESS_URL, { method: 'get', muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + token } });
+  var access = {};
+  try { access = JSON.parse(team.getContentText()); } catch (e) {}
+  if (!access.map) throw new Error('The café map is for Work & Brew team members only.');
   try { cache.put(ck, JSON.stringify(user), 600); } catch (e) {}
   return user;
 }
