@@ -131,6 +131,9 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
 #btn-logout:hover { background: var(--brown); color: var(--beige-light); }
 @media (max-width: 768px) { #btn-logout { padding: 8px 10px; font-size: 0.78rem; } }
 #btn-add-cafe:hover { background: #a3542a; border-color: #a3542a; }
+/* New café and Log out: same height and shape */
+#header #btn-add-cafe, #header #btn-logout { height: 36px !important; width: 100px; padding: 0 10px !important; font-size: 0.75rem !important; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; line-height: 1; border-width: 2px; border-radius: 7px; }
+@media (max-width: 768px) { #header #btn-add-cafe, #header #btn-logout { height: 38px !important; width: 92px; padding: 0 8px !important; font-size: 0.78rem !important; } }
 .sg-note { background: #fff4e5; border: 1px solid #f3c48a; color: #7a4a12; border-radius: 8px; padding: 8px 10px; font-size: 0.78rem; line-height: 1.35; margin-bottom: 12px; }
 .sg-note b { color: #9a4a0a; }
 #bulk-action-bar { display: none; position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 1200; background: var(--brown); color: var(--beige-light); padding: 8px 12px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.3); align-items: center; gap: 8px; font-size: 0.8rem; font-family: 'Inter', sans-serif; max-width: calc(100vw - 24px); flex-wrap: wrap; }
@@ -232,6 +235,9 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   overflow: hidden;
 }
 
+#panel-hide { display: none; background: rgba(255,255,255,0.12); color: var(--beige-light); border: 1.5px solid rgba(255,255,255,0.35); border-radius: 8px; width: 34px; height: 30px; font-size: 0.8rem; line-height: 1; cursor: pointer; margin-left: auto; }
+#panel-hide:hover { background: rgba(255,255,255,0.25); }
+@media (max-width: 768px) { #panel-hide { display: inline-flex; align-items: center; justify-content: center; } }
 #panel-header {
   background: var(--brown);
   color: var(--beige-light);
@@ -522,7 +528,16 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   padding: 12px 14px;
 }
 #list-view.active { display: block; }
+.map-list-btn { background: var(--brown); color: var(--beige-light); border: 2px solid rgba(255,255,255,0.9); border-radius: 8px; padding: 7px 12px; font: 700 0.75rem 'Inter', sans-serif; cursor: pointer; box-shadow: 0 1px 5px rgba(0,0,0,0.35); }
+.map-list-btn:hover { background: var(--brown-mid); }
+.list-back-btn { display: block; margin: 0 0 10px auto; background: var(--brown); color: var(--beige-light); border: none; border-radius: 8px; padding: 8px 14px; font: 700 0.75rem 'Inter', sans-serif; cursor: pointer; }
+.list-back-btn:hover { background: var(--brown-mid); }
+/* café number (#203) in the top right corner of the popup and list rows */
+.cafe-num { font-size: 0.62rem; font-weight: 700; color: #9a8570; letter-spacing: 0.02em; white-space: nowrap; font-family: 'Inter', sans-serif; }
+.popup-num { flex-shrink: 0; margin: 2px 18px 0 0; }
+.list-num { position: absolute; top: 3px; right: 10px; }
 .list-mode-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1161,9 +1176,9 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   border: 1.5px solid rgba(255,255,255,0.4);
 }
 #scout-locate-btn {
-  background: rgba(66,133,244,0.2);
-  border: 1.5px solid rgba(66,133,244,0.5);
-  color: #7ab3f8;
+  background: #1C2E52;
+  border: 1.5px solid #2E5482;
+  color: #E0D9CF;
   border-radius: 20px;
   padding: 3px 12px;
   font-size: 0.72rem;
@@ -1175,11 +1190,11 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   margin-left: auto;
   flex-shrink: 0;
 }
-#scout-locate-btn:hover { background: rgba(66,133,244,0.35); color: #afd0ff; }
+#scout-locate-btn:hover { background: #2E5482; color: #fff; }
 #scout-near-btn {
-  background: rgba(39,174,96,0.2);
-  border: 1.5px solid rgba(39,174,96,0.55);
-  color: #7fe0a6;
+  background: #1C2E52;
+  border: 1.5px solid #2E5482;
+  color: #E0D9CF;
   border-radius: 20px;
   padding: 3px 12px;
   font-size: 0.72rem;
@@ -1191,18 +1206,19 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   margin-left: auto;
   flex-shrink: 0;
 }
-#scout-near-btn:hover { background: rgba(39,174,96,0.35); color: #b6f2cd; }
+#scout-near-btn:hover { background: #2E5482; color: #fff; }
 #scout-near-btn + #scout-locate-btn { margin-left: 0; }
 .near-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
 .near-head .nh-title { flex:1; font-weight:800; font-size:0.85rem; color:var(--espresso, #2c1810); }
 .near-item { display:flex; align-items:center; gap:10px; padding:10px; margin-bottom:6px; background:#fff; border:1px solid var(--tan, #e4d6c3); border-radius:10px; }
 .near-item.done { opacity:0.55; }
-.near-rank { width:26px; height:26px; border-radius:50%; background:#27AE60; color:#fff; font-size:0.75rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.near-go:hover { background:#2E5482; }
+.near-rank { width:26px; height:26px; border-radius:50%; background:#1C2E52; color:#fff; font-size:0.75rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .near-info { flex:1; min-width:0; cursor:pointer; }
 .near-name { font-weight:700; font-size:0.82rem; }
 .near-sub { font-size:0.7rem; color:#8a7a6a; }
-.near-dist { font-size:0.75rem; font-weight:800; color:#1e8e4e; white-space:nowrap; }
-.near-go { background:#27AE60; color:#fff; text-decoration:none; font-weight:700; font-size:0.72rem; padding:8px 12px; border-radius:8px; white-space:nowrap; min-height:36px; display:inline-flex; align-items:center; }
+.near-dist { font-size:0.75rem; font-weight:800; color:#1C2E52; white-space:nowrap; }
+.near-go { background:#1C2E52; color:#fff; text-decoration:none; font-weight:700; font-size:0.72rem; padding:8px 12px; border-radius:8px; white-space:nowrap; min-height:36px; display:inline-flex; align-items:center; }
 #scout-glow-countdown {
   font-size: 0.68rem; color: #FFD700; font-weight: 700;
   white-space: nowrap; flex-shrink: 0; display: none;
@@ -1578,9 +1594,9 @@ body { display: flex; flex-direction: column; overflow: hidden; }
     <div class="stat-chip" style="background:#6366F1">⏳ Pending: <span id="s-pending">0</span></div>
     <div class="stat-chip" style="background:#BFE1F6;color:#0B3D5C">🗺 Assigned: <span id="s-assigned">0</span></div>
   </div>
-  <button id="btn-export">⬇ Export</button>
-  <button id="copy-all-btn">📋 Copy All</button>
-  <button id="btn-add-cafe" title="Suggest a café that is not on the map yet"><span class="tl">Found a new café?</span><span class="ts">New café?</span></button>
+  <button id="btn-export" style="display:none">⬇ Export</button>
+  <button id="copy-all-btn" style="display:none">📋 Copy All</button>
+  <button id="btn-add-cafe" title="Found a new café? Suggest one that is not on the map yet">New café?</button>
   <button id="btn-logout" type="button" title="Log out of the scout map">Log out</button>
 </div>
 
@@ -1614,7 +1630,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   <button class="boro-btn" data-boro="Queens">Queens</button>
   <div style="margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);height:20px;flex-shrink:0;"></div>
   <div id="wide-filters"></div>
-  <button id="list-mode-btn" title="Toggle list view">☰ List</button>
+  <button id="list-mode-btn" title="Toggle list view" style="display:none">☰ List</button>
 </div>
 
 <!-- SCOUT MODE BANNER -->
@@ -1652,6 +1668,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
     <div id="panel-inner">
       <div id="panel-header">
         <span>👥 Scouts</span>
+        <button id="panel-hide" type="button" title="Put the list away" aria-label="Put the list away">▼</button>
       </div>
       <div id="panel-body">
         <div id="persons-container"></div>
@@ -1800,7 +1817,9 @@ function applyLoadedCafes(data, src) {
       const personNames = state.persons.map(p => (p.name || '').toLowerCase());
       state.cafes = data.map(row => {
         let assignedIdx = null;
-        if (row.assigned_to) {
+        // A name left in AssignedTo on a café that is Ready To Be Assigned (or brand new) is not a live assignment
+        const openStatus = ['Ready To Be Assigned', 'New Cafe Added'].includes(normStatus(row.status));
+        if (row.assigned_to && !openStatus) {
           const firstName = row.assigned_to.split(' ')[0].toLowerCase();
           const idx = personNames.findIndex(n => n === firstName || n === row.assigned_to.toLowerCase());
           if (idx >= 0) assignedIdx = idx;
@@ -2670,6 +2689,18 @@ const map = L.map('map', {
   inertiaDeceleration: 2500,
   tapHold: false
 });
+// List button in the map's top right corner: turns the pins on screen into a list
+L.Control.ListBtn = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd() {
+    const b = L.DomUtil.create('button', 'map-list-btn');
+    b.type = 'button'; b.title = 'See these cafés as a list'; b.textContent = '☰ List';
+    L.DomEvent.disableClickPropagation(b);
+    b.onclick = () => toggleListMode();
+    return b;
+  }
+});
+new L.Control.ListBtn().addTo(map);
 
 // Base map: MapTiler (same style + key as the public homepage map). The key is locked to
 // workandbrew.app in MapTiler Cloud; add localhost there to preview locally.
@@ -2900,6 +2931,7 @@ function buildPopupContent(cafe) {
         <span class="boro-badge" style="background:${borColor}">${cafe.borough}</span>
         ${cafe.isChain ? '<span class="chain-badge">chain</span>' : ''}
       </h4>
+      ${cafe.number ? `<span class="cafe-num popup-num">${escHtml(cafe.number)}</span>` : ''}
     </div>
     <div class="popup-addr">${wfMapsLink(cafe.address, cafe.name)}</div>
     ${inReview ? `<div style="font-size:0.75rem;color:#C47F2E;font-weight:700;margin:6px 0 2px">⏳ In review: submitted, waiting for approval</div>
@@ -5069,14 +5101,18 @@ function renderListMode() {
   const STATUS_COLORS = SHEET_STATUS_COLORS;
 
   // List mode has its own three-tab system independent of the main tab bar
-  const tab = state.listModeTab || 'small';
+  const tab = _wfIsAdmin ? (state.listModeTab || 'small') : 'small';
   const typeFilter = c => {
     if (tab === 'ineligible') return c.status === 'Ineligible Cafe';
     if (tab === 'small')      return !c.isChain && !c.isMultiLoc && c.status !== 'Ineligible Cafe';
     /* chain */               return (c.isChain || c.isMultiLoc) && c.status !== 'Ineligible Cafe';
   };
 
-  const matching = state.cafes.filter(c => typeFilter(c) && cafeMatchesBoro(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c));
+  const backBtn = '<button class="list-back-btn" onclick="toggleListMode()">🗺 Back to map</button>';
+  const onMap = c => (state.searchQuery && state.searchQuery.trim()) || (cafeMatchesTab(c) && cafeMatchesScout(c));
+  const matching = _wfIsAdmin
+    ? state.cafes.filter(c => typeFilter(c) && cafeMatchesBoro(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c))
+    : state.cafes.filter(c => onMap(c) && cafeMatchesBoro(c) && cafeMatchesStatus(c) && cafeMatchesSearch(c));
 
   // For ineligible tab: sort alphabetically. For others: incomplete first, done at bottom.
   const sorted = tab === 'ineligible'
@@ -5088,12 +5124,12 @@ function renderListMode() {
   const backlogCount = tab !== 'ineligible' ? matching.filter(c => c.status !== 'Visit Completed').length : 0;
   const doneCount    = tab !== 'ineligible' ? matching.filter(c => c.status === 'Visit Completed').length : 0;
 
-  const tabHtml = `
+  const tabHtml = backBtn + (!_wfIsAdmin ? '' : `
     <div class="list-mode-tabs">
       <button class="list-mode-tab-btn ${tab==='small' ? 'active' : ''}" onclick="setListModeTab('small')">☕ Small Businesses</button>
       <button class="list-mode-tab-btn ${tab==='chain' ? 'active' : ''}" onclick="setListModeTab('chain')">🏢 Corporate &amp; Chain</button>
       <button class="list-mode-tab-btn ${tab==='ineligible' ? 'active' : ''}" onclick="setListModeTab('ineligible')" style="${tab==='ineligible'?'':''}">❌ Ineligible</button>
-    </div>
+    </div>`) + `
     <div class="list-mode-meta">
       <span>${matching.length} cafés${tab==='ineligible' ? ' ineligible' : ' total'}</span>
       ${tab !== 'ineligible' ? `<span style="color:#92400E;font-weight:600">· ${backlogCount} backlog</span>
@@ -5118,6 +5154,7 @@ function renderListMode() {
       const mapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(c.address + ', New York');
       const assignedPerson = (c.assignedTo !== null && c.assignedTo !== undefined) ? state.persons[c.assignedTo] : null;
       return `<div class="list-mode-item" onclick="switchToMap('${c.id}')" style="${isDone||isIneligible ? 'opacity:0.6' : ''}">
+        ${c.number ? `<span class="cafe-num list-num">${escHtml(c.number)}</span>` : ''}
         <div class="list-mode-dot" style="background:${statusColor}"></div>
         <div class="list-mode-info">
           <div class="list-mode-name" style="${isDone||isIneligible ? 'text-decoration:line-through;color:#999' : ''}">${escHtml(c.name)}</div>
@@ -5234,6 +5271,9 @@ const APPROVER_EMAILS = [
   'abishop039@gmail.com',
   'workandbrew.app@gmail.com',
 ];
+// Admins also get Export and Copy All (approvers plus Sayraliz)
+const ADMIN_EMAILS = APPROVER_EMAILS.concat(['sayraliz.rivas@gmail.com']);
+let _wfIsAdmin = false;
 const SEAT_TYPES = ['Chairs','Booths','Couches','Soft seating','Counter/bar','Communal table','Outdoor'];
 const SEAT_COUNTS = ['Few (1-8)','Some (9-15)','Many (15-25)','Ample (25+)'];
 const MAX_UPLOAD_MB = 40;
@@ -5281,6 +5321,8 @@ async function wfApi(action, payload) {
 function wfDetectRole(user) {
   const email = ((user && user.email) || '').toLowerCase();
   _wfIsApprover = APPROVER_EMAILS.map(e => e.toLowerCase()).includes(email);
+  _wfIsAdmin = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
+  ['btn-export', 'copy-all-btn'].forEach(id => { const b = document.getElementById(id); if (b) b.style.display = _wfIsAdmin ? '' : 'none'; });
   const params = new URLSearchParams(window.location.search);
   const scoutParam = params.get('scout');
   const meta = (user && user.user_metadata) || {};
@@ -5438,6 +5480,25 @@ async function wfManualComplete(cafe) {
 
 // ---------- open / close the form ----------
 // Opens the side panel on desktop, or the bottom drawer on phones (which uses a different class)
+// ▼ on the Scouts heading: drop the list out of the way straight away and show the map
+function hidePanelNow() {
+  const panel = document.getElementById('panel'), toggle = document.getElementById('panel-toggle');
+  if (!panel) return;
+  state.panelOpen = false;
+  state.formCafeId = null; state.reviewCafeId = null;
+  panel.style.transition = 'none';
+  panel.classList.remove('panel-open'); panel.classList.add('collapsed');
+  if (toggle) toggle.textContent = window.innerWidth <= 768 ? '▲' : '◀';
+  requestAnimationFrame(() => { panel.style.transition = ''; });
+  try { saveState(); } catch (e) {}
+  setTimeout(() => { try { map.invalidateSize(); } catch (e) {} }, 50);
+}
+(function () {
+  const b = document.getElementById('panel-hide');
+  if (!b) return;
+  ['touchstart', 'mousedown'].forEach(ev => b.addEventListener(ev, e => e.stopPropagation(), { passive: true }));
+  b.addEventListener('click', e => { e.stopPropagation(); hidePanelNow(); renderPanel(); });
+})();
 function wfOpenPanel() {
   const panel = document.getElementById('panel');
   const toggle = document.getElementById('panel-toggle');
