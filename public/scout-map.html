@@ -1572,8 +1572,8 @@ body { display: flex; flex-direction: column; overflow: hidden; }
     <div class="stat-chip">In Progress: <span id="s-inprogress">0</span></div>
     <div class="stat-chip">Completed: <span id="s-completed">0</span></div>
     <div class="stat-chip">Done: <span id="s-pct">0%</span></div>
-    <div class="stat-chip" style="background:#CA9A04">⚠ Temp: <span id="s-hazard">0</span></div>
-    <div class="stat-chip" style="background:#DC2626">✕ Closed: <span id="s-closed">0</span></div>
+    <div class="stat-chip" style="background:#F28C28">⚠ Temp: <span id="s-hazard">0</span></div>
+    <div class="stat-chip" style="background:#37474F">✕ Closed: <span id="s-closed">0</span></div>
     <div class="stat-chip" style="background:#FF6B00">↩ Incomplete: <span id="s-revisit">0</span></div>
     <div class="stat-chip" style="background:#6366F1">⏳ Pending: <span id="s-pending">0</span></div>
     <div class="stat-chip" style="background:#1b3a5c">🗺 Assigned: <span id="s-assigned">0</span></div>
@@ -2693,14 +2693,14 @@ const homeBaseLayer = L.layerGroup().addTo(map);
 
 function getMarkerColor(cafe) {
   if (cafe.status === 'Visit Completed')        return state.activeTab === 'edits' ? '#1B5E20' : '#4CAF50';
-  if (cafe.status === 'Official Cafe Listing')   return '#B8860B';
+  if (cafe.status === 'Official Cafe Listing')   return '#7E57C2';
   if (cafe.status === 'In Review')               return '#C47F2E';
-  if (cafe.status === 'Temporarily Unavailable') return '#FACC15';
-  if (cafe.status === 'Permanently Closed')      return '#DC2626';
+  if (cafe.status === 'Temporarily Unavailable') return '#F28C28';
+  if (cafe.status === 'Permanently Closed')      return '#37474F';
   if (cafe.status === 'Incomplete')           return '#FF6B00';
   if (cafe.status === 'New Cafe Added')          return '#22B8CF';
   if (cafe.status === 'Pending Visit')           return '#6366F1';
-  if (cafe.status === 'Backlogged Cafe')         return '#D97706';
+  if (cafe.status === 'Backlogged Cafe')         return '#8D6E63';
   if (cafe.status === 'Ineligible Cafe')         return '#6B7280';
   if (cafe.assignedTo !== null && cafe.assignedTo !== undefined) {
     return state.persons[cafe.assignedTo]?.color || '#9E9E9E';
@@ -2711,7 +2711,7 @@ function getMarkerColor(cafe) {
 function createMarkerIcon(color, status) {
   let inner = '';
   if (status === 'Temporarily Unavailable') {
-    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-55%);font-size:8px;line-height:1;color:#7A5B00;font-weight:900">T</span>';
+    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-55%);font-size:8px;line-height:1;color:#fff;font-weight:900">T</span>';
   } else if (status === 'Permanently Closed') {
     inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#fff;font-weight:900">✕</span>';
   } else if (status === 'Incomplete') {
@@ -2897,7 +2897,7 @@ function buildPopupContent(cafe) {
     ${(isCompleted || isOfficial || cafe.status === 'Incomplete') ? `<button class="popup-review-btn" onclick="openReview('${cafe.id}')">👁 View submission</button>` : ''}
     ${cafe.status === 'Incomplete' && cafe.notes ? `<div style="font-size:0.7rem;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:5px 7px;margin:4px 0">${escHtml(cafe.notes)}</div>` : ''}
     ${isOfficial ? `
-    <div style="font-size:0.75rem;color:#B8860B;font-weight:700;margin-bottom:6px;">⭐ Official Work &amp; Brew listing: live on the public map</div>
+    <div style="font-size:0.75rem;color:#7E57C2;font-weight:700;margin-bottom:6px;">⭐ Official Work &amp; Brew listing: live on the public map</div>
     ${_wfIsApprover ? `<button class="popup-undo-btn" onclick="wfSetStatus('${cafe.id}','Visit Completed')">↩ Back to Completed</button>` : ''}
     ` : !isCompleted ? `
     ${_wfIsApprover ? `<div class="popup-row">
@@ -2938,7 +2938,7 @@ function buildPopupContent(cafe) {
       </button>
     </div>` : `
     <div style="font-size:0.75rem;color:#4CAF50;font-weight:700;margin-bottom:6px;">✅ Visit Completed</div>
-    ${_wfIsApprover ? `<button class="popup-scout-btn" style="background:#B8860B" onclick="wfSetStatus('${cafe.id}','Official Cafe Listing')">⭐ Make official (publish to public map)</button>` : ''}
+    ${_wfIsApprover ? `<button class="popup-scout-btn" style="background:#7E57C2" onclick="wfSetStatus('${cafe.id}','Official Cafe Listing')">⭐ Make official (publish to public map)</button>` : ''}
     <button class="popup-undo-btn" onclick="undoCompleted('${cafe.id}')">↩ Undo Completed</button>
     `}
     <a class="popup-dir-btn" href="https://www.google.com/maps/dir/?api=1&destination=${dirAddr}" target="_blank">🗺 Get Directions</a>
@@ -3691,8 +3691,8 @@ function renderPersonCards(container) {
             return displayCafes.map(c => `
               <div class="cafe-item-mini" onclick="zoomToCafe('${c.id}')">
                 <div class="boro-dot" style="background:${BORO_COLORS[c.borough]||'#999'}"></div>
-                <span style="${c.status==='Visit Completed'?'text-decoration:line-through;color:#aaa':c.status==='Backlogged Cafe'?'color:#D97706':''}">${escHtml(c.name)}</span>
-                ${c.status==='Backlogged Cafe' ? '<small style="color:#D97706;margin-left:auto;font-weight:600">Backlog</small>' : `<small style="color:#aaa;margin-left:auto">${c.borough.substring(0,3)}</small>`}
+                <span style="${c.status==='Visit Completed'?'text-decoration:line-through;color:#aaa':c.status==='Backlogged Cafe'?'color:#8D6E63':''}">${escHtml(c.name)}</span>
+                ${c.status==='Backlogged Cafe' ? '<small style="color:#8D6E63;margin-left:auto;font-weight:600">Backlog</small>' : `<small style="color:#aaa;margin-left:auto">${c.borough.substring(0,3)}</small>`}
               </div>
             `).join('');
           })()}
@@ -5057,15 +5057,15 @@ function renderListMode() {
 
   const STATUS_COLORS = {
     'Visit Completed': '#4caf50',
-    'Official Cafe Listing': '#B8860B',
+    'Official Cafe Listing': '#7E57C2',
     'In Review': '#C47F2E',
     'In Progress': '#2196F3',
     'Pending Visit': '#6366F1',
-    'Temporarily Unavailable': '#FACC15',
-    'Permanently Closed': '#DC2626',
+    'Temporarily Unavailable': '#F28C28',
+    'Permanently Closed': '#37474F',
     'Incomplete': '#FF6B00',
     'New Cafe Added': '#22B8CF',
-    'Backlogged Cafe': '#D97706',
+    'Backlogged Cafe': '#8D6E63',
     'Ineligible Cafe': '#6B7280',
   };
 
@@ -6440,7 +6440,7 @@ function renderCompletedPanel() {
         <div class="cl-status-dot" style="background:#4caf50"></div>
         <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.name)}</div><div class="cl-cafe-addr">${wfMapsLink(c.address, c.name)}</div></div>
         ${person ? `<span style="font-size:0.65rem;font-weight:600;color:${person.color};white-space:nowrap">${escHtml(person.name)}</span>` : ''}
-        ${_wfIsApprover ? `<button class="cl-nav-btn" style="background:#B8860B;color:#fff;border-color:#B8860B" title="Make official" onclick="event.stopPropagation(); wfSetStatus('${c.id}','Official Cafe Listing')">⭐</button>` : ''}
+        ${_wfIsApprover ? `<button class="cl-nav-btn" style="background:#7E57C2;color:#fff;border-color:#7E57C2" title="Make official" onclick="event.stopPropagation(); wfSetStatus('${c.id}','Official Cafe Listing')">⭐</button>` : ''}
       </div>`; }).join('')
     : '<div class="wf-hint" style="text-align:center;padding:20px 0">No completed cafés match.</div>'}`;
 }
@@ -6453,7 +6453,7 @@ function renderOfficialPanel() {
   container.innerHTML = `
     <div class="wf-eyebrow" style="margin-bottom:6px">⭐ Official Work &amp; Brew Map · ${rows.length} live on the public site</div>
     ${rows.length ? rows.map(c => `<div class="checklist-item" onclick="zoomToCafe('${c.id}')" style="cursor:pointer">
-        <div class="cl-status-dot" style="background:#B8860B"></div>
+        <div class="cl-status-dot" style="background:#7E57C2"></div>
         <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.name)}</div><div class="cl-cafe-addr">${wfMapsLink(c.address, c.name)}${c.borough ? ' · ' + escHtml(c.borough) : ''}</div></div>
         ${_wfIsApprover ? `<button class="cl-nav-btn" title="Back to Completed" onclick="event.stopPropagation(); wfSetStatus('${c.id}','Visit Completed')">↩</button>` : ''}
       </div>`).join('')
