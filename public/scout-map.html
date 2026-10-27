@@ -6091,7 +6091,7 @@ function renderSuggestionsBlock() {
           <div class="cl-cafe-addr">${sg.kind === 'Full' ? 'Full submission · ' + (sg.photoCount || 0) + ' photo(s)' : 'Quick lead, not scouted yet'} · ${escHtml(sg.type || '')}</div>
           <div class="cl-cafe-addr">From ${escHtml(sg.by || '')} ${escHtml(sg.at || '')}${sg.mapsLink ? ' · <a href="' + escHtml(sg.mapsLink) + '" target="_blank" rel="noopener">Maps link</a>' : ''}</div></div>
         <div style="display:flex;gap:6px;width:100%;margin-top:6px">
-          <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60" onclick="${sg.kind === 'Full' ? "sgShowModal('" + sg.row + "')" : "sgApprove('" + sg.row + "')"}">${sg.kind === 'Full' ? 'Review and approve' : 'Approve and add to map'}</button>
+          <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60" onclick="${sg.kind === 'Full' ? "sgShowModal('" + sg.row + "')" : "sgApprove('" + sg.row + "')"}">${sg.kind === 'Full' ? 'Review and approve' : 'Approve &amp; Add to Main Map'}</button>
           <button class="wf-btn-sm" style="flex:1" onclick="sgReject('${sg.row}')">Reject</button>
         </div>
       </div>`).join('')}
@@ -6132,7 +6132,7 @@ async function sgShowModal(focusRow) {
           </div>`).join('')}
       </div>` : ''}
       <div style="display:flex;gap:8px;margin-top:16px">
-        <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60;padding:11px" onclick="sgModalDo('approve','${sg.row}',this)">${sg.kind === 'Full' ? 'Approve and add to Complete' : 'Approve and add to map'}</button>
+        <button class="wf-btn-sm" style="flex:2;background:#27AE60;color:#fff;border-color:#27AE60;padding:11px" onclick="sgModalDo('approve','${sg.row}',this)">${sg.kind === 'Full' ? 'Approve and add to Complete' : 'Approve &amp; Add to Main Map'}</button>
         <button class="wf-btn-sm" style="flex:1;padding:11px" onclick="sgModalDo('reject','${sg.row}',this)">Reject</button>
       </div>
     </div>` : `
