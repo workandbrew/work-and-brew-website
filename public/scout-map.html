@@ -522,7 +522,12 @@ body { font-family: 'Inter', sans-serif; background: var(--cream); overflow: hid
   padding: 12px 14px;
 }
 #list-view.active { display: block; }
+/* café number (#203) in the top right corner of the popup and list rows */
+.cafe-num { font-size: 0.62rem; font-weight: 700; color: #9a8570; letter-spacing: 0.02em; white-space: nowrap; font-family: 'Inter', sans-serif; }
+.popup-num { flex-shrink: 0; margin: 2px 18px 0 0; }
+.list-num { position: absolute; top: 3px; right: 10px; }
 .list-mode-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2900,6 +2905,7 @@ function buildPopupContent(cafe) {
         <span class="boro-badge" style="background:${borColor}">${cafe.borough}</span>
         ${cafe.isChain ? '<span class="chain-badge">chain</span>' : ''}
       </h4>
+      ${cafe.number ? `<span class="cafe-num popup-num">${escHtml(cafe.number)}</span>` : ''}
     </div>
     <div class="popup-addr">${wfMapsLink(cafe.address, cafe.name)}</div>
     ${inReview ? `<div style="font-size:0.75rem;color:#C47F2E;font-weight:700;margin:6px 0 2px">⏳ In review: submitted, waiting for approval</div>
@@ -5118,6 +5124,7 @@ function renderListMode() {
       const mapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(c.address + ', New York');
       const assignedPerson = (c.assignedTo !== null && c.assignedTo !== undefined) ? state.persons[c.assignedTo] : null;
       return `<div class="list-mode-item" onclick="switchToMap('${c.id}')" style="${isDone||isIneligible ? 'opacity:0.6' : ''}">
+        ${c.number ? `<span class="cafe-num list-num">${escHtml(c.number)}</span>` : ''}
         <div class="list-mode-dot" style="background:${statusColor}"></div>
         <div class="list-mode-info">
           <div class="list-mode-name" style="${isDone||isIneligible ? 'text-decoration:line-through;color:#999' : ''}">${escHtml(c.name)}</div>
