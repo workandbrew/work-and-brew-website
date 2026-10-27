@@ -168,39 +168,38 @@ function Overview({ data }) {
 
 // ---------------------------------------------------------------- Messages
 
-function Compose({ data, onSent }) {
+function Compose({ data, onSent, notify }) {
   const [to, setTo] = useState([]);
   const [message, setMessage] = useState("");
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState(null);
   const [saving, setSaving] = useState(false);
   const [tplName, setTplName] = useState("");
   const [when, setWhen] = useState("now"); // "now" or 0-6 (weekday, New York time)
 
   const textable = useMemo(() => data.team.filter((p) => p.canText), [data.team]);
   const everyone = to.includes("all");
-  const toggle = (v) => { setPreview(null); setNote(null); setTo(v === "all" ? (everyone ? [] : ["all"]) : to.includes(v) ? to.filter((x) => x !== v) : [...to.filter((x) => x !== "all"), v]); };
+  const toggle = (v) => { setPreview(null); setTo(v === "all" ? (everyone ? [] : ["all"]) : to.includes(v) ? to.filter((x) => x !== v) : [...to.filter((x) => x !== "all"), v]); };
   const chip = (v, label) => (
     <button type="button" key={v} className={`th-chip ${to.includes(v) ? "on" : ""}`} onClick={() => toggle(v)}>{label}</button>
   );
-  const edit = (m) => { setMessage(m); setPreview(null); setNote(null); };
+  const edit = (m) => { setMessage(m); setPreview(null); };
 
   const doPreview = async () => {
-    setBusy(true); setNote(null);
+    setBusy(true);
     const r = await hubFetch("POST", { action: "preview", to, message });
     setBusy(false);
-    if (r.ok) setPreview(r); else setNote({ bad: true, text: r.error || "Something went wrong." });
+    if (r.ok) setPreview(r); else notify({ bad: true, text: r.error || "Something went wrong." });
   };
   const doSend = async () => {
     setBusy(true);
     const r = await hubFetch("POST", { action: "send", to: preview.recipients.map((p) => p.id), message });
     setBusy(false);
     if (r.sent) {
-      setNote({ bad: !!r.failed, text: `Sent to ${r.sent}${r.failed ? `, ${r.failed} failed` : ""}.` });
+      notify({ bad: !!r.failed, text: `Sent to ${r.sent}${r.failed ? `, ${r.failed} failed` : ""}.` });
       setPreview(null); setMessage(""); setTo([]);
       onSent();
-    } else setNote({ bad: true, text: r.error || (r.results || []).map((x) => `${x.name}: ${x.error}`).join("; ") || "Not sent." });
+    } else notify({ bad: true, text: r.error || (r.results || []).map((x) => `${x.name}: ${x.error}`).join("; ") || "Not sent." });
   };
   const doSchedule = async () => {
     setBusy(true);
@@ -208,17 +207,17 @@ function Compose({ data, onSent }) {
     const r = await hubFetch("POST", { action: "schedule-save", to, body: message, weekday: when, name: data.templates.find((t) => t.body === message)?.name });
     setBusy(false);
     if (r.ok) {
-      setNote({ text: `Scheduled: goes out every ${WEEKDAYS[when]} morning.` });
+      notify({ text: `Scheduled: goes out every ${WEEKDAYS[when]} morning.` });
       setPreview(null); setMessage(""); setTo([]); setWhen("now");
       onSent();
-    } else setNote({ bad: true, text: r.error || "Couldn't schedule it." });
+    } else notify({ bad: true, text: r.error || "Couldn't schedule it." });
   };
   const saveTemplate = async () => {
     setBusy(true);
     const r = await hubFetch("POST", { action: "template-save", name: tplName, body: message });
     setBusy(false);
-    if (r.ok) { setSaving(false); setTplName(""); setNote({ text: "Template saved." }); onSent(); }
-    else setNote({ bad: true, text: r.error || "Couldn't save the template." });
+    if (r.ok) { setSaving(false); setTplName(""); notify({ text: "Template saved." }); onSent(); }
+    else notify({ bad: true, text: r.error || "Couldn't save the template." });
   };
 
   return (
@@ -283,7 +282,6 @@ function Compose({ data, onSent }) {
         </div>
       )}
       <div className="th-rules">✓ Opted-in members only <span>✓ STOP line always added</span> <span>✓ Max 25 per send</span></div>
-      {note && <p className={`th-note ${note.bad ? "bad" : ""}`}>{note.text}</p>}
     </Card>
   );
 }
@@ -386,11 +384,11 @@ function groupLabel(v, data) {
   return data.team.find((p) => p.id === v)?.name || v;
 }
 
-function Messages({ data, reload }) {
+function Messages({ data, reload, notify }) {
   return (
     <>
       <div className="th-row">
-        <Compose data={data} onSent={reload} />
+        <Compose data={data} onSent={reload} notify={notify} />
         <div className="th-side-col th-stack">
           <Schedules data={data} onChange={reload} />
           <Templates data={data} onChange={reload} />
@@ -534,19 +532,18 @@ function Analytics({ data }) {
 
 const ROLES = ["Cafe Scout", "Content Creator", "Scout Lead"];
 
-function Signups({ data, onChange }) {
+function Signups({ data, onChange, notify }) {
   const [choice, setChoice] = useState({});
   const [busy, setBusy] = useState(null);
-  const [note, setNote] = useState(null);
   const list = data.pendingSignups || [];
   const pick = (id, key, v) => setChoice({ ...choice, [id]: { role: "Cafe Scout", chapters: [], ...choice[id], [key]: v } });
   const decide = async (r, action) => {
-    setBusy(r.id); setNote(null);
+    setBusy(r.id);
     const c = choice[r.id] || { role: "Cafe Scout", chapters: [] };
     const res = await hubFetch("POST", { action, id: r.id, ...c });
     setBusy(null);
-    if (!res.ok) return setNote({ bad: true, text: res.error || "Something went wrong." });
-    setNote({ text: action === "signup-reject" ? `${r.name} was declined.` : `${r.name} is on the team${res.welcome?.sent ? " and got a welcome text" : ""}.` });
+    if (!res.ok) return notify({ bad: true, text: res.error || "Something went wrong." });
+    notify({ text: action === "signup-reject" ? `${r.name} was declined.` : `${r.name} is on the team${res.welcome?.sent ? " and got a welcome text" : ""}.` });
     onChange();
   };
   return (
@@ -571,7 +568,6 @@ function Signups({ data, onChange }) {
           })}
         </ul>
       )}
-      {note && <p className={`th-note ${note.bad ? "bad" : ""}`}>{note.text}</p>}
     </Card>
   );
 }
@@ -583,38 +579,34 @@ const SOCIAL = [
   { key: "lemon8", label: "Lemon8", icon: "🍋", unit: "followers", setup: "No public API · update weekly by hand" },
 ];
 
-function ManualEntry({ platform, onChange }) {
+function ManualEntry({ platform, label, onChange, notify }) {
   const [v, setV] = useState("");
-  const [msg, setMsg] = useState(null);
   const save = async () => {
     const r = await hubFetch("POST", { action: "growth-manual", platform, followers: v });
-    if (r.ok) { setV(""); setMsg(null); onChange(); } else setMsg(r.error || "Couldn't save.");
+    if (r.ok) { setV(""); notify({ text: `${label} updated.` }); onChange(); } else notify({ bad: true, text: r.error || "Couldn't save." });
   };
   return (
     <div className="th-manual">
       <input className="th-input" inputMode="numeric" placeholder="This week's follower count" value={v} onChange={(e) => setV(e.target.value.replace(/[^\d]/g, ""))} />
       <button className="th-btn ghost" disabled={!v} onClick={save}>Update</button>
-      {msg && <span className="th-note bad">{msg}</span>}
     </div>
   );
 }
 
-function ConnectTikTok() {
-  const [msg, setMsg] = useState(null);
+function ConnectTikTok({ notify }) {
   const go = async () => {
     const r = await hubFetch("POST", { action: "tiktok-connect" });
-    if (r.ok && r.url) window.location.href = r.url; else setMsg(r.error || "Couldn't start the connection.");
+    if (r.ok && r.url) window.location.href = r.url; else notify({ bad: true, text: r.error || "Couldn't start the connection." });
   };
   return (
     <div className="th-btns">
       <button className="th-btn" onClick={go}>Connect TikTok</button>
       <span className="th-hint">Log in with the Work &amp; Brew TikTok account. Read-only.</span>
-      {msg && <span className="th-note bad">{msg}</span>}
     </div>
   );
 }
 
-function SocialCard({ meta, src, manualReady, onChange }) {
+function SocialCard({ meta, src, manualReady, onChange, notify }) {
   const live = src?.connected && !src.error;
   const manual = src?.manual;
   const value = live ? src.followers : manual?.followers;
@@ -630,14 +622,13 @@ function SocialCard({ meta, src, manualReady, onChange }) {
         </div>
       ) : src?.error ? <p className="th-note bad">Couldn't load: {src.error}</p>
         : <NotConnected icon={meta.icon} source={meta.label} what={`${meta.unit} and growth`} setup={meta.setup} />}
-      {meta.key === "tiktok" && src?.canConnect && <ConnectTikTok />}
-      {!live && manualReady && <ManualEntry platform={meta.key} onChange={onChange} />}
+      {meta.key === "tiktok" && src?.canConnect && <ConnectTikTok notify={notify} />}
+      {!live && manualReady && <ManualEntry platform={meta.key} label={meta.label} onChange={onChange} notify={notify} />}
     </Card>
   );
 }
 
-function Growth({ data, reload }) {
-  const [banner, setBanner] = useState(() => new URLSearchParams(window.location.search).get("connected"));
+function Growth({ data, reload, notify }) {
   const s = data.signups;
   const g = data.growth || {};
   const web = g.website || {};
@@ -656,8 +647,7 @@ function Growth({ data, reload }) {
         <Stat label="Social followers" value={followers ? followers.toLocaleString() : "—"} foot="Instagram, TikTok, YouTube, Lemon8" />
       </div>
 
-      {banner && <div className="th-card th-banner"><span>{banner}</span><button className="th-x plain" onClick={() => setBanner(null)}>Dismiss</button></div>}
-      <Signups data={data} onChange={reload} />
+      <Signups data={data} onChange={reload} notify={notify} />
 
       <div className="th-row">
         <Card title="Website visitors" sub="Google Analytics · last 30 days" className="th-grow">
@@ -673,7 +663,7 @@ function Growth({ data, reload }) {
       </div>
 
       <div className="th-row th-wrap">
-        {SOCIAL.map((m) => <SocialCard key={m.key} meta={m} src={g.social?.[m.key]} manualReady={g.manualReady} onChange={reload} />)}
+        {SOCIAL.map((m) => <SocialCard key={m.key} meta={m} src={g.social?.[m.key]} manualReady={g.manualReady} onChange={reload} notify={notify} />)}
       </div>
     </>
   );
@@ -687,6 +677,23 @@ export default function TeamHub() {
   const page = PAGES.find((p) => p.key === section) || PAGES[0];
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  // One place for messages ("Sent to 4", "TikTok is connected", errors), shown at the top of the page.
+  const [notice, setNotice] = useState(() => {
+    const t = new URLSearchParams(window.location.search).get("connected");
+    return t ? { text: t, bad: /didn't|expired|cancel|aren't/i.test(t) } : null;
+  });
+  const notify = (n) => {
+    setNotice(n);
+    document.querySelector(".th-main")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  useEffect(() => {
+    if (window.location.search.includes("connected=")) window.history.replaceState(null, "", window.location.pathname);
+  }, []);
+  useEffect(() => {
+    if (!notice || notice.bad) return; // errors stay until dismissed
+    const t = setTimeout(() => setNotice(null), 8000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   const load = useCallback(async () => {
     const r = await hubFetch("GET");
@@ -710,7 +717,7 @@ export default function TeamHub() {
   else if (!data) body = <p className="th-empty">Loading…</p>;
   else {
     const View = { overview: Overview, messages: Messages, cafes: Cafes, analytics: Analytics, growth: Growth }[page.key];
-    body = <View data={data} reload={load} />;
+    body = <View data={data} reload={load} notify={notify} />;
   }
 
   return (
@@ -739,6 +746,12 @@ export default function TeamHub() {
           <header className="th-top"><h1>{page.label}</h1>{page.sub && <p>{page.sub}</p>}</header>
         )}
         {page.key === "overview" && data?.today && <header className="th-top"><h1>Overview</h1><p>{data.today} · Work &amp; Brew</p></header>}
+        {notice && (
+          <div className={`th-notice ${notice.bad ? "bad" : ""}`} role="status">
+            <span>{notice.bad ? "⚠️" : "✓"} {notice.text}</span>
+            <button className="th-x plain" onClick={() => setNotice(null)}>Dismiss</button>
+          </div>
+        )}
         {body}
       </main>
 
