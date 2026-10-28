@@ -1720,6 +1720,19 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
 }
 /* scout's own list header (D style) */
 .wb-hello { margin: 2px 0 12px; }
+/* Maps app choice (iPhone/iPad only): one-time chooser + "change" link under the scout's name */
+.wb-maps-pref { font-size: 0.72rem; font-weight: 600; color: var(--wb-slate); margin: -8px 0 12px; display: none; }
+.wb-maps-pref a { color: var(--wb-navy); text-decoration: underline; cursor: pointer; }
+body.wb-ios .wb-maps-pref { display: block; }
+#wb-maps-pick { position: fixed; inset: 0; z-index: 99999; background: rgba(43,26,18,.45); display: flex; align-items: flex-end; justify-content: center; padding: 16px; }
+#wb-maps-pick .sheet { background: var(--wb-soft, #F8F6F1); border-radius: 18px; padding: 18px 18px 14px; width: 100%; max-width: 420px; box-shadow: 0 18px 50px rgba(0,0,0,.25); }
+#wb-maps-pick h4 { margin: 0 0 4px; font-size: 1.05rem; color: var(--wb-espresso, #2B1A12); }
+#wb-maps-pick p { margin: 0 0 14px; font-size: 0.82rem; color: var(--wb-slate, #27313E); }
+#wb-maps-pick .opts { display: flex; gap: 10px; }
+#wb-maps-pick .opts button { flex: 1; height: 46px; border-radius: 12px; border: 1.5px solid var(--wb-beige, #D1C7BB); background: #fff; font: inherit; font-weight: 700; font-size: 0.95rem; color: var(--wb-espresso, #2B1A12); cursor: pointer; }
+#wb-maps-pick .opts button.primary { background: var(--wb-navy, #17274E); border-color: var(--wb-navy, #17274E); color: #fff; }
+#wb-maps-pick small { display: block; margin-top: 10px; font-size: 0.72rem; color: var(--wb-chrome, #A5ABB0); text-align: center; }
+
 .wb-hello-sub { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: var(--wb-slate); }
 .wb-hello-sub .scout-cl-dot { width: 8px; height: 8px; border-radius: 50%; }
 .wb-hello-title { font-size: 1.45rem; font-weight: 800; color: var(--wb-espresso); letter-spacing: -0.02em; line-height: 1.15; }
@@ -3791,6 +3804,7 @@ function renderScoutChecklist(idx) {
       <div class="wb-hello-sub"><span class="scout-cl-dot" style="background:${person.color}"></span>${me ? 'Hi ' + escHtml(person.name) : escHtml(person.name) + "'s list"}</div>
       <div class="wb-hello-title">${me ? 'Your Cafés' : escHtml(person.name) + "'s Cafés"}</div>
     </div>
+    <div class="wb-maps-pref">Directions open in <b>${wbMapsPref() === 'apple' ? 'Apple Maps' : 'Google Maps'}</b> · <a onclick="wbPickMapsApp()">change</a></div>
     <div class="wb-stats">
       <div class="wb-stat"><div class="wb-stat-n">${toVisit.length}</div><div class="wb-stat-k">To visit</div></div>
       <div class="wb-stat"><div class="wb-stat-n">${inReviewCnt}</div><div class="wb-stat-k">In review</div></div>
@@ -7195,6 +7209,58 @@ document.body.classList.toggle('wb-tab-scout', state.activeTab === 'scout');
   if (window.ResizeObserver) new ResizeObserver(set).observe(top);
   window.addEventListener('resize', set); set();
 })();
+</script>
+
+<script>
+// ---- Which maps app opens café links (iPhone/iPad only) ----------------------------------
+// Every café link is a normal Google Maps web link. On iPhone/iPad we ask once whether the
+// scout prefers Apple Maps or Google Maps, remember it on that device, and rewrite the link
+// as it is tapped. Android and desktop never see the question.
+function wbIsIOS() {
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function wbMapsPref() { try { return localStorage.getItem('wb-maps-app'); } catch (e) { return null; } }
+function wbSetMapsPref(v) {
+  try { localStorage.setItem('wb-maps-app', v); } catch (e) {}
+  document.querySelectorAll('.wb-maps-pref b').forEach(b => { b.textContent = v === 'apple' ? 'Apple Maps' : 'Google Maps'; });
+}
+function wbToAppleUrl(googleUrl) {
+  try {
+    const u = new URL(googleUrl);
+    const dest = u.searchParams.get('destination') || u.searchParams.get('query');
+    if (!dest) return null;
+    return u.pathname.indexOf('/dir') === 0 || u.pathname.indexOf('/maps/dir') === 0
+      ? 'https://maps.apple.com/?daddr=' + encodeURIComponent(dest)
+      : 'https://maps.apple.com/?q=' + encodeURIComponent(dest);
+  } catch (e) { return null; }
+}
+function wbPickMapsApp(onDone) {
+  if (document.getElementById('wb-maps-pick')) return;
+  const box = document.createElement('div');
+  box.id = 'wb-maps-pick';
+  box.innerHTML = '<div class="sheet"><h4>Open directions in…</h4><p>Pick the maps app you use. We\'ll remember it on this phone.</p>' +
+    '<div class="opts"><button type="button" data-v="google" class="primary">Google Maps</button><button type="button" data-v="apple">Apple Maps</button></div>' +
+    '<small>Change it anytime under your name in “Your Cafés”.</small></div>';
+  box.addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-v]');
+    if (b) { wbSetMapsPref(b.dataset.v); box.remove(); if (onDone) onDone(b.dataset.v); }
+    else if (ev.target === box) box.remove();
+  });
+  document.body.appendChild(box);
+}
+if (wbIsIOS()) {
+  document.documentElement.classList.add('wb-ios');
+  document.addEventListener('DOMContentLoaded', () => document.body.classList.add('wb-ios'));
+  document.addEventListener('click', ev => {
+    const a = ev.target.closest('a[href^="https://www.google.com/maps/"]');
+    if (!a) return;
+    const open = v => { const url = v === 'apple' ? (wbToAppleUrl(a.href) || a.href) : a.href; window.open(url, '_blank', 'noopener'); };
+    const pref = wbMapsPref();
+    if (pref === 'google') return;                 // plain Google link, nothing to do
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    if (pref === 'apple') open('apple'); else wbPickMapsApp(open);
+  }, true);
+}
 </script>
 </body>
 </html>
