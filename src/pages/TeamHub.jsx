@@ -83,18 +83,53 @@ function Stat({ label, value, foot }) {
 
 // ---------------------------------------------------------------- Overview
 
-function Overview({ data }) {
+// "Current works": the founder's one-liner per department, so every head knows what the others are on.
+function CurrentWorks({ data, reload, notify }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({});
+  const [busy, setBusy] = useState(false);
+  const works = data.works || [];
+  const canEdit = !!data.me?.canEditWorks;
+  const start = () => { setDraft(Object.fromEntries(works.map((w) => [w.department, w.body]))); setEditing(true); };
+  const save = async () => {
+    setBusy(true);
+    for (const w of works) {
+      if ((draft[w.department] ?? "") === w.body) continue;
+      const r = await hubFetch("POST", { action: "works-save", department: w.department, body: draft[w.department] });
+      if (!r.ok) { setBusy(false); notify({ bad: true, text: r.error || "Couldn't save." }); return; }
+    }
+    setBusy(false); setEditing(false); notify({ text: "Current works updated." }); reload();
+  };
+  const latest = works.map((w) => w.updatedAt).filter(Boolean).sort().pop();
+  return (
+    <div className="th-focus th-works">
+      <div className="th-works-h">
+        <div className="th-caps th-hero-caps">Work &amp; Brew · Current works</div>
+        {canEdit && !editing && <button type="button" className="th-works-edit" onClick={start}>Edit</button>}
+      </div>
+      {works.map((w) => (
+        <div key={w.department} className="th-works-row">
+          <b>{w.department}</b>
+          {editing
+            ? <textarea className="th-works-input" rows={2} maxLength={600} value={draft[w.department] ?? ""} placeholder="What's this team on right now?" onChange={(e) => setDraft({ ...draft, [w.department]: e.target.value })} />
+            : <span>{w.body || <i>Nothing posted yet.</i>}</span>}
+        </div>
+      ))}
+      {editing ? (
+        <div className="th-btns">
+          <button className="th-btn th-btn-cream" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
+          <button className="th-btn ghost th-btn-ghost-cream" disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
+        </div>
+      ) : latest && <small className="th-works-when">Updated {when(latest)}{works.find((w) => w.updatedAt === latest)?.updatedBy ? ` by ${works.find((w) => w.updatedAt === latest).updatedBy.split(" ")[0]}` : ""}</small>}
+    </div>
+  );
+}
+
+function Overview({ data, reload, notify }) {
   const daily = data.daily || [];
   const week = daily.slice(-7);
-  const failedWeek = sum(week, "failed");
   const textable = data.team.filter((p) => p.canText).length;
   const visited = data.cafes ? data.cafes["Visit Completed"] || 0 : null;
-  const focus = [
-    data.schedules?.some((x) => x.active && x.weekdayName === data.today?.split(",")[0]) ? "A scheduled text goes out this morning" : null,
-    data.signups?.pending ? `${data.signups.pending} sign-up${data.signups.pending > 1 ? "s" : ""} waiting for approval` : null,
-    failedWeek ? `${failedWeek} text${failedWeek > 1 ? "s" : ""} failed this week: check the log` : null,
-    data.cafes?.["In Progress"] ? `${data.cafes["In Progress"]} café visit${data.cafes["In Progress"] > 1 ? "s" : ""} in progress` : null,
-  ].filter(Boolean);
   const byChapter = data.chapters.map((c) => ({ label: c, value: data.team.filter((p) => p.chapters.includes(c)).length })).sort((a, b) => b.value - a.value);
   const cafeRows = data.cafes ? Object.entries(data.cafes).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value) : [];
 
@@ -106,10 +141,7 @@ function Overview({ data }) {
           <h2>{data.greeting || "Hi"}, {String(data.me?.name || "").split(" ")[0] || "there"}</h2>
           <p>{data.me?.role ? `${data.me.role} · ` : ""}Everything Work &amp; Brew is running, in one place.</p>
         </div>
-        <div className="th-focus">
-          <div className="th-caps th-hero-caps">Today&apos;s focus</div>
-          {(focus.length ? focus : ["All clear: nothing needs you right now."]).map((f) => <div key={f} className="th-focus-item">{f}</div>)}
-        </div>
+        <CurrentWorks data={data} reload={reload} notify={notify} />
       </section>
 
       <div className="th-row th-stats">
@@ -148,22 +180,17 @@ function Overview({ data }) {
         <Card title="Café statuses" sub="From the scout map" className="th-grow">
           {cafeRows.length ? <RankBars rows={cafeRows} unit="Cafés" share={false} suffix="cafés" /> : <p className="th-empty">No café updates yet.</p>}
         </Card>
-        {data.schedules?.length ? (
-          <Card title="Scheduled this week" sub="Texts that send themselves" className="th-grow">
+        <Card title="Scheduled this week" sub="Texts that send themselves" className="th-grow">
+          {data.schedules?.filter((x) => x.active).length ? (
             <ul className="th-scheds">
               {data.schedules.filter((x) => x.active).map((x) => (
                 <li key={x.id}><span className="th-sched-day">{x.weekdayName.slice(0, 3).toUpperCase()}</span>
                   <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}</small></div></li>
               ))}
             </ul>
-            <NavLink to="/team/messages" className="th-link">Manage →</NavLink>
-          </Card>
-        ) : (
-          <Card title="Templates" sub="Ready-to-send messages" className="th-grow">
-            <ul className="th-tlist">{data.templates.map((t) => <li key={t.id}>{t.name}</li>)}</ul>
-            <NavLink to="/team/messages" className="th-link">Send or schedule one →</NavLink>
-          </Card>
-        )}
+          ) : <p className="th-empty">Nothing scheduled this week.</p>}
+          <NavLink to="/team/messages" className="th-link">{data.schedules?.length ? "Manage →" : "Schedule a weekly text →"}</NavLink>
+        </Card>
       </div>
     </>
   );

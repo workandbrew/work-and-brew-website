@@ -39,7 +39,7 @@ async function optional(query, fallback) {
 
 async function extras() {
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
-  const [templates, signups, cafes, pendingList, schedules, growth, events] = await Promise.all([
+  const [templates, signups, cafes, pendingList, schedules, growth, events, worksRows] = await Promise.all([
     optional(db().from("sms_templates").select("id, name, body, created_by").order("created_at"), null),
     optional(db().from("signup_requests").select("status, created_at").gte("created_at", since), null),
     optional(db().from("cafes").select("*").limit(2000), null),
@@ -47,7 +47,13 @@ async function extras() {
     listSchedules().catch(() => null),
     growthSnapshot().catch((e) => ({ error: e.message })),
     optional(db().from("events").select("*").order("starts_at", { ascending: true, nullsFirst: false }).limit(300), null),
+    optional(db().from("current_works").select("*"), null),
   ]);
+  // Always the four departments, in order, even before anyone has written anything.
+  const works = DEPARTMENTS.map((department) => {
+    const row = (worksRows || []).find((r) => r.department === department);
+    return { department, body: row?.body || "", updatedBy: row?.updated_by || null, updatedAt: row?.updated_at || null };
+  });
   const pending = await optional(
     db().from("signup_requests").select("id", { count: "exact", head: true }).eq("status", "pending").then((r) => ({ data: r.count, error: r.error })), 0);
   // Same names as the spreadsheet (older rows may still say Unvisited or Needs Revisit).
@@ -71,7 +77,25 @@ async function extras() {
     schedules: schedules && schedules.map((s) => ({ ...s, weekdayName: WEEKDAYS[s.weekday] })),
     growth,
     events,
+    works,
+    worksSaved: !!worksRows,
   };
+}
+
+// --- Current works (overview) ----------------------------------------------------------------
+const DEPARTMENTS = ["B2B & Marketing", "Café Scouting", "App & Web Development", "UI/UX Design"];
+// The founder keeps this board; anyone whose hub_admins role says Founder/Owner/CEO can edit,
+// as can the email in HUB_OWNER_EMAIL (Vercel env), if set.
+const canEditWorks = (me) => /founder|owner|ceo/i.test(me.role || "") || (!!process.env.HUB_OWNER_EMAIL && me.email?.toLowerCase() === process.env.HUB_OWNER_EMAIL.toLowerCase());
+
+async function saveWorks(me, extra) {
+  if (!canEditWorks(me)) return { status: 403, error: "Only the founder can update Current works." };
+  const department = DEPARTMENTS.find((d) => d === extra.department);
+  if (!department) return { status: 400, error: "Unknown department." };
+  const body = String(extra.body || "").trim().slice(0, 600);
+  const { error } = await db().from("current_works").upsert({ department, body, updated_by: me.name || me.email, updated_at: new Date().toISOString() });
+  if (error) return { status: 500, error: `Couldn't save (${error.message}). Has the current_works table in supabase/sms.sql been created?` };
+  return {};
 }
 
 // --- Events -----------------------------------------------------------------------------------
@@ -227,7 +251,7 @@ export default async function handler(req, res) {
         .filter((g) => g.count);
       const sent30 = daily.reduce((n, d) => n + d.sent, 0);
       const failed30 = daily.reduce((n, d) => n + d.failed, 0);
-      return res.status(200).json({ ok: true, me, ...welcome(), team, chapters, groups, log, daily, stats: { sent30, failed30, prevSent30 }, ...more });
+      return res.status(200).json({ ok: true, me: { ...me, canEditWorks: canEditWorks(me) }, ...welcome(), team, chapters, groups, log, daily, stats: { sent30, failed30, prevSent30 }, ...more });
     }
 
     const { action, to, message, name, body, id } = readBody(req);
@@ -256,6 +280,7 @@ export default async function handler(req, res) {
       return reply({ url: `/api/connect?start=${encodeURIComponent(makeState())}` });
     }
     if (action === "growth-manual") return reply(await saveManual(extra.platform, extra.followers, by));
+    if (action === "works-save") return reply(await saveWorks(me, extra));
     if (action === "event-save") return reply(await saveEvent(id, extra, by));
     if (action === "event-check") return reply(await checkEvent(String(id || ""), extra));
     if (action === "event-delete") {

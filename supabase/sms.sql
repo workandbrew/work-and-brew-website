@@ -188,3 +188,16 @@ create table if not exists public.events (
 );
 alter table public.events enable row level security;  -- server-only (the hub API uses the service role)
 grant all on public.events to service_role;
+
+-- ---------------------------------------------------------------------------------------------
+-- "Current works" on the Team Hub overview: one line per department about what they're up to.
+-- Only the founder (hub_admins.role contains "Founder") can edit; every department head sees it.
+-- ---------------------------------------------------------------------------------------------
+create table if not exists public.current_works (
+  department text primary key,
+  body text not null default '',
+  updated_by text,
+  updated_at timestamptz not null default now()
+);
+alter table public.current_works enable row level security;  -- server-only
+grant all on public.current_works to service_role;

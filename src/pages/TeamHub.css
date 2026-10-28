@@ -55,7 +55,7 @@
 .th-hero-caps { color: var(--cream); opacity: .75; }
 .th-hero h2 { font-family: var(--serif); font-size: 46px; font-weight: 600; line-height: 1.1; margin: 10px 0; }
 .th-hero p { font-size: 17px; font-weight: 500; opacity: .85; }
-.th-focus { width: 400px; border-radius: 12px; padding: 18px 20px; background: rgba(242,236,227,.08); border: 1px solid rgba(242,236,227,.16); display: flex; flex-direction: column; gap: 8px; }
+.th-focus { width: 440px; border-radius: 12px; padding: 18px 20px; background: rgba(242,236,227,.08); border: 1px solid rgba(242,236,227,.16); display: flex; flex-direction: column; gap: 8px; }
 .th-focus-item { font-size: 15px; font-weight: 500; display: flex; gap: 10px; align-items: baseline; }
 .th-focus-item::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--cream); flex: 0 0 6px; transform: translateY(-2px); }
 
@@ -203,3 +203,16 @@
 .th-tag.ev-done { color: var(--ink2); background: var(--page); }
 .th-tag.ev-cancelled { color: #fff; background: #7A0A0A; border-color: #7A0A0A; }
 @media (max-width: 560px) { .th-form { grid-template-columns: 1fr; } .th-ev-nums { gap: 18px; } }
+
+/* Current works (overview hero) */
+.th-works { gap: 10px; }
+.th-works-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.th-works-edit { font: inherit; font-size: 12px; font-weight: 700; color: var(--hero); background: var(--cream); border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.th-works-row { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.th-works-row b { font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; opacity: .85; }
+.th-works-row span { font-weight: 500; line-height: 1.4; white-space: pre-wrap; }
+.th-works-row i { opacity: .6; }
+.th-works-input { width: 100%; font: inherit; font-size: 14px; line-height: 1.4; color: var(--ink); background: var(--cream); border: 0; border-radius: 8px; padding: 8px 10px; resize: vertical; box-sizing: border-box; }
+.th-works-when { font-size: 12px; opacity: .65; }
+.th-btn-cream { background: var(--cream); color: var(--hero); }
+.th-btn-ghost-cream { color: var(--cream); border: 1px solid rgba(242,236,227,.4); }
