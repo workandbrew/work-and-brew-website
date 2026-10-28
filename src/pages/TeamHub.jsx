@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
+import Navbar from "../components/Navbar";
 import "./TeamHub.css";
 import { DailyBars, RankBars, DeliveryMeter, NotConnected, Delta } from "./TeamHubCharts";
 
@@ -893,6 +894,8 @@ export default function TeamHub() {
   }
 
   return (
+    <>
+    <Navbar />
     <div className="th">
       <aside className="th-sidebar">
         <Link to="/" className="th-brand"><span>Work &amp; Brew</span><small>TEAM HUB</small></Link>
@@ -935,5 +938,6 @@ export default function TeamHub() {
         ))}
       </nav>
     </div>
+    </>
   );
 }

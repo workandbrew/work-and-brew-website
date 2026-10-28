@@ -2,6 +2,7 @@ import { Link, useParams, useLocation } from "react-router-dom";
 import NotFound from "./NotFound";
 import { useAuth } from "../context/AuthContext";
 import { useTeamAccess } from "../hooks/useTeamAccess";
+import Navbar from "../components/Navbar";
 
 // The scout map is for the 9 team members only (team_access table, checked on the server).
 // workandbrew.app/ops/teambrew26 — the map itself and its data are locked to the same list.
@@ -42,19 +43,23 @@ export default function ScoutPortal() {
     );
   }
 
+  // The site navbar stays on top (80px) so the team can hop to any page without retyping the URL.
   return (
-    <iframe
-      src={"/scout-map.html" + search}
-      title="Work & Brew Scout Portal"
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100vw",
-        height: "100dvh",
-        border: "none",
-        zIndex: 9999,
-      }}
-    />
+    <>
+      <Navbar />
+      <iframe
+        src={"/scout-map.html" + search}
+        title="Work & Brew Scout Portal"
+        style={{
+          position: "fixed",
+          top: 80,
+          left: 0,
+          width: "100vw",
+          height: "calc(100dvh - 80px)",
+          border: "none",
+          zIndex: 10,
+        }}
+      />
+    </>
   );
 }

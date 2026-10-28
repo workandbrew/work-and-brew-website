@@ -1810,6 +1810,25 @@ body.wb-ios .wb-maps-pref { display: block; }
   #panel-hide { font-size: 0 !important; }
   #panel-hide::after { content: ''; display: block; width: 9px; height: 9px; border-right: 2px solid var(--wb-navy); border-bottom: 2px solid var(--wb-navy); transform: rotate(45deg); margin-top: -4px; }
 }
+
+/* One search bar: type a café name to filter, or an address + Search to see the cafés around it */
+#search-wrap { display: flex; align-items: center; height: 40px; border-radius: 999px; background: var(--wb-cream); border: 1px solid var(--wb-beige); padding: 0 4px 0 0; flex: 0 1 460px; min-width: 240px; box-sizing: border-box; }
+#search-wrap:focus-within { border-color: var(--wb-navy); }
+#search-wrap #search-input { order: 0 !important; background: transparent !important; border: 0 !important; height: 38px; width: auto !important; min-width: 0 !important; flex: 1 1 auto; margin: 0 !important; padding: 0 12px 0 16px !important; font-size: 0.85rem; }
+#search-wrap #search-input:focus { border: 0 !important; outline: none; }
+#search-go-btn { order: 1; height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--wb-navy); color: var(--wb-white); font: 700 0.78rem 'Inter', sans-serif; cursor: pointer; flex-shrink: 0; }
+#search-go-btn:hover { background: var(--wb-slate); }
+@media (min-width: 769px) { #search-wrap { order: 2; } }
+@media (max-width: 768px) {
+  #search-wrap { grid-column: 1 / -1 !important; order: 2; width: 100%; height: 44px; }
+  #search-wrap #search-input { height: 42px !important; font-size: 16px !important; }
+  #search-go-btn { height: 36px; }
+}
+/* Desktop: Locate me sits beside the List button in the map's top-right corner */
+@media (min-width: 769px) {
+  .leaflet-top.leaflet-right .leaflet-control { margin-top: 0; }
+  #map-locate-btn.leaflet-control { position: static; float: right; clear: none; margin: 0 8px 0 0; height: 40px; font: 700 0.8rem 'Inter', sans-serif; box-shadow: var(--wb-shadow); }
+}
 /* "Cafés near an address" box next to search */
 #addr-lookup-wrap { display: flex !important; align-items: center; gap: 0; height: 40px; border-radius: 999px; background: var(--wb-cream); border: 1px solid var(--wb-beige); padding: 0 4px 0 0; flex: 0 1 300px; min-width: 200px; }
 #addr-lookup-wrap:focus-within { border-color: var(--wb-navy); }
@@ -1968,12 +1987,14 @@ body.wb-tab-scout #map-locate-btn, body.wb-listmode #map-locate-btn { display: n
   <button class="tab-btn" data-tab="newcafes" id="tab-newcafes" style="display:none"><span class="tl">New Cafés for Review</span><span class="ts">New</span></button>
   <button class="tab-btn" data-tab="review" id="tab-review" style="display:none">Review</button>
   <div style="margin-left:4px;border-left:1px solid rgba(255,255,255,0.2);height:20px;"></div>
-  <input id="search-input" type="text" placeholder="Search cafés or addresses">
-  <div style="margin-left:2px;border-left:1px solid rgba(255,255,255,0.2);height:20px;flex-shrink:0;"></div>
-  <div id="addr-lookup-wrap">
-    <input id="addr-lookup-input" type="text" placeholder="Cafés near an address…" title="Type an address you are at or heading to, and see the cafés around it">
-    <button id="addr-lookup-btn">Go</button>
+  <div id="search-wrap" title="Type a café name to jump to it, or an address and press Search to see the cafés around it">
+    <input id="search-input" type="text" placeholder="Search for cafes near a specific address">
+    <button id="search-go-btn" type="button">Search</button>
     <span id="addr-lookup-spinner">…</span>
+  </div>
+  <div id="addr-lookup-wrap" style="display:none !important">
+    <input id="addr-lookup-input" type="text" placeholder="Cafés near an address…">
+    <button id="addr-lookup-btn">Go</button>
   </div>
   <div id="boro-filter-sep">|</div>
   <button class="boro-btn active" data-boro="All">All</button>
@@ -3089,6 +3110,14 @@ L.Control.ListBtn = L.Control.extend({
   }
 });
 new L.Control.ListBtn().addTo(map);
+// On laptops/desktops the Locate me button moves beside List (top right); phones keep it top left.
+if (window.innerWidth > 768) {
+  L.Control.LocateBtn = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd() { const b = document.getElementById('map-locate-btn'); L.DomEvent.disableClickPropagation(b); return b; }
+  });
+  new L.Control.LocateBtn().addTo(map);
+}
 
 // Base map: MapTiler (same style + key as the public homepage map). The key is locked to
 // workandbrew.app in MapTiler Cloud; add localhost there to preview locally.
@@ -4880,6 +4909,17 @@ function sgRender(q) {
   box.style.width = Math.max(260, r.width + 120) + 'px';
   box.style.display = 'block';
 }
+// Search button / Enter: a highlighted café suggestion wins; a plain café-name match jumps to it;
+// anything else is treated as an address and we show the cafés around it.
+function wbSearchGo() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  if (_sgIdx >= 0 && _sgItems[_sgIdx]) { sgPick(_sgIdx); return; }
+  const exact = _sgItems.find(c => c.name.toLowerCase() === q.toLowerCase());
+  if (exact) { sgPick(_sgItems.indexOf(exact)); return; }
+  sgHide();
+  lookupAddress();
+}
 function sgPick(i) {
   const c = _sgItems[i]; if (!c) return;
   const input = document.getElementById('search-input');
@@ -4892,14 +4932,15 @@ function sgPick(i) {
   const input = document.getElementById('search-input');
   input.setAttribute('autocomplete', 'off');
   input.addEventListener('keydown', function (e) {
-    if (!_sgItems.length) return;
+    if (!_sgItems.length) { if (e.key === 'Enter') { e.preventDefault(); wbSearchGo(); } return; }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       _sgIdx = e.key === 'ArrowDown' ? (_sgIdx + 1) % _sgItems.length : (_sgIdx - 1 + _sgItems.length) % _sgItems.length;
       document.querySelectorAll('#search-suggest .sg').forEach((el, i) => el.classList.toggle('on', i === _sgIdx));
-    } else if (e.key === 'Enter') { e.preventDefault(); sgPick(_sgIdx >= 0 ? _sgIdx : 0); }
+    } else if (e.key === 'Enter') { e.preventDefault(); wbSearchGo(); }
     else if (e.key === 'Escape') sgHide();
   });
+  document.getElementById('search-go-btn').addEventListener('click', wbSearchGo);
   input.addEventListener('blur', () => setTimeout(sgHide, 150));
   input.addEventListener('focus', function () { if (this.value.trim()) sgRender(this.value.trim()); });
   window.addEventListener('resize', sgHide);
@@ -5344,7 +5385,8 @@ document.getElementById('scout-locate-btn').onclick = function() {
 async function lookupAddress() {
   const input = document.getElementById('addr-lookup-input');
   const spinner = document.getElementById('addr-lookup-spinner');
-  const addr = input.value.trim();
+  const addr = input.value.trim() || document.getElementById('search-input').value.trim();
+  input.value = '';
   if (!addr) return;
 
   spinner.style.display = 'inline';
