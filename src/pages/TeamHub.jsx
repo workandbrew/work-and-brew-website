@@ -23,6 +23,7 @@ const ICONS = {
   growth: "m3 17 6-6 4 4 8-8M14 7h7v7",
   events: "M4 6h16v15H4zM4 11h16M8 3v5M16 3v5",
   back: "M15 18l-6-6 6-6",
+  chev: "m6 9 6 6 6-6",
 };
 const Icon = ({ name }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -88,9 +89,13 @@ function CurrentWorks({ data, reload, notify }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({});
   const [busy, setBusy] = useState(false);
+  // Collapsed by default after the first visit; the choice is remembered on this browser.
+  const [open, setOpen] = useState(() => { try { return localStorage.getItem("wb-hub-works-open") !== "0"; } catch { return true; } });
+  const toggle = () => { const v = !open; setOpen(v); try { localStorage.setItem("wb-hub-works-open", v ? "1" : "0"); } catch { /* private mode */ } };
   const works = data.works || [];
+  const filled = works.filter((w) => w.body).length;
   const canEdit = !!data.me?.canEditWorks;
-  const start = () => { setDraft(Object.fromEntries(works.map((w) => [w.department, w.body]))); setEditing(true); };
+  const start = () => { setDraft(Object.fromEntries(works.map((w) => [w.department, w.body]))); setEditing(true); setOpen(true); };
   const save = async () => {
     setBusy(true);
     for (const w of works) {
@@ -102,25 +107,30 @@ function CurrentWorks({ data, reload, notify }) {
   };
   const latest = works.map((w) => w.updatedAt).filter(Boolean).sort().pop();
   return (
-    <div className="th-focus th-works">
+    <div className={`th-focus th-works ${open ? "" : "closed"}`}>
       <div className="th-works-h">
-        <div className="th-caps th-hero-caps">Work &amp; Brew · Current works</div>
+        <button type="button" className="th-works-toggle" onClick={toggle} aria-expanded={open}>
+          <span className="th-caps th-hero-caps">Work &amp; Brew · Leads announcements</span>
+          <Icon name="chev" />
+        </button>
         {canEdit && !editing && <button type="button" className="th-works-edit" onClick={start}>Edit</button>}
       </div>
-      {works.map((w) => (
+      {!open && <small className="th-works-when">{filled ? `${filled} of ${works.length} departments posted` : "Nothing posted yet"}{latest ? ` · updated ${when(latest)}` : ""} · tap to expand</small>}
+      {open && works.map((w) => (
         <div key={w.department} className="th-works-row">
           <b>{w.department}</b>
           {editing
             ? <textarea className="th-works-input" rows={2} maxLength={600} value={draft[w.department] ?? ""} placeholder="What's this team on right now?" onChange={(e) => setDraft({ ...draft, [w.department]: e.target.value })} />
             : <span>{w.body || <i>Nothing posted yet.</i>}</span>}
+          {!editing && w.updatedAt && <small className="th-works-stamp">Updated {when(w.updatedAt)}{w.updatedBy ? ` · ${w.updatedBy.split(" ")[0]}` : ""}</small>}
         </div>
       ))}
-      {editing ? (
+      {open && editing && (
         <div className="th-btns">
           <button className="th-btn th-btn-cream" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
           <button className="th-btn ghost th-btn-ghost-cream" disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
         </div>
-      ) : latest && <small className="th-works-when">Updated {when(latest)}{works.find((w) => w.updatedAt === latest)?.updatedBy ? ` by ${works.find((w) => w.updatedAt === latest).updatedBy.split(" ")[0]}` : ""}</small>}
+      )}
     </div>
   );
 }

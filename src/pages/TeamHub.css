@@ -216,3 +216,8 @@
 .th-works-when { font-size: 12px; opacity: .65; }
 .th-btn-cream { background: var(--cream); color: var(--hero); }
 .th-btn-ghost-cream { color: var(--cream); border: 1px solid rgba(242,236,227,.4); }
+.th-works-toggle { display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; cursor: pointer; color: inherit; text-align: left; }
+.th-works-toggle svg { width: 16px; height: 16px; opacity: .8; transition: transform .2s; }
+.th-works.closed .th-works-toggle svg { transform: rotate(-90deg); }
+.th-works.closed { gap: 6px; }
+.th-works-stamp { font-size: 11px; opacity: .55; margin-top: 1px; }
