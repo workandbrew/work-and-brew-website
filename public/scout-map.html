@@ -1842,6 +1842,12 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
 .stat-chip[style*="color:#fff"] { color: #fff !important; border-color: transparent !important; }
 .stat-chip[style*="color:#fff"] span { color: #fff !important; }
 .cafe-marker-icon { outline-color: rgba(43,26,18,0.3); }
+/* sheet handle: no grey bar, no second arrow; Locate me, List and Back to map share one size */
+#panel::before { display: none !important; }
+#panel-hide { display: none !important; }
+#scout-locate-btn, .map-list-btn, .list-back-btn { height: 40px !important; min-height: 40px !important; padding: 0 16px !important; font: 700 0.8rem 'Inter', sans-serif !important; border-radius: 999px !important; display: inline-flex !important; align-items: center; justify-content: center; }
+@media (max-width: 768px) { #panel-header { padding-top: 30px !important; } }
+body.wb-listmode #scout-filter-bar { display: none !important; }
 </style>
 </head>
 <body>
@@ -1997,7 +2003,7 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
     <button id="panel-toggle" title="Toggle panel">◀</button>
     <div id="panel-inner">
       <div id="panel-header">
-        <span>Café list</span>
+        <span>Café List</span>
         <button id="panel-hide" type="button" title="Put the list away" aria-label="Put the list away">▼</button>
       </div>
       <div id="panel-body">
@@ -3747,7 +3753,7 @@ function renderScoutChecklist(idx) {
   container.innerHTML = `
     <div class="wb-hello">
       <div class="wb-hello-sub"><span class="scout-cl-dot" style="background:${person.color}"></span>${me ? 'Hi ' + escHtml(person.name) : escHtml(person.name) + "'s list"}</div>
-      <div class="wb-hello-title">${me ? 'Your cafés' : escHtml(person.name) + "'s cafés"}</div>
+      <div class="wb-hello-title">${me ? 'Your Cafés' : escHtml(person.name) + "'s Cafés"}</div>
     </div>
     <div class="wb-stats">
       <div class="wb-stat"><div class="wb-stat-n">${toVisit.length}</div><div class="wb-stat-k">To visit</div></div>
@@ -5590,6 +5596,7 @@ function renderListMode() {
 
 function toggleListMode() {
   state.listMode = !state.listMode;
+  document.body.classList.toggle('wb-listmode', state.listMode);
   const mapEl = document.getElementById('map');
   const listEl = document.getElementById('list-view');
   const btn = document.getElementById('list-mode-btn');
@@ -5612,6 +5619,7 @@ function switchToMap(cafeId) {
   // Exit list mode and zoom to cafe on map
   if (state.listMode) {
     state.listMode = false;
+    document.body.classList.remove('wb-listmode');
     document.getElementById('map').style.display = '';
     document.getElementById('list-view').classList.remove('active');
     const btn = document.getElementById('list-mode-btn');
