@@ -1839,6 +1839,9 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
 /* List and Locate me on the same line */
 .leaflet-top.leaflet-right { top: calc(var(--wb-top, 150px) + 2px) !important; }
 @media (max-width: 768px) { .leaflet-top.leaflet-right { top: var(--wb-top, 170px) !important; } }
+.stat-chip[style*="color:#fff"] { color: #fff !important; border-color: transparent !important; }
+.stat-chip[style*="color:#fff"] span { color: #fff !important; }
+.cafe-marker-icon { outline-color: rgba(43,26,18,0.3); }
 </style>
 </head>
 <body>
@@ -1913,11 +1916,11 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
     <div class="stat-chip">In Progress: <span id="s-inprogress">0</span></div>
     <div class="stat-chip">Completed: <span id="s-completed">0</span></div>
     <div class="stat-chip">Done: <span id="s-pct">0%</span></div>
-    <div class="stat-chip" style="background:#FFC8AA;color:#5A2D0C">Temp closed: <span id="s-hazard">0</span></div>
+    <div class="stat-chip" style="background:#F2801E;color:#fff">Temp closed: <span id="s-hazard">0</span></div>
     <div class="stat-chip" style="background:#B10202">Closed: <span id="s-closed">0</span></div>
-    <div class="stat-chip" style="background:#FFCFC9;color:#8A1C1C">Incomplete: <span id="s-revisit">0</span></div>
+    <div class="stat-chip" style="background:#E8503A;color:#fff">Incomplete: <span id="s-revisit">0</span></div>
     <div class="stat-chip" style="background:#6366F1">Pending: <span id="s-pending">0</span></div>
-    <div class="stat-chip" style="background:#BFE1F6;color:#0B3D5C">Assigned: <span id="s-assigned">0</span></div>
+    <div class="stat-chip" style="background:#2F80ED;color:#fff">Assigned: <span id="s-assigned">0</span></div>
   </div>
   <button id="btn-export" style="display:none">Export</button>
   <button id="copy-all-btn" style="display:none">Copy all</button>
@@ -3053,21 +3056,24 @@ const markerLayer = L.layerGroup().addTo(map);
 const homeBaseLayer = L.layerGroup().addTo(map);
 
 // Same colours as the Status dropdown in the spreadsheet
+// Bold versions of the spreadsheet's status colours (same hues, stronger so pins read at a glance)
 const SHEET_STATUS_COLORS = {
-  'In Progress': '#FFE5A0',
+  'In Progress': '#F2A900',
   'Ineligible Cafe': '#B10202',
-  'Assigned': '#BFE1F6',
-  'Ready To Be Assigned': '#E6E6E6',
+  'Assigned': '#2F80ED',
+  'Ready To Be Assigned': '#8E949B',
   'Visit Completed': '#11734B',
-  'Incomplete': '#FFCFC9',
-  'New Cafe Added': '#B3FFFD',
-  'In Review': '#FF9FC3',
-  'Official Cafe Listing': '#E6CFF2',
-  'Temporarily Unavailable': '#FFC8AA',
-  'Permanently Closed': '#B10202',
+  'Incomplete': '#E8503A',
+  'New Cafe Added': '#12B5B0',
+  'In Review': '#E64A8C',
+  'Official Cafe Listing': '#8E44AD',
+  'Temporarily Unavailable': '#F2801E',
+  'Permanently Closed': '#7A0A0A',
   'Backlogged Cafe': '#753800',
   'Pending Visit': '#6366F1',
 };
+// White text on every bold pill except the lightest few
+const wbDarkColor = col => !['#F2A900', '#8E949B'].includes(String(col).toUpperCase());
 function getMarkerColor(cafe) {
   if (cafe.status === 'Visit Completed' && state.activeTab === 'edits') return '#0B4F33';
   const assigned = cafe.assignedTo !== null && cafe.assignedTo !== undefined;
@@ -3083,11 +3089,11 @@ function getMarkerColor(cafe) {
 function createMarkerIcon(color, status) {
   let inner = '';
   if (status === 'Temporarily Unavailable') {
-    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-55%);font-size:8px;line-height:1;color:#5A2D0C;font-weight:900">T</span>';
+    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-55%);font-size:8px;line-height:1;color:#fff;font-weight:900">T</span>';
   } else if (status === 'Permanently Closed') {
     inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#fff;font-weight:900">✕</span>';
   } else if (status === 'Incomplete') {
-    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#8A1C1C;font-weight:900">↩</span>';
+    inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#fff;font-weight:900">↩</span>';
   } else if (status === 'Pending Visit') {
     inner = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);font-size:9px;line-height:1;color:#fff;font-weight:900">⏳</span>';
   } else if (status === 'Backlogged Cafe') {
@@ -3256,7 +3262,7 @@ function buildPopupContent(cafe) {
   const canScout = !isCompleted && !isOfficial && !inReview && cafe.status !== 'Ineligible Cafe' && cafe.status !== 'Permanently Closed';
 
   const stCol = SHEET_STATUS_COLORS[cafe.status] || '#E6E6E6';
-  const stDark = ['#11734B', '#B10202', '#753800', '#6366F1'].includes(stCol);
+  const stDark = wbDarkColor(stCol);
   const scoutName = cafe.assignedToName || (cafe.assignedTo !== null && cafe.assignedTo !== undefined && state.persons[cafe.assignedTo] ? state.persons[cafe.assignedTo].name : '');
   return `<div class="cafe-popup wb-card">
     <div class="wb-card-top">
@@ -5348,7 +5354,7 @@ function renderNearbyAtAddress(lat, lng, label) {
     <div class="wf-hint" style="margin-bottom:10px">Closest first. Tap a café to see it on the map.</div>
     ${list.map((o, i) => {
       const c = o.c, line = nearbyScoutLine(c), col = SHEET_STATUS_COLORS[c.status] || '#E6E6E6';
-      const dark = ['#11734B', '#B10202', '#753800', '#6366F1'].includes(col);
+      const dark = wbDarkColor(col);
       return `<div class="near-item nearby-item">
         <div class="near-rank">${i + 1}</div>
         <div class="near-info" onclick="zoomToCafe('${c.id}')">
@@ -6715,7 +6721,7 @@ function renderNewCafesList() {
     <div class="wf-hint" style="margin-bottom:6px">Make sure the pin is in the right spot, then set the status to Ready To Be Assigned.</div>
     ${added.map(c => `
       <div class="checklist-item" onclick="zoomToCafe('${c.id}')" style="cursor:pointer">
-        <div class="cl-status-dot" style="background:#B3FFFD"></div>
+        <div class="cl-status-dot" style="background:#12B5B0"></div>
         <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.number ? c.number + ' · ' : '')}${escHtml(c.name)}</div><div class="cl-cafe-addr">${wfMapsLink(c.address, c.name)}</div></div>
         <span style="font-size:0.65rem;color:#0E7C8C;font-weight:700;white-space:nowrap">Check pin →</span>
       </div>`).join('') || '<div class="wf-hint" style="text-align:center;padding:10px 0">Nothing to check.</div>'}
@@ -6726,7 +6732,7 @@ function reviewRowsHtml(rows, title) {
     <div class="wf-eyebrow" style="margin-bottom:6px">${title} · ${rows.length}</div>
     ${rows.length ? rows.map(c => `
       <div class="checklist-item" onclick="openReview('${c.id}')" style="cursor:pointer">
-        <div class="cl-status-dot" style="background:#FF9FC3"></div>
+        <div class="cl-status-dot" style="background:#E64A8C"></div>
         <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.name)}</div><div class="cl-cafe-addr">${wfMapsLink(c.address, c.name)}</div></div>
         <span style="font-size:0.65rem;color:#C47F2E;font-weight:700;white-space:nowrap">Review →</span>
       </div>`).join('')
@@ -6933,7 +6939,7 @@ function renderOfficialPanel() {
   container.innerHTML = `
     <div class="wf-eyebrow" style="margin-bottom:6px">⭐ Official Work &amp; Brew Map · ${rows.length} live on the public site</div>
     ${rows.length ? rows.map(c => `<div class="checklist-item" onclick="zoomToCafe('${c.id}')" style="cursor:pointer">
-        <div class="cl-status-dot" style="background:#E6CFF2"></div>
+        <div class="cl-status-dot" style="background:#8E44AD"></div>
         <div class="cl-info"><div class="cl-cafe-name">${escHtml(c.name)}</div><div class="cl-cafe-addr">${wfMapsLink(c.address, c.name)}${c.borough ? ' · ' + escHtml(c.borough) : ''}</div></div>
         ${_wfIsApprover ? `<button class="cl-nav-btn" title="Back to Completed" onclick="event.stopPropagation(); wfSetStatus('${c.id}','Visit Completed')">↩</button>` : ''}
       </div>`).join('')
