@@ -1848,6 +1848,12 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
 #scout-locate-btn, .map-list-btn, .list-back-btn { height: 40px !important; min-height: 40px !important; padding: 0 16px !important; font: 700 0.8rem 'Inter', sans-serif !important; border-radius: 999px !important; display: inline-flex !important; align-items: center; justify-content: center; }
 @media (max-width: 768px) { #panel-header { padding-top: 30px !important; } }
 body.wb-listmode #scout-filter-bar { display: none !important; }
+/* Locate me on the map (every tab but Assigned): same spot and size as the Assigned tab's own button */
+#map-locate-btn { position: absolute; left: 12px; top: calc(var(--wb-top, 150px) + 12px); z-index: 1002; height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--wb-navy); color: var(--wb-white); font: 700 0.8rem 'Inter', sans-serif; box-shadow: var(--wb-shadow); cursor: pointer; }
+#map-locate-btn:hover { background: var(--wb-slate); }
+#map-locate-btn:disabled { opacity: .7; cursor: wait; }
+body.wb-tab-scout #map-locate-btn, body.wb-listmode #map-locate-btn { display: none !important; }
+@media (max-width: 768px) { #map-locate-btn { left: 10px; top: calc(var(--wb-top, 170px) + 10px); } }
 </style>
 </head>
 <body>
@@ -1999,6 +2005,7 @@ body.wb-listmode #scout-filter-bar { display: none !important; }
 <div id="main">
   <div id="map"></div>
   <div id="list-view"></div>
+  <button id="map-locate-btn" type="button" title="Find the 10 cafés closest to where you are and see which still need scouting">Locate me</button>
   <div id="panel">
     <button id="panel-toggle" title="Toggle panel">◀</button>
     <div id="panel-inner">
@@ -4703,6 +4710,7 @@ document.getElementById('panel-header').addEventListener('click', function (e) {
 // ============================================================
 function setTab(tab) {
   state.activeTab = tab;
+  document.body.classList.toggle('wb-tab-scout', tab === 'scout');
   MAINLIST.limit = 150;
   document.querySelectorAll('.tab-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === tab);
@@ -5277,6 +5285,22 @@ function renderNearestList(lat, lng) {
 }
 
 // Locate Me button: use browser geolocation, then glow nearby cafes
+// Locate me on the Main Map (and every tab but Assigned): "I'm in the area, is there a café near me that needs scouting?"
+document.getElementById('map-locate-btn').onclick = function () {
+  if (!navigator.geolocation) { showToast('Location is not available in this browser'); return; }
+  const btn = this; btn.disabled = true; btn.textContent = 'Locating…';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      btn.disabled = false; btn.textContent = 'Locate me';
+      map.flyTo([lat, lng], 15, { duration: 1.2 });
+      setTimeout(() => createLocationMarker(lat, lng), 500);
+      renderNearbyAtAddress(lat, lng, 'you', 10);
+    },
+    () => { btn.disabled = false; btn.textContent = 'Locate me'; showToast('Could not get your location. Check that location is allowed for this site.'); },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+  );
+};
 document.getElementById('scout-locate-btn').onclick = function() {
   if (!navigator.geolocation) { showToast('⚠ Geolocation not supported by this browser'); return; }
   showToast('📡 Getting your location…');
@@ -5372,7 +5396,7 @@ function nearbyScoutLine(c) {
   if (st === 'Ready To Be Assigned' || st === 'New Cafe Added') return { txt: 'Not scouted yet · open to scout', can: true };
   return { txt: st, can: false };
 }
-function renderNearbyAtAddress(lat, lng, label) {
+function renderNearbyAtAddress(lat, lng, label, limit) {
   const container = document.getElementById('persons-container');
   if (!container) return;
   _nearLoc = { lat, lng };
@@ -5380,7 +5404,7 @@ function renderNearbyAtAddress(lat, lng, label) {
   const fmt = km => { const mi = km * 0.621371; return mi < 0.1 ? Math.round(mi * 5280) + ' ft' : mi.toFixed(1) + ' mi'; };
   const list = state.cafes.filter(c => c.lat && c.lng)
     .map(c => ({ c, km: haversineKm(lat, lng, Number(c.lat), Number(c.lng)) }))
-    .sort((a, b) => a.km - b.km).slice(0, 12);
+    .sort((a, b) => a.km - b.km).slice(0, limit || 12);
   container.innerHTML = `
     <div class="near-head">
       <div class="nh-title">Cafés near ${escHtml(label || 'that address')}</div>
@@ -7163,6 +7187,7 @@ async function wfSetStatus(id, status) {
 // Google Maps links open normally: iPhone and Android hand them to the Maps app by themselves when it is installed
 </script>
 <script>
+document.body.classList.toggle('wb-tab-scout', state.activeTab === 'scout');
 // Layout only: tells the CSS how tall the floating top bars are, so the list panel and map buttons sit just under them
 (function () {
   const top = document.getElementById('wb-top'); if (!top) return;
