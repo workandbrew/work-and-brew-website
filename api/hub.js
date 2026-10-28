@@ -39,13 +39,14 @@ async function optional(query, fallback) {
 
 async function extras() {
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
-  const [templates, signups, cafes, pendingList, schedules, growth] = await Promise.all([
+  const [templates, signups, cafes, pendingList, schedules, growth, events] = await Promise.all([
     optional(db().from("sms_templates").select("id, name, body, created_by").order("created_at"), null),
     optional(db().from("signup_requests").select("status, created_at").gte("created_at", since), null),
     optional(db().from("cafes").select("*").limit(2000), null),
     optional(db().from("signup_requests").select("id, name, phone, sms_consent, created_at").eq("status", "pending").order("created_at"), []),
     listSchedules().catch(() => null),
     growthSnapshot().catch((e) => ({ error: e.message })),
+    optional(db().from("events").select("*").order("starts_at", { ascending: true, nullsFirst: false }).limit(300), null),
   ]);
   const pending = await optional(
     db().from("signup_requests").select("id", { count: "exact", head: true }).eq("status", "pending").then((r) => ({ data: r.count, error: r.error })), 0);
@@ -69,7 +70,56 @@ async function extras() {
     pendingSignups: pendingList.map(({ phone, ...r }) => ({ ...r, phoneLast4: last4(phone) })),
     schedules: schedules && schedules.map((s) => ({ ...s, weekdayName: WEEKDAYS[s.weekday] })),
     growth,
+    events,
   };
+}
+
+// --- Events -----------------------------------------------------------------------------------
+const EVENT_STATUSES = ["idea", "planning", "confirmed", "done", "cancelled"];
+const cleanChecklist = (list) => (Array.isArray(list) ? list : [])
+  .map((i) => ({ text: String(i?.text || "").trim().slice(0, 160), done: !!i?.done }))
+  .filter((i) => i.text).slice(0, 40);
+
+async function saveEvent(id, extra, by) {
+  const title = String(extra.title || "").trim().slice(0, 120);
+  if (!title) return { status: 400, error: "Give the event a name." };
+  const starts = extra.startsAt ? new Date(extra.startsAt) : null;
+  if (starts && Number.isNaN(starts.getTime())) return { status: 400, error: "That date doesn't look right." };
+  const row = {
+    title,
+    starts_at: starts ? starts.toISOString() : null,
+    venue: String(extra.venue || "").trim().slice(0, 200) || null,
+    host: String(extra.host || "").trim().slice(0, 80) || null,
+    status: EVENT_STATUSES.includes(extra.status) ? extra.status : "idea",
+    headcount_target: extra.headcount === "" || extra.headcount == null ? null : Math.max(0, parseInt(extra.headcount, 10) || 0),
+    notes: String(extra.notes || "").trim().slice(0, 2000) || null,
+    updated_at: new Date().toISOString(),
+  };
+  if (extra.checklist !== undefined) row.checklist = cleanChecklist(extra.checklist);
+  const q = id
+    ? db().from("events").update(row).eq("id", String(id)).select("*").single()
+    : db().from("events").insert({ ...row, checklist: row.checklist || [], created_by: by }).select("*").single();
+  const { data, error } = await q;
+  if (error) return { status: 500, error: `Couldn't save (${error.message}). Has the events table in supabase/sms.sql been created?` };
+  return { event: data };
+}
+
+// Toggle one checklist item (index), or replace the whole list when `checklist` is sent.
+async function checkEvent(id, extra) {
+  if (!id) return { status: 400, error: "Missing event." };
+  let next;
+  if (extra.checklist !== undefined) next = cleanChecklist(extra.checklist);
+  else {
+    const { data, error } = await db().from("events").select("checklist").eq("id", id).single();
+    if (error) return { status: 404, error: "Event not found." };
+    next = cleanChecklist(data.checklist);
+    const i = Number(extra.index);
+    if (!next[i]) return { status: 400, error: "That checklist item is gone." };
+    next[i].done = extra.done === undefined ? !next[i].done : !!extra.done;
+  }
+  const { data, error } = await db().from("events").update({ checklist: next, updated_at: new Date().toISOString() }).eq("id", id).select("*").single();
+  if (error) return { status: 500, error: error.message };
+  return { event: data };
 }
 
 // Which team-only links a logged-in website user should see in the top navigation.
@@ -206,6 +256,12 @@ export default async function handler(req, res) {
       return reply({ url: `/api/connect?start=${encodeURIComponent(makeState())}` });
     }
     if (action === "growth-manual") return reply(await saveManual(extra.platform, extra.followers, by));
+    if (action === "event-save") return reply(await saveEvent(id, extra, by));
+    if (action === "event-check") return reply(await checkEvent(String(id || ""), extra));
+    if (action === "event-delete") {
+      const { error } = await db().from("events").delete().eq("id", String(id || ""));
+      return reply(error ? { status: 500, error: error.message } : {});
+    }
     if (action === "template-delete") {
       const { error } = await db().from("sms_templates").delete().eq("id", String(id || ""));
       if (error) return res.status(500).json({ ok: false, error: error.message });

@@ -167,3 +167,24 @@ create table if not exists public.team_access (
 );
 alter table public.team_access enable row level security;  -- server-only
 grant all on public.team_access to service_role;
+
+-- ---------------------------------------------------------------------------------------------
+-- Events (Team Hub → Events tab): meetups, pop-ups, café takeovers. One row per event,
+-- with a checklist stored as JSON [{ "text": "Book the venue", "done": false }, ...].
+-- ---------------------------------------------------------------------------------------------
+create table if not exists public.events (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  starts_at timestamptz,                   -- when it happens (null = date not picked yet)
+  venue text,                              -- café name or address
+  host text,                               -- who is running it on the day
+  status text not null default 'idea' check (status in ('idea', 'planning', 'confirmed', 'done', 'cancelled')),
+  headcount_target integer check (headcount_target is null or headcount_target >= 0),
+  notes text,
+  checklist jsonb not null default '[]'::jsonb,
+  created_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.events enable row level security;  -- server-only (the hub API uses the service role)
+grant all on public.events to service_role;

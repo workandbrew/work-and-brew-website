@@ -6,7 +6,7 @@ import "./TeamHub.css";
 import { DailyBars, RankBars, DeliveryMeter, NotConnected, Delta } from "./TeamHubCharts";
 
 // Private Team Hub for department heads: one place to run Work & Brew.
-// Five pages (Overview, Messages, Cafés, Analytics, Growth & Social) share one data load.
+// Six pages (Overview, Messages, Cafés, Analytics, Growth & Social, Events) share one data load.
 // Access is checked on the server (/api/hub) against the hub_admins table; this page only shows
 // what the server returns.
 
@@ -20,6 +20,7 @@ const ICONS = {
   cafes: "M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14",
   analytics: "M3 3v18h18M8 17v-6M13 17V6M18 17v-4",
   growth: "m3 17 6-6 4 4 8-8M14 7h7v7",
+  events: "M4 6h16v15H4zM4 11h16M8 3v5M16 3v5",
   back: "M15 18l-6-6 6-6",
 };
 const Icon = ({ name }) => (
@@ -34,6 +35,7 @@ const PAGES = [
   { key: "cafes", label: "Cafés", short: "Cafés", sub: "Every café in the database, live from the scout map." },
   { key: "analytics", label: "Texting analytics", short: "Analytics", sub: "How the team is using texting · last 30 days" },
   { key: "growth", label: "Growth & Social", short: "Growth", sub: "Team sign-ups, website, email and social reach across Instagram, TikTok, YouTube and Lemon8." },
+  { key: "events", label: "Events", short: "Events", sub: "Meetups, pop-ups and café takeovers. Plan them here, then text the team from the same place." },
 ];
 const pathFor = (key) => (key === "overview" ? "/team" : `/team/${key}`);
 
@@ -170,7 +172,7 @@ function Overview({ data }) {
 
 function Compose({ data, onSent, notify }) {
   const [to, setTo] = useState([]);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(() => { try { const d = sessionStorage.getItem("wb-hub-draft"); sessionStorage.removeItem("wb-hub-draft"); return d || ""; } catch { return ""; } });
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -672,6 +674,175 @@ function Growth({ data, reload, notify }) {
 
 // ---------------------------------------------------------------- Shell
 
+// ---------------------------------------------------------------- Events
+
+const EVENT_STATUS = { idea: "Idea", planning: "Planning", confirmed: "Confirmed", done: "Done", cancelled: "Cancelled" };
+const DEFAULT_CHECKLIST = ["Pick the date", "Book the venue", "Post on Instagram and TikTok", "Text the team the details", "Supplies: name tags, flyers, QR codes", "Confirm who's hosting on the day"];
+const toLocalInput = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const eventWhen = (e) => (e.starts_at
+  ? new Date(e.starts_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })
+  : "Date not set");
+const eventDone = (e) => (e.checklist || []).filter((i) => i.done).length;
+
+function EventForm({ data, initial, onSaved, onCancel, notify }) {
+  const [f, setF] = useState(() => ({
+    title: initial?.title || "", startsAt: toLocalInput(initial?.starts_at), venue: initial?.venue || "", host: initial?.host || (data.me?.name || ""),
+    status: initial?.status || "idea", headcount: initial?.headcount_target ?? "", notes: initial?.notes || "",
+  }));
+  const [busy, setBusy] = useState(false);
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const save = async () => {
+    setBusy(true);
+    const body = { action: "event-save", id: initial?.id, ...f, startsAt: f.startsAt ? new Date(f.startsAt).toISOString() : "" };
+    if (!initial) body.checklist = DEFAULT_CHECKLIST.map((text) => ({ text, done: false }));
+    const r = await hubFetch("POST", body);
+    setBusy(false);
+    if (r.ok) { notify({ text: initial ? "Event updated." : "Event added." }); onSaved(r.event); }
+    else notify({ bad: true, text: r.error || "Couldn't save the event." });
+  };
+  const hosts = useMemo(() => [...new Set([data.me?.name, ...data.team.map((p) => p.name)].filter(Boolean))], [data]);
+  return (
+    <Card title={initial ? "Edit event" : "New event"} sub="Saved to the team's database, visible to every department head">
+      <div className="th-form">
+        <label>Name<input className="th-input" placeholder="Bronx scouts meetup" value={f.title} maxLength={120} onChange={set("title")} /></label>
+        <label>Date &amp; time<input className="th-input" type="datetime-local" value={f.startsAt} onChange={set("startsAt")} /></label>
+        <label>Venue<input className="th-input" placeholder="Café name or address" value={f.venue} maxLength={200} onChange={set("venue")} /></label>
+        <label>Host<input className="th-input" list="th-hosts" value={f.host} maxLength={80} onChange={set("host")} /><datalist id="th-hosts">{hosts.map((h) => <option key={h} value={h} />)}</datalist></label>
+        <label>Headcount target<input className="th-input" type="number" min="0" placeholder="12" value={f.headcount} onChange={set("headcount")} /></label>
+        <label>Status<select className="th-input" value={f.status} onChange={set("status")}>{Object.entries(EVENT_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+        <label className="th-form-wide">Notes<textarea className="th-text" rows={3} placeholder="What's the plan, what to bring, who's invited" value={f.notes} maxLength={2000} onChange={set("notes")} /></label>
+      </div>
+      <div className="th-btns">
+        <button className="th-btn" disabled={busy || !f.title.trim()} onClick={save}>{busy ? "Saving…" : "Save event"}</button>
+        <button className="th-btn ghost" disabled={busy} onClick={onCancel}>Cancel</button>
+      </div>
+    </Card>
+  );
+}
+
+function EventDetail({ event, onChange, onEdit, notify }) {
+  const [adding, setAdding] = useState("");
+  const [busy, setBusy] = useState(false);
+  const list = event.checklist || [];
+  const done = eventDone(event);
+  const post = async (body) => {
+    setBusy(true);
+    const r = await hubFetch("POST", { id: event.id, ...body });
+    setBusy(false);
+    if (!r.ok) notify({ bad: true, text: r.error || "Something went wrong." });
+    onChange(r.ok ? r.event : null);
+    return r.ok;
+  };
+  const toggle = (i) => post({ action: "event-check", index: i });
+  const addItem = async () => { if (!adding.trim()) return; if (await post({ action: "event-check", checklist: [...list, { text: adding.trim(), done: false }] })) setAdding(""); };
+  const removeItem = (i) => post({ action: "event-check", checklist: list.filter((_, j) => j !== i) });
+  const remove = async () => { if (window.confirm(`Delete “${event.title}”? This can't be undone.`)) { await post({ action: "event-delete" }); } };
+  const markDone = () => post({ action: "event-save", title: event.title, startsAt: event.starts_at || "", venue: event.venue, host: event.host, status: event.status === "done" ? "planning" : "done", headcount: event.headcount_target ?? "", notes: event.notes });
+  const draft = `${event.title}${event.starts_at ? ` · ${eventWhen(event)}` : ""}${event.venue ? ` at ${event.venue}` : ""}${event.host ? ` · host: ${event.host}` : ""}. Reply if you can make it!`;
+  const textTeam = () => { try { sessionStorage.setItem("wb-hub-draft", draft); } catch { /* private mode */ } };
+  return (
+    <Card title={event.title} sub={`${eventWhen(event)}${event.venue ? ` · ${event.venue}` : ""}${event.host ? ` · host: ${event.host}` : ""}`}
+      right={<span className={`th-tag ev-${event.status}`}>{EVENT_STATUS[event.status] || event.status}</span>}>
+      <div className="th-ev-nums">
+        <div><div className="th-stat-v">{done} / {list.length}</div><div className="th-stat-c">checklist done</div></div>
+        <div><div className="th-stat-v">{event.headcount_target ?? "—"}</div><div className="th-stat-c">headcount target</div></div>
+      </div>
+      <div className="th-prog"><i style={{ width: `${list.length ? Math.round((done / list.length) * 100) : 0}%` }} /></div>
+      {event.notes && <p className="th-ev-notes">{event.notes}</p>}
+      <div className="th-caps">Checklist</div>
+      <ul className="th-chk">
+        {list.map((it, i) => (
+          <li key={i} className={it.done ? "done" : ""}>
+            <button type="button" className="th-chk-box" disabled={busy} onClick={() => toggle(i)} aria-label={it.done ? "Mark not done" : "Mark done"}>{it.done ? "✓" : ""}</button>
+            <span>{it.text}</span>
+            <button className="th-x plain" disabled={busy} onClick={() => removeItem(i)} aria-label={`Remove ${it.text}`}>×</button>
+          </li>
+        ))}
+        <li className="th-chk-add">
+          <input className="th-input" placeholder="Add an item" value={adding} maxLength={160} onChange={(e) => setAdding(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addItem()} />
+          <button className="th-btn ghost" disabled={busy || !adding.trim()} onClick={addItem}>Add</button>
+        </li>
+      </ul>
+      <div className="th-btns">
+        <Link className="th-btn" to="/team/messages" onClick={textTeam}>Text the team about this</Link>
+        <button className="th-btn ghost" disabled={busy} onClick={markDone}>{event.status === "done" ? "Reopen" : "Mark done"}</button>
+        <button className="th-btn ghost" disabled={busy} onClick={onEdit}>Edit</button>
+        <button className="th-x" disabled={busy} onClick={remove}>Delete</button>
+      </div>
+    </Card>
+  );
+}
+
+function Events({ data, reload, notify }) {
+  // Local copy of the server list so a save/toggle shows instantly; resets whenever the hub reloads.
+  const [local, setLocal] = useState({ src: data.events, list: data.events });
+  if (local.src !== data.events) setLocal({ src: data.events, list: data.events });
+  const events = local.src === data.events ? local.list : data.events;
+  const setEvents = (fn) => setLocal((l) => ({ src: l.src, list: typeof fn === "function" ? fn(l.list || []) : fn }));
+  const [openId, setOpenId] = useState(null);
+  const [form, setForm] = useState(null); // null | "new" | event object
+  const [now] = useState(() => Date.now());
+  if (!events) {
+    return <div className="th-card th-center"><p>The events table isn't set up yet. Run the <code>events</code> block at the end of <code>supabase/sms.sql</code> in Supabase → SQL editor, then refresh.</p></div>;
+  }
+  const live = events.filter((e) => e.status !== "cancelled");
+  const upcoming = live.filter((e) => e.status !== "done" && (!e.starts_at || new Date(e.starts_at).getTime() >= now - 864e5));
+  const past = live.filter((e) => !upcoming.includes(e));
+  const open = events.find((e) => e.id === openId) || upcoming[0] || past[0] || null;
+  const openItems = live.reduce((n, e) => n + (e.checklist || []).filter((i) => !i.done).length, 0);
+  const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+  const pastYear = past.filter((e) => e.starts_at && new Date(e.starts_at).getTime() >= yearStart).length;
+
+  const patch = (ev) => { if (!ev) { reload(); return; } setEvents((l) => (l.some((e) => e.id === ev.id) ? l.map((e) => (e.id === ev.id ? ev : e)) : [...l, ev])); };
+  const onDetailChange = (ev) => { if (ev) patch(ev); else { setEvents((l) => l.filter((e) => e.id !== openId)); setOpenId(null); reload(); } };
+  const row = (e) => {
+    const d = e.starts_at ? new Date(e.starts_at) : null;
+    const pct = (e.checklist || []).length ? Math.round((eventDone(e) / e.checklist.length) * 100) : 0;
+    return (
+      <li key={e.id} className={open?.id === e.id ? "on" : ""}>
+        <span className="th-sched-day th-ev-day">{d ? <><b>{d.toLocaleString("en-US", { day: "numeric", timeZone: "America/New_York" })}</b><small>{d.toLocaleString("en-US", { month: "short", timeZone: "America/New_York" }).toUpperCase()}</small></> : <small>TBD</small>}</span>
+        <div className="th-sched-body">
+          <b>{e.title}</b>
+          <small>{[e.venue, d && d.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }), e.host && `host: ${e.host}`].filter(Boolean).join(" · ")}</small>
+          <div className="th-prog sm"><i style={{ width: `${pct}%` }} /></div>
+        </div>
+        <span className={`th-tag ev-${e.status}`}>{EVENT_STATUS[e.status] || e.status}</span>
+        <button className="th-btn ghost sm" onClick={() => { setOpenId(e.id); setForm(null); }}>Open</button>
+      </li>
+    );
+  };
+
+  return (
+    <>
+      <div className="th-row th-stats">
+        <Stat label="Upcoming" value={upcoming.length} foot={upcoming[0] ? `next: ${upcoming[0].title}` : "nothing planned yet"} />
+        <Stat label="Checklist items open" value={openItems} foot="across all events" />
+        <Stat label="Headcount target" value={upcoming[0]?.headcount_target ?? "—"} foot="for the next event" />
+        <Stat label="Past events" value={pastYear} foot="this year" />
+      </div>
+      <div className="th-row">
+        <div className="th-stack" style={{ flex: 1, minWidth: 0 }}>
+          <Card title="Upcoming" sub="soonest first" right={<button className="th-btn sm" onClick={() => setForm("new")}>New event</button>}>
+            {!upcoming.length ? <p className="th-empty">No upcoming events. Tap “New event” to plan one.</p> : <ul className="th-scheds">{upcoming.map(row)}</ul>}
+          </Card>
+          {!!past.length && <Card title="Past & done"><ul className="th-scheds">{past.slice(0, 20).map(row)}</ul></Card>}
+          {form && <EventForm data={data} initial={form === "new" ? null : form} notify={notify}
+            onSaved={(ev) => { patch(ev); setOpenId(ev.id); setForm(null); }} onCancel={() => setForm(null)} />}
+        </div>
+        <div className="th-side-col th-stack">
+          {open ? <EventDetail event={open} notify={notify} onChange={onDetailChange} onEdit={() => setForm(open)} />
+            : <Card title="No event selected"><p className="th-empty">Add an event and it'll show up here with its checklist.</p></Card>}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function TeamHub() {
   const { user } = useAuth();
   const { section } = useParams();
@@ -717,7 +888,7 @@ export default function TeamHub() {
   } else if (error) body = <div className="th-card th-center"><p>{error}</p></div>;
   else if (!data) body = <p className="th-empty">Loading…</p>;
   else {
-    const View = { overview: Overview, messages: Messages, cafes: Cafes, analytics: Analytics, growth: Growth }[page.key];
+    const View = { overview: Overview, messages: Messages, cafes: Cafes, analytics: Analytics, growth: Growth, events: Events }[page.key];
     body = <View data={data} reload={load} notify={notify} />;
   }
 
