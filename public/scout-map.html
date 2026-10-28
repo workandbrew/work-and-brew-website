@@ -2119,10 +2119,12 @@ let _sbInitialized = false;
 
 let _sheetSnap = {};
 let _lastCafeLoad = 0;
+let _cafesVersion = null, _quietLoad = false, _lastLocalEdit = 0;
 async function loadFromSupabase() {
   if (!_sbUser) return;
   try {
     const r = await wfApi('listCafes');
+    if (r && r.version) _cafesVersion = r.version;
     if (r && r.cafes && r.cafes.length) { applyLoadedCafes(r.cafes, 'sheet'); return; }
   } catch (e) { console.warn('Sheet load failed, using the cloud copy:', e.message); showToast('Could not reach the sheet, showing the last saved copy'); }
   return loadFromSupabaseLegacy();
@@ -2196,11 +2198,37 @@ function applyLoadedCafes(data, src) {
       state.cafes.forEach(c => { _sheetSnap[c.number] = cafeSyncKey(c); });
       _lastCafeLoad = Date.now();
       const completed = state.cafes.filter(c => c.status === 'Visit Completed').length;
-      showToast((src === 'sheet' ? '📄 Loaded ' : '☁ Loaded ') + data.length + ' cafes: ' + completed + ' completed');
+      showToast(_quietLoad ? 'Updated from the spreadsheet' : (src === 'sheet' ? 'Loaded ' : 'Loaded ') + data.length + ' cafés: ' + completed + ' completed');
     }
   }
 }
 function cafeSyncKey(c) { return JSON.stringify([c.status || 'Ready To Be Assigned', c.notes || '', c.assignedToName || '']); }
+// Live-ish: once a minute, while the tab is open and nothing is being edited, ask the sheet whether anything
+// changed (a tiny fingerprint) and reload only then. Keeps every map in the team in step with the spreadsheet.
+function wbRefreshBusy() {
+  const panel = document.getElementById('panel');
+  const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName);
+  return state.formCafeId || state.reviewCafeId || WF_BUSY || typing
+    || document.querySelector('.leaflet-popup, #sg-modal, #sc-modal')
+    || (panel && panel.classList.contains('dragging'))
+    || Date.now() - _lastLocalEdit < 8000;
+}
+let _wbChecking = false;
+async function wbCheckForSheetChanges() {
+  if (_wbChecking || document.visibilityState !== 'visible' || !_sbUser || !_cafesVersion || wbRefreshBusy()) return;
+  _wbChecking = true;
+  try {
+    const r = await wfApi('cafesVersion');
+    if (r && r.version && r.version !== _cafesVersion && !wbRefreshBusy()) {
+      const body = document.getElementById('panel-body'), keep = body ? body.scrollTop : 0;
+      _quietLoad = true;
+      try { await loadFromSupabase(); if (_wfIsApprover && typeof sgLoadPending === 'function') sgLoadPending(); }
+      finally { _quietLoad = false; }
+      if (body) body.scrollTop = keep;
+    }
+  } catch (e) {} finally { _wbChecking = false; }
+}
+setInterval(wbCheckForSheetChanges, 60000);
 // Pick up edits made straight in the spreadsheet when the person comes back to the tab
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible' || !_sbUser || Date.now() - _lastCafeLoad < 90000) return;
@@ -2247,6 +2275,7 @@ async function syncToSupabase() {
 function debouncedSync() {
   if (!_sbUser) return;
   if (_sbSyncTimer) clearTimeout(_sbSyncTimer);
+  _lastLocalEdit = Date.now();
   _sbSyncTimer = setTimeout(syncToSupabase, 1500);
 }
 
