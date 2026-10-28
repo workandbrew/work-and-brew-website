@@ -72,6 +72,7 @@ function doPost(e) {
       case 'sendBack':      out = handleSendBack_(body, user); break;
       case 'setStatus':     out = handleSetStatus_(body, user); break;
       case 'listCafes':     out = handleListCafes_(body, user); break;
+      case 'cafesVersion':  out = { version: cafesVersion_() }; break;
       case 'syncCafes':     out = handleSyncCafes_(body, user); break;
       case 'deleteCafe':    out = handleDeleteCafe_(body, user); break;
       default: throw new Error('Unknown action: ' + body.action);
@@ -928,7 +929,7 @@ function yesNoCell_(v) { return String(v === null || v === undefined ? '' : v).t
 // Any logged-in user: every café in the sheet, in the shape the map uses
 function handleListCafes_(body, user) {
   var sh = sheet_(), h = ensureColumns_(sh), last = sh.getLastRow(), cafes = [];
-  if (last < 2) return { cafes: cafes };
+  if (last < 2) return { cafes: cafes, version: cafesVersion_() };
   var vals = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
   var g = function (v, k) { return h[k] ? v[h[k] - 1] : ''; };
   var looked = 0;
@@ -959,7 +960,24 @@ function handleListCafes_(body, user) {
       new_cafe: String(g(v, 'ReviewStatus') || '') === 'New cafe'
     });
   });
-  return { cafes: cafes };
+  return { cafes: cafes, version: cafesVersion_() };
+}
+// A small fingerprint of what the map shows (main sheet rows plus pending suggestions). The map asks for it
+// every minute and only reloads when it changed, so edits made in the spreadsheet show up without a refresh.
+function cafesVersion_() {
+  var sh = sheet_(), last = sh.getLastRow(), str = String(last) + '|';
+  if (last >= 2) {
+    var vals = sh.getRange(2, 1, last - 1, Math.min(12, sh.getLastColumn())).getValues();
+    for (var i = 0; i < vals.length; i++) str += vals[i].join('\u0001') + '\n';
+  }
+  try {
+    var ssh = suggestSheet_(), sl = ssh.getLastRow();
+    str += '|S' + sl;
+    if (sl >= 2) str += '|' + ssh.getRange(2, 9, sl - 1, 1).getValues().map(function (r) { return r[0]; }).join(',');
+  } catch (e) {}
+  var h = 5381;
+  for (var k = 0; k < str.length; k++) h = ((h * 33) ^ str.charCodeAt(k)) >>> 0;
+  return String(h) + '-' + str.length;
 }
 // Any logged-in user: status, notes and assigned scout changes made on the map go straight into the sheet
 function handleSyncCafes_(body, user) {

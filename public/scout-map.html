@@ -1842,6 +1842,12 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
 .stat-chip[style*="color:#fff"] { color: #fff !important; border-color: transparent !important; }
 .stat-chip[style*="color:#fff"] span { color: #fff !important; }
 .cafe-marker-icon { outline-color: rgba(43,26,18,0.3); }
+/* sheet handle: no grey bar, no second arrow; Locate me, List and Back to map share one size */
+#panel::before { display: none !important; }
+#panel-hide { display: none !important; }
+#scout-locate-btn, .map-list-btn, .list-back-btn { height: 40px !important; min-height: 40px !important; padding: 0 16px !important; font: 700 0.8rem 'Inter', sans-serif !important; border-radius: 999px !important; display: inline-flex !important; align-items: center; justify-content: center; }
+@media (max-width: 768px) { #panel-header { padding-top: 30px !important; } }
+body.wb-listmode #scout-filter-bar { display: none !important; }
 </style>
 </head>
 <body>
@@ -1997,7 +2003,7 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
     <button id="panel-toggle" title="Toggle panel">◀</button>
     <div id="panel-inner">
       <div id="panel-header">
-        <span>Café list</span>
+        <span>Café List</span>
         <button id="panel-hide" type="button" title="Put the list away" aria-label="Put the list away">▼</button>
       </div>
       <div id="panel-body">
@@ -2113,10 +2119,12 @@ let _sbInitialized = false;
 
 let _sheetSnap = {};
 let _lastCafeLoad = 0;
+let _cafesVersion = null, _quietLoad = false, _lastLocalEdit = 0;
 async function loadFromSupabase() {
   if (!_sbUser) return;
   try {
     const r = await wfApi('listCafes');
+    if (r && r.version) _cafesVersion = r.version;
     if (r && r.cafes && r.cafes.length) { applyLoadedCafes(r.cafes, 'sheet'); return; }
   } catch (e) { console.warn('Sheet load failed, using the cloud copy:', e.message); showToast('Could not reach the sheet, showing the last saved copy'); }
   return loadFromSupabaseLegacy();
@@ -2190,11 +2198,37 @@ function applyLoadedCafes(data, src) {
       state.cafes.forEach(c => { _sheetSnap[c.number] = cafeSyncKey(c); });
       _lastCafeLoad = Date.now();
       const completed = state.cafes.filter(c => c.status === 'Visit Completed').length;
-      showToast((src === 'sheet' ? '📄 Loaded ' : '☁ Loaded ') + data.length + ' cafes: ' + completed + ' completed');
+      showToast(_quietLoad ? 'Updated from the spreadsheet' : (src === 'sheet' ? 'Loaded ' : 'Loaded ') + data.length + ' cafés: ' + completed + ' completed');
     }
   }
 }
 function cafeSyncKey(c) { return JSON.stringify([c.status || 'Ready To Be Assigned', c.notes || '', c.assignedToName || '']); }
+// Live-ish: once a minute, while the tab is open and nothing is being edited, ask the sheet whether anything
+// changed (a tiny fingerprint) and reload only then. Keeps every map in the team in step with the spreadsheet.
+function wbRefreshBusy() {
+  const panel = document.getElementById('panel');
+  const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName);
+  return state.formCafeId || state.reviewCafeId || WF_BUSY || typing
+    || document.querySelector('.leaflet-popup, #sg-modal, #sc-modal')
+    || (panel && panel.classList.contains('dragging'))
+    || Date.now() - _lastLocalEdit < 8000;
+}
+let _wbChecking = false;
+async function wbCheckForSheetChanges() {
+  if (_wbChecking || document.visibilityState !== 'visible' || !_sbUser || !_cafesVersion || wbRefreshBusy()) return;
+  _wbChecking = true;
+  try {
+    const r = await wfApi('cafesVersion');
+    if (r && r.version && r.version !== _cafesVersion && !wbRefreshBusy()) {
+      const body = document.getElementById('panel-body'), keep = body ? body.scrollTop : 0;
+      _quietLoad = true;
+      try { await loadFromSupabase(); if (_wfIsApprover && typeof sgLoadPending === 'function') sgLoadPending(); }
+      finally { _quietLoad = false; }
+      if (body) body.scrollTop = keep;
+    }
+  } catch (e) {} finally { _wbChecking = false; }
+}
+setInterval(wbCheckForSheetChanges, 60000);
 // Pick up edits made straight in the spreadsheet when the person comes back to the tab
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible' || !_sbUser || Date.now() - _lastCafeLoad < 90000) return;
@@ -2241,6 +2275,7 @@ async function syncToSupabase() {
 function debouncedSync() {
   if (!_sbUser) return;
   if (_sbSyncTimer) clearTimeout(_sbSyncTimer);
+  _lastLocalEdit = Date.now();
   _sbSyncTimer = setTimeout(syncToSupabase, 1500);
 }
 
@@ -3747,7 +3782,7 @@ function renderScoutChecklist(idx) {
   container.innerHTML = `
     <div class="wb-hello">
       <div class="wb-hello-sub"><span class="scout-cl-dot" style="background:${person.color}"></span>${me ? 'Hi ' + escHtml(person.name) : escHtml(person.name) + "'s list"}</div>
-      <div class="wb-hello-title">${me ? 'Your cafés' : escHtml(person.name) + "'s cafés"}</div>
+      <div class="wb-hello-title">${me ? 'Your Cafés' : escHtml(person.name) + "'s Cafés"}</div>
     </div>
     <div class="wb-stats">
       <div class="wb-stat"><div class="wb-stat-n">${toVisit.length}</div><div class="wb-stat-k">To visit</div></div>
@@ -5590,6 +5625,7 @@ function renderListMode() {
 
 function toggleListMode() {
   state.listMode = !state.listMode;
+  document.body.classList.toggle('wb-listmode', state.listMode);
   const mapEl = document.getElementById('map');
   const listEl = document.getElementById('list-view');
   const btn = document.getElementById('list-mode-btn');
@@ -5612,6 +5648,7 @@ function switchToMap(cafeId) {
   // Exit list mode and zoom to cafe on map
   if (state.listMode) {
     state.listMode = false;
+    document.body.classList.remove('wb-listmode');
     document.getElementById('map').style.display = '';
     document.getElementById('list-view').classList.remove('active');
     const btn = document.getElementById('list-mode-btn');
@@ -6174,7 +6211,7 @@ function renderScoutForm(cafe) {
       </label>
       <div class="wf-hint">Up to ${MAX_UPLOAD_MB} MB each. They go straight to the café's Drive folder.${d.folderUrl ? ` · <a href="${d.folderUrl}" target="_blank">open folder</a>` : ''}</div>
       <div class="wf-row-btns" style="margin-top:6px;align-items:stretch">
-        <a class="wf-btn-sm" style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;white-space:nowrap;box-sizing:border-box" href="sms:+1${WORK_PHONE}?&body=${encodeURIComponent('Hi! Videos for ' + cafe.name + ' (' + (cafe.number || '') + ') from ' + (_wfScoutName || ''))}">📱 Text us your videos! ${WORK_PHONE_PRETTY}</a>
+        <a class="wf-btn-sm" style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;white-space:nowrap;box-sizing:border-box" onclick="return wbOpenSms(this)" href="sms:+1${WORK_PHONE}?&body=${encodeURIComponent('Hi! Videos for ' + cafe.name + ' (' + (cafe.number || '') + ') from ' + (_wfScoutName || ''))}">📱 Text us your videos! ${WORK_PHONE_PRETTY}</a>
         <button class="wf-btn-sm wf-confirm ${d.videosTexted ? 'sent' : 'confirm'}" title="${d.videosTexted ? 'Videos sent' : 'Confirm you sent them'}" onclick="wfToggleVideosTexted('${cafe.id}')">${d.videosTexted ? '✓ Sent' : 'Sent?'}</button>
       </div>
     </div>
@@ -6835,6 +6872,21 @@ function wfMapsLink(addr, name) {
   return `<a class="wf-maps" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Open this café in Google Maps">${escHtml(a)}</a>`;
 }
 
+// Opens the phone's Messages app with the work number and a ready-made note.
+// iPhone wants "sms:number&body=", Android wants "sms:number?body=", and both ignore sms: links inside a frame,
+// so the top page does the navigation.
+function wbOpenSms(a) {
+  try {
+    const u = new URL(a.href);
+    const body = u.searchParams.get('body') || '';
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const url = 'sms:+1' + WORK_PHONE + (body ? (isIOS ? '&' : '?') + 'body=' + encodeURIComponent(body) : '');
+    const top = window.top || window;
+    top.location.href = url;
+  } catch (e) { try { window.location.href = a.href; } catch (e2) { return true; } }
+  return false;
+}
+
 function wfBaseName(n) { return String(n || '').replace(/\.[a-z0-9]{2,5}$/i, ''); }
 
 function wfReadReview() {
@@ -7108,29 +7160,7 @@ async function wfSetStatus(id, status) {
   <button class="bulk-clear-btn" onclick="bulkClear()">✕ Clear</button>
 </div>
 <script>
-// iPhone/iPad: open Google Maps links straight in the Google Maps app (falls back to the website if the app is not installed)
-(function () {
-  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  if (!isIOS) return;
-  document.addEventListener('click', function (e) {
-    const a = e.target.closest && e.target.closest('a[href*="google.com/maps"]');
-    if (!a) return;
-    let u; try { u = new URL(a.href); } catch (err) { return; }
-    const q = u.searchParams.get('query'), dest = u.searchParams.get('destination');
-    if (!q && !dest) return;
-    e.preventDefault(); e.stopPropagation();
-    const scheme = dest ? 'comgooglemaps://?daddr=' + encodeURIComponent(dest) : 'comgooglemaps://?q=' + encodeURIComponent(q);
-    let left = false;
-    const onHide = () => { left = true; };
-    document.addEventListener('visibilitychange', onHide, { once: true });
-    window.addEventListener('pagehide', onHide, { once: true });
-    try { (window.top || window).location.href = scheme; } catch (err) { window.location.href = scheme; }
-    setTimeout(function () {
-      document.removeEventListener('visibilitychange', onHide);
-      if (!left && !document.hidden) window.open(a.href, '_blank', 'noopener');
-    }, 1600);
-  }, true);
-})();
+// Google Maps links open normally: iPhone and Android hand them to the Maps app by themselves when it is installed
 </script>
 <script>
 // Layout only: tells the CSS how tall the floating top bars are, so the list panel and map buttons sit just under them
