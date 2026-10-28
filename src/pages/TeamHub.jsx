@@ -7,7 +7,7 @@ import "./TeamHub.css";
 import { DailyBars, RankBars, DeliveryMeter, NotConnected, Delta } from "./TeamHubCharts";
 
 // Private Team Hub for department heads: one place to run Work & Brew.
-// Six pages (Overview, Messages, Cafés, Analytics, Growth & Social, Events) share one data load.
+// Six pages (Overview, Café Scouts, Cafés, Analytics, Growth & Social, Events) share one data load.
 // Access is checked on the server (/api/hub) against the hub_admins table; this page only shows
 // what the server returns.
 
@@ -33,7 +33,7 @@ const Icon = ({ name }) => (
 
 const PAGES = [
   { key: "overview", label: "Overview", short: "Home", sub: null },
-  { key: "messages", label: "Messages", short: "Messages", sub: "Text one person, a group or the whole team. Every text is logged." },
+  { key: "messages", label: "Café Scouts", short: "Scouts", sub: "Text one person, a group or the whole team. Every text is logged and every lead can see it." },
   { key: "cafes", label: "Cafés", short: "Cafés", sub: "Every café in the database, live from the scout map." },
   { key: "analytics", label: "Texting analytics", short: "Analytics", sub: "How the team is using texting · last 30 days" },
   { key: "growth", label: "Growth & Social", short: "Growth", sub: "Team sign-ups, website, email and social reach across Instagram, TikTok, YouTube and Lemon8." },
@@ -342,9 +342,29 @@ function Templates({ data, onChange }) {
   );
 }
 
-function Log({ log }) {
+function Log({ log, compact, onMore }) {
   const [filter, setFilter] = useState("all");
   const rows = filter === "failed" ? log.filter((b) => b.failed) : log;
+  if (compact) {
+    return (
+      <Card title="Sent texts" sub="The shared log" right={<button type="button" className="th-link th-link-btn" onClick={onMore}>Full log →</button>}>
+        {!log.length ? <p className="th-empty">No texts sent yet.</p> : (
+          <ul className="th-acts">
+            {log.slice(0, 3).map((b) => (
+              <li key={b.id} className={b.failed ? "bad" : ""}>
+                <span className="th-av">{initials(fromLabel(b.from))}</span>
+                <div>
+                  <div className="th-act-t">{fromLabel(b.from)} → {b.recipients.length === 1 ? b.recipients[0].name : `${b.recipients.length} people`}</div>
+                  <div className="th-act-m">{b.body.slice(0, 48)}{b.body.length > 48 ? "…" : ""} · {b.failed ? `${b.failed} failed` : `${b.sent} delivered`} · {when(b.at)}</div>
+                </div>
+                <span className={`th-tag ${b.failed ? "b" : "g"}`}>{b.failed ? "Failed" : "Delivered"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    );
+  }
   return (
     <Card title="Sent texts" sub="Shared log: every lead sees what scouts were told"
       right={<div className="th-chips">{["all", "failed"].map((f) => <button key={f} className={`th-chip sm ${filter === f ? "on" : ""}`} onClick={() => setFilter(f)}>{f === "all" ? "All" : "Failed"}</button>)}</div>}>
@@ -424,18 +444,75 @@ function groupLabel(v, data) {
   return data.team.find((p) => p.id === v)?.name || v;
 }
 
+const SCOUT_TABS = ["send", "schedules", "templates", "log", "directory"];
+
+// Who has cafés on their plate right now (from the café database), with the quiet ones called out.
+function WhosScouting({ data }) {
+  const list = data.cafeList || [];
+  if (!data.cafes) return null;
+  const per = new Map();
+  for (const c of list) {
+    if (!c.assignedTo) continue;
+    const row = per.get(c.assignedTo) || { name: c.assignedTo, assigned: 0, review: 0 };
+    if (c.status === "In Review") row.review++; else if (!["Visit Completed", "Official Cafe Listing", "Ineligible Cafe", "Permanently Closed"].includes(c.status)) row.assigned++;
+    per.set(c.assignedTo, row);
+  }
+  const rows = [...per.values()].filter((r) => r.assigned || r.review).sort((a, b) => b.assigned + b.review - (a.assigned + a.review));
+  const quiet = data.team.map((p) => p.name.split(" ")[0]).filter((n) => !rows.some((r) => r.name.split(" ")[0].toLowerCase() === n.toLowerCase()));
+  return (
+    <Card title="Who's scouting" sub="cafés assigned · in review">
+      {rows.length ? (
+        <ul className="th-whos">
+          {rows.slice(0, 8).map((r) => (
+            <li key={r.name}><span className="th-av">{initials(r.name)}</span><b>{r.name}</b><span className="th-whos-n"><strong>{r.assigned}</strong> · {r.review}</span></li>
+          ))}
+        </ul>
+      ) : <p className="th-empty">No assignments yet.</p>}
+      {quiet.length > 0 && <p className="th-whos-quiet">{quiet.slice(0, 4).join(", ")}{quiet.length > 4 ? ` and ${quiet.length - 4} more` : ""} {quiet.length === 1 ? "has" : "have"} nothing assigned.</p>}
+      <Link to={SCOUT_MAP} className="th-link">Assign cafés on the scout map →</Link>
+    </Card>
+  );
+}
+
 function Messages({ data, reload, notify }) {
+  const [tab, setTab] = useState("send");
+  const active = (data.schedules || []).filter((x) => x.active).length;
+  const counts = { send: null, schedules: data.schedules?.length || 0, templates: data.templates.length, log: null, directory: data.team.length };
+  const labels = { send: "Send a text", schedules: "Schedules", templates: "Templates", log: "Log", directory: "Directory" };
   return (
     <>
-      <div className="th-row">
-        <Compose data={data} onSent={reload} notify={notify} />
-        <div className="th-side-col th-stack">
-          <Schedules data={data} onChange={reload} />
-          <Templates data={data} onChange={reload} />
-          <Log log={data.log} />
+      <nav className="th-subnav" aria-label="Café Scouts sections">
+        {SCOUT_TABS.map((t) => (
+          <button key={t} type="button" className={`th-subtab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>
+            {labels[t]}{counts[t] ? <span> · {counts[t]}</span> : null}
+          </button>
+        ))}
+      </nav>
+      {tab === "send" && (
+        <div className="th-row">
+          <Compose data={data} onSent={reload} notify={notify} />
+          <div className="th-side-col th-stack">
+            <WhosScouting data={data} />
+            {data.schedules && (
+              <Card title="Scheduled weekly texts" sub={active ? `${active} active` : "None active"} right={<button type="button" className="th-link th-link-btn" onClick={() => setTab("schedules")}>Manage →</button>}>
+                {!data.schedules.length ? <p className="th-empty">Nothing scheduled. Pick a day under “When” to set one up.</p> : (
+                  <ul className="th-scheds">
+                    {data.schedules.slice(0, 3).map((x) => (
+                      <li key={x.id} className={x.active ? "" : "off"}><span className="th-sched-day">{x.weekdayName.slice(0, 3).toUpperCase()}</span>
+                        <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}{x.last_sent_on ? ` · last sent ${x.last_sent_on}` : ""}</small></div></li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            )}
+            <Log log={data.log} compact onMore={() => setTab("log")} />
+          </div>
         </div>
-      </div>
-      <Directory team={data.team} />
+      )}
+      {tab === "schedules" && <Schedules data={data} onChange={reload} />}
+      {tab === "templates" && <Templates data={data} onChange={reload} />}
+      {tab === "log" && <Log log={data.log} />}
+      {tab === "directory" && <Directory team={data.team} />}
     </>
   );
 }

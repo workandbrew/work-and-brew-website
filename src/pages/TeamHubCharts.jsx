@@ -5,9 +5,9 @@ import "./TeamHubCharts.css";
 // One series per chart in the brand's dark brown; hairline grid; hover + keyboard-focus tooltips;
 // every chart also has a "View as table" so no value is hover-only.
 
-const INK = "#2C1A0E";
-const GRID = "#EFE7DB";
-const GOOD = "#2F6B3A";
+const INK = "#17274E"; // Midnight Navy (brand)
+const GRID = "#ECE4D8";
+const GOOD = "#11734B";
 const BAD = "#B4442A";
 
 const shortDay = (iso) =>
@@ -73,7 +73,7 @@ export function DailyBars({ daily }) {
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Texts sent per day, last 30 days">
           {ticks.map((t) => (
             <g key={t}>
-              <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke={t === 0 ? "#DCCFBD" : GRID} strokeWidth="1" />
+              <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke={t === 0 ? "#D1C7BB" : GRID} strokeWidth="1" />
               <text x={L - 10} y={y(t) + 4} textAnchor="end" className="hc-tick">{Number.isInteger(t) ? t : t.toFixed(1)}</text>
             </g>
           ))}
@@ -82,7 +82,7 @@ export function DailyBars({ daily }) {
             const top = y(d.sent);
             return (
               <g key={d.date}>
-                {hover === i && <rect x={L + i * slot + 1} y={T} width={slot - 2} height={ph} rx="6" fill="#F6F0E6" />}
+                {hover === i && <rect x={L + i * slot + 1} y={T} width={slot - 2} height={ph} rx="6" fill="#F6EEE3" />}
                 {d.sent > 0 && <path d={bar(x, top, T + ph - top)} fill={INK} opacity={hover == null || hover === i ? 1 : 0.3} />}
                 {(daily.length - 1 - i) % 7 === 0 && (
                   <text x={x + bw / 2} y={H - 6} textAnchor="middle" className="hc-tick">{shortDay(d.date)}</text>
