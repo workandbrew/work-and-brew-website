@@ -62,7 +62,7 @@ async function extras() {
   // A compact café list for the Cafés page (the table has more columns than the hub needs).
   const yes = (v) => (v == null || v === "" ? null : /^(true|yes|y|1)$/i.test(String(v)) ? "Yes" : /^(false|no|n|0)$/i.test(String(v)) ? "No" : String(v));
   const cafeList = cafes ? cafes.map((c) => ({
-    id: c.id, name: c.name || "Unnamed café", borough: c.borough || "", status: statusOf(c.status),
+    id: c.id, number: c.number ?? c.cafe_number ?? null, name: c.name || "Unnamed café", borough: c.borough || "", status: statusOf(c.status),
     assignedTo: c.assigned_to || null, scout: c.scout_name || null,
     wifi: yes(c.wifi), outlets: yes(c.outlets), seats: c.seats || null,
     at: c.updated_at || c.visited_at || null,

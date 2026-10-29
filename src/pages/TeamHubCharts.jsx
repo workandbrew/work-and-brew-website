@@ -194,3 +194,20 @@ export function NotConnected({ icon, source, what, setup }) {
     </div>
   );
 }
+
+// One stacked bar: every café by status, with a legend. Brand colours only.
+const PIPE_COLORS = ["#17274E", "#90ADC9", "#27313E", "#A5ABB0", "#D1C7BB", "#11734B", "#B4442A", "#2D3034"];
+export function PipelineBar({ rows }) {
+  const total = rows.reduce((n, r) => n + r.value, 0);
+  if (!total) return <p className="th-empty">No cafés yet.</p>;
+  return (
+    <div className="th-pipe">
+      <div className="th-pipe-bar" role="img" aria-label={rows.map((r) => `${r.value} ${r.label}`).join(", ")}>
+        {rows.map((r, i) => <span key={r.label} style={{ width: `${(r.value / total) * 100}%`, background: PIPE_COLORS[i % PIPE_COLORS.length] }} title={`${r.value} ${r.label}`} />)}
+      </div>
+      <ul className="th-pipe-legend">
+        {rows.map((r, i) => <li key={r.label}><i style={{ background: PIPE_COLORS[i % PIPE_COLORS.length] }} /><b>{r.value.toLocaleString()}</b> {r.label.toLowerCase()}</li>)}
+      </ul>
+    </div>
+  );
+}

@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import Navbar from "../components/Navbar";
 import "./TeamHub.css";
-import { DailyBars, RankBars, DeliveryMeter, NotConnected, Delta } from "./TeamHubCharts";
+import { DailyBars, RankBars, DeliveryMeter, NotConnected, Delta, PipelineBar } from "./TeamHubCharts";
 
 // Private Team Hub for department heads: one place to run Work & Brew.
 // Six pages (Overview, Café Scouts, Cafés, Analytics, Growth & Social, Events) share one data load.
@@ -34,10 +34,10 @@ const Icon = ({ name }) => (
 const PAGES = [
   { key: "overview", label: "Overview", short: "Home", sub: null },
   { key: "messages", label: "Café Scouts", short: "Scouts", sub: "Text one person, a group or the whole team. Every text is logged and every lead can see it." },
-  { key: "cafes", label: "Cafés", short: "Cafés", sub: "Every café in the database, live from the scout map." },
-  { key: "analytics", label: "Texting analytics", short: "Analytics", sub: "How the team is using texting · last 30 days" },
-  { key: "growth", label: "Growth & Social", short: "Growth", sub: "Team sign-ups, website, email and social reach across Instagram, TikTok, YouTube and Lemon8." },
-  { key: "events", label: "Events", short: "Events", sub: "Meetups, pop-ups and café takeovers. Plan them here, then text the team from the same place." },
+  { key: "cafes", label: "Cafés", short: "Cafés", own: true },
+  { key: "analytics", label: "Texting analytics", short: "Analytics", own: true },
+  { key: "growth", label: "Growth & Social", short: "Growth", own: true },
+  { key: "events", label: "Events", short: "Events", own: true },
 ];
 const pathFor = (key) => (key === "overview" ? "/team" : `/team/${key}`);
 
@@ -69,6 +69,16 @@ function Card({ title, sub, right, children, className = "" }) {
       )}
       {children}
     </section>
+  );
+}
+
+// Page headline: one plain sentence about where things stand, a sub line, and an optional action.
+function Headline({ title, sub, action }) {
+  return (
+    <header className="th-top th-headline">
+      <div><h1>{title}</h1>{sub && <p>{sub}</p>}</div>
+      {action}
+    </header>
   );
 }
 
@@ -577,68 +587,85 @@ function Cafes({ data }) {
   const [shown, setShown] = useState(25);
   if (!data.cafes) {
     return (
-      <Card title="Café statuses" sub="From the café database">
-        <NotConnected icon="☕" source="the café database" what="where every café stands" setup="Cafés appear once they're in the database." />
-      </Card>
+      <>
+        <Headline title="Cafés" sub="Every café in the database, live from the scout map." />
+        <Card title="Café statuses" sub="From the café database">
+          <NotConnected icon="☕" source="the café database" what="where every café stands" setup="Cafés appear once they're in the database." />
+        </Card>
+      </>
     );
   }
   const c = data.cafes;
   const list = data.cafeList || [];
   const total = Object.values(c).reduce((n, v) => n + v, 0);
   const rows = CAFE_ORDER.concat(Object.keys(c).filter((k) => !CAFE_ORDER.includes(k))).filter((k) => c[k]).map((k) => ({ label: shortStatus(k), value: c[k] }));
-  const closed = (c["Ineligible Cafe"] || 0) + (c["Permanently Closed"] || 0) + (c["Temporarily Unavailable"] || 0);
   const boroughs = [...new Set(list.map((x) => x.borough).filter(Boolean))].sort();
   const statuses = [...new Set(list.map((x) => x.status))].sort((a, b) => CAFE_ORDER.indexOf(a) - CAFE_ORDER.indexOf(b));
   const done = list.filter((x) => x.status === "Visit Completed");
   const needle = q.trim().toLowerCase();
   const filtered = list.filter((x) => (status === "all" || x.status === status) && (borough === "all" || x.borough === borough)
     && (!needle || `${x.name} ${x.borough} ${x.assignedTo || ""} ${x.scout || ""}`.toLowerCase().includes(needle)));
+  const inReview = c["In Review"] || 0;
+  const hasNumbers = list.some((x) => x.number);
+  const exportCsv = () => {
+    const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const head = ["Number", "Café", "Borough", "Scout", "Status", "Wi-Fi", "Outlets"];
+    const body = filtered.map((x) => [x.number, x.name, x.borough, x.assignedTo || x.scout || "", x.status, x.wifi || "", x.outlets || ""].map(esc).join(","));
+    const blob = new Blob([[head.map(esc).join(","), ...body].join("\n")], { type: "text/csv" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "work-and-brew-cafes.csv"; a.click(); URL.revokeObjectURL(a.href);
+  };
 
   return (
     <>
-      <div className="th-row th-stats">
-        <Stat label="Cafés in the database" value={total} foot={`${boroughs.length || "All"} boroughs`} />
+      <Headline
+        title={`${total.toLocaleString()} cafés. ${inReview ? `${inReview} ${inReview === 1 ? "is" : "are"} scouted and waiting on us.` : "Nothing is waiting on us right now."}`}
+        sub="Every café in the database, live from the scout map"
+        action={<Link to={SCOUT_MAP} className="th-btn">Open the café map</Link>} />
+      <div className="th-row th-stats th-stats-6">
+        <Stat label="Cafés" value={total} foot={`${boroughs.length || "All"} boroughs`} />
+        <Stat label="Ready to assign" value={c["Ready To Be Assigned"] || 0} foot="Nobody on them yet" />
+        <Stat label="Assigned" value={c["Assigned"] || 0} foot="Scouts have them" />
+        <Stat label="In review" value={inReview} foot="Scouted · waiting on a lead" />
+        <Stat label="Incomplete" value={c["Incomplete"] || 0} foot="Needs another visit" />
         <Stat label="Visits completed" value={c["Visit Completed"] || 0} foot={total ? `${Math.round(((c["Visit Completed"] || 0) / total) * 100)}% of all cafés` : "Scouted and logged"} />
-        <Stat label="In progress" value={c["In Progress"] || 0} foot="Assigned and underway" />
-        <Stat label="Not a fit" value={closed} foot="Ineligible, closed or unavailable" />
       </div>
       <div className="th-row">
-        <Card title="Scouting pipeline" sub="Every café by status" className="th-grow">
-          <RankBars rows={rows} unit="Cafés" share={false} suffix="cafés" />
+        <Card title="Scouting pipeline" sub="every café by status" className="th-grow">
+          <PipelineBar rows={rows} />
         </Card>
-        <Card title="Visits completed by borough" sub="Where the team has scouted" className="th-grow">
+        <Card title="Visits completed by borough" sub="where the team has scouted" className="th-side-col">
           {done.length ? <RankBars rows={tally(done, "borough")} unit="Visits" share={false} suffix="cafés" /> : <p className="th-empty">No completed visits yet.</p>}
-        </Card>
-        <Card title="Who's scouting" sub="Cafés assigned to each person" className="th-grow">
-          {tally(list, "assignedTo").length ? <RankBars rows={tally(list, "assignedTo").slice(0, 6)} unit="Cafés" avatars share={false} suffix="cafés" /> : <p className="th-empty">No assignments yet.</p>}
-          <Link to={SCOUT_MAP} className="th-link">Assign cafés on the scout map →</Link>
         </Card>
       </div>
       {list.length > 0 && (
-        <Card title="All cafés" sub={`${filtered.length} of ${list.length} · statuses update when a scout logs a visit`}
-          right={<input className="th-input th-search" type="search" placeholder="Search cafés or scouts" value={q} onChange={(e) => { setQ(e.target.value); setShown(25); }} />}>
-          <div className="th-chips">
-            <button type="button" className={`th-chip sm ${status === "all" ? "on" : ""}`} onClick={() => setStatus("all")}>All statuses</button>
-            {statuses.map((st) => <button type="button" key={st} className={`th-chip sm ${status === st ? "on" : ""}`} onClick={() => { setStatus(st); setShown(25); }}>{shortStatus(st)} · {c[st] || 0}</button>)}
-          </div>
-          {boroughs.length > 1 && (
-            <div className="th-chips">
-              <button type="button" className={`th-chip sm ${borough === "all" ? "on" : ""}`} onClick={() => setBorough("all")}>All boroughs</button>
-              {boroughs.map((b) => <button type="button" key={b} className={`th-chip sm ${borough === b ? "on" : ""}`} onClick={() => { setBorough(b); setShown(25); }}>{b}</button>)}
-            </div>
-          )}
+        <Card title="All cafés" sub={`${filtered.length.toLocaleString()} of ${list.length.toLocaleString()} shown · statuses update when a scout logs a visit`}
+          right={<div className="th-filters">
+            <input className="th-input th-search" type="search" placeholder="Search cafés or scouts" value={q} onChange={(e) => { setQ(e.target.value); setShown(25); }} />
+            <select className="th-input th-select" value={status} onChange={(e) => { setStatus(e.target.value); setShown(25); }}>
+              <option value="all">All statuses</option>
+              {statuses.map((st) => <option key={st} value={st}>{shortStatus(st)} · {c[st] || 0}</option>)}
+            </select>
+            {boroughs.length > 1 && (
+              <select className="th-input th-select" value={borough} onChange={(e) => { setBorough(e.target.value); setShown(25); }}>
+                <option value="all">All boroughs</option>
+                {boroughs.map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
+            )}
+            <button type="button" className="th-btn ghost" onClick={exportCsv} disabled={!filtered.length}>Export</button>
+          </div>}>
           <div className="th-table-wrap">
             <table className="th-table">
-              <thead><tr><th>Café</th><th>Borough</th><th>Assigned to</th><th>Wi-Fi</th><th>Outlets</th><th>Status</th></tr></thead>
+              <thead><tr>{hasNumbers && <th>#</th>}<th>Café</th><th>Borough</th><th>Scout</th><th>Status</th><th>Wi-Fi</th><th>Outlets</th></tr></thead>
               <tbody>
                 {filtered.slice(0, shown).map((x) => (
                   <tr key={x.id}>
+                    {hasNumbers && <td className="num">{x.number || "—"}</td>}
                     <td className="nm">{x.name}</td>
-                    <td>{x.borough || "n/a"}</td>
-                    <td>{x.assignedTo || x.scout || "Unassigned"}</td>
-                    <td>{x.wifi || "n/a"}</td>
-                    <td>{x.outlets || "n/a"}</td>
+                    <td>{x.borough || "—"}</td>
+                    <td>{x.assignedTo || x.scout || "—"}</td>
                     <td><span className={`th-tag ${STATUS_TONE[x.status] || "n"}`}>{shortStatus(x.status)}</span></td>
+                    <td>{x.wifi || "—"}</td>
+                    <td>{x.outlets || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -655,32 +682,43 @@ function Cafes({ data }) {
 // ---------------------------------------------------------------- Analytics
 
 function Analytics({ data }) {
-  const daily = data.daily || [];
+  const [days, setDays] = useState(30);
+  const all = data.daily || [];
+  const daily = all.slice(-days);
   const since = daily[0]?.date || "";
   const recent = data.log.filter((b) => b.at.slice(0, 10) >= since);
+  const sent = daily.reduce((n, d) => n + d.sent, 0);
+  const failed = daily.reduce((n, d) => n + d.failed, 0);
+  const prev = days === 30 ? (data.stats?.prevSent30 ?? 0) : all.slice(-days * 2, -days).reduce((n, d) => n + d.sent, 0);
   const bySender = new Map();
   for (const b of recent) bySender.set(fromLabel(b.from), (bySender.get(fromLabel(b.from)) || 0) + b.sent);
   const senders = [...bySender].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 5);
-  const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const byDay = weekdays.map((label) => ({ label, value: 0 }));
   for (const b of recent) byDay[(new Date(b.at).getDay() + 6) % 7].value += b.sent;
-  const st = data.stats || {};
   const textable = data.team.filter((p) => p.canText).length;
+  const label = `last ${days} days`;
   return (
     <>
+      <Headline title="How the team is using texting." sub={`${label[0].toUpperCase()}${label.slice(1)} · every sender · from the shared message log`}
+        action={<div className="th-chips">{[7, 30].map((d) => <button key={d} type="button" className={`th-chip sm ${days === d ? "on" : ""}`} onClick={() => setDays(d)}>{d} days</button>)}</div>} />
       <div className="th-row th-stats">
-        <Stat label="Texts sent" value={st.sent30 ?? 0} foot={<Delta now={st.sent30 ?? 0} before={st.prevSent30 ?? 0} />} />
-        <Stat label="Delivered" value={`${st.sent30 ?? 0} of ${(st.sent30 ?? 0) + (st.failed30 ?? 0)}`} foot={`${st.failed30 ?? 0} failed`} />
+        <Stat label="Texts sent" value={sent} foot={<Delta now={sent} before={prev} label={`vs. previous ${days} days`} />} />
+        <Stat label="Delivered" value={`${sent} of ${sent + failed}`} foot={`${failed} failed`} />
         <Stat label="Reachable by text" value={`${textable} of ${data.team.length}`} foot={`${data.team.length - textable} can't be texted`} />
-        <Stat label="Sends" value={recent.length} foot="Batches in the last 30 days" />
+        <Stat label="Sends" value={recent.length} foot={`batches in the ${label}`} />
       </div>
       <div className="th-row">
-        <Card title="Texts sent per day" sub="Last 30 days · all senders" className="th-grow"><DailyBars daily={daily} /></Card>
-        <Card title="Delivery" sub="Last 30 days" className="th-side-col"><DeliveryMeter sent={st.sent30 ?? 0} failed={st.failed30 ?? 0} /></Card>
+        <Card title="Texts sent per day" sub={`${label} · all senders`} className="th-grow"><DailyBars daily={daily} /></Card>
+        <Card title="Delivery" sub={label} className="th-side-col"><DeliveryMeter sent={sent} failed={failed} /></Card>
       </div>
       <div className="th-row">
-        <Card title="Who sent texts" sub="Texts sent · last 30 days" className="th-grow"><RankBars rows={senders} unit="Texts sent" avatars share={false} suffix="texts" /></Card>
-        <Card title="Sends by weekday" sub="When the team texts most" className="th-grow"><RankBars rows={byDay.filter((d) => d.value)} unit="Texts" share={false} suffix="texts" /></Card>
+        <Card title="Who sent texts" sub={`texts sent · ${label}`} className="th-grow">
+          {senders.length ? <RankBars rows={senders} unit="Texts sent" avatars share={false} suffix="texts" /> : <p className="th-empty">No texts in this period.</p>}
+        </Card>
+        <Card title="Sends by weekday" sub="when the team texts most" className="th-grow">
+          {byDay.some((d) => d.value) ? <RankBars rows={byDay.filter((d) => d.value)} unit="Texts" share={false} suffix="texts" /> : <p className="th-empty">No texts in this period.</p>}
+        </Card>
       </div>
     </>
   );
@@ -705,7 +743,7 @@ function Signups({ data, onChange, notify }) {
     onChange();
   };
   return (
-    <Card title="New sign-ups" sub="From the join-the-team page · approving sends the welcome texts (day 0, 1 and 7)"
+    <Card title="New sign-ups" sub="from the join-the-team page · approving sends the welcome texts (day 0, 1 and 7)"
       right={<span className="th-tag n">{list.length} waiting</span>}>
       {!list.length ? <p className="th-empty">No one waiting for approval.</p> : (
         <ul className="th-signups">
@@ -713,13 +751,13 @@ function Signups({ data, onChange, notify }) {
             const c = choice[r.id] || { role: "Cafe Scout", chapters: [] };
             return (
               <li key={r.id}>
-                <div className="th-su-top"><b>{r.name}</b><small>{r.phoneLast4 ? `•••• ${r.phoneLast4}` : "No phone"} · {r.sms_consent ? "Agreed to texts" : "No text consent"} · {when(r.created_at)}</small></div>
+                <div className="th-su-top"><b>{r.name} · {c.role}</b><small>{c.chapters.length ? c.chapters.join(", ") + " · " : ""}{r.phoneLast4 ? `•••• ${r.phoneLast4}` : "no phone"} · {r.sms_consent ? "opted in to texts" : "no text consent"} · applied {when(r.created_at)}</small></div>
                 <div className="th-chips">{ROLES.map((role) => <button key={role} type="button" className={`th-chip sm ${c.role === role ? "on" : ""}`} onClick={() => pick(r.id, "role", role)}>{role}</button>)}</div>
                 <div className="th-chips">{data.chapters.map((ch) => <button key={ch} type="button" className={`th-chip sm ${c.chapters.includes(ch) ? "on" : ""}`}
                   onClick={() => pick(r.id, "chapters", c.chapters.includes(ch) ? c.chapters.filter((x) => x !== ch) : [...c.chapters, ch])}>{ch}</button>)}</div>
                 <div className="th-btns">
-                  <button className="th-btn" disabled={busy === r.id} onClick={() => decide(r, "signup-approve")}>Approve</button>
-                  <button className="th-btn ghost" disabled={busy === r.id} onClick={() => decide(r, "signup-reject")}>Decline</button>
+                  <button className="th-btn ghost" disabled={busy === r.id} onClick={() => decide(r, "signup-reject")}>Reject</button>
+                  <button className="th-btn" disabled={busy === r.id} onClick={() => decide(r, "signup-approve")}>Approve &amp; welcome</button>
                 </div>
               </li>
             );
@@ -745,7 +783,7 @@ function ManualEntry({ platform, label, onChange, notify }) {
   };
   return (
     <div className="th-manual">
-      <input className="th-input" inputMode="numeric" placeholder="This week's follower count" value={v} onChange={(e) => setV(e.target.value.replace(/[^\d]/g, ""))} />
+      <input className="th-input" inputMode="numeric" placeholder="Enter this week's number" value={v} onChange={(e) => setV(e.target.value.replace(/[^\d]/g, ""))} />
       <button className="th-btn ghost" disabled={!v} onClick={save}>Update</button>
     </div>
   );
@@ -798,6 +836,7 @@ function Growth({ data, reload, notify }) {
   }, 0);
   return (
     <>
+      <Headline title="Who's finding Work & Brew." sub="Team sign-ups, website, email and social reach across Instagram, TikTok, YouTube and Lemon8 · last 30 days" />
       <div className="th-row th-stats">
         <Stat label="Team sign-ups · 30D" value={s?.last30 ?? "—"} foot={s ? `${s.pending} waiting for approval` : "Not set up yet"} />
         <Stat label="Website visitors · 30D" value={web.connected && !web.error ? web.visitors30.toLocaleString() : "—"} foot={web.connected && !web.error ? <Delta now={web.visitors30} before={web.prior30} /> : "Connect Google Analytics"} />
@@ -943,7 +982,7 @@ function Events({ data, reload, notify }) {
   const [form, setForm] = useState(null); // null | "new" | event object
   const [now] = useState(() => Date.now());
   if (!events) {
-    return <div className="th-card th-center"><p>The events table isn't set up yet. Run the <code>events</code> block at the end of <code>supabase/sms.sql</code> in Supabase → SQL editor, then refresh.</p></div>;
+    return <><Headline title="Events" sub="Meetups, pop-ups and café takeovers." /><div className="th-card th-center"><p>The events table isn't set up yet. Run the <code>events</code> block at the end of <code>supabase/sms.sql</code> in Supabase → SQL editor, then refresh.</p></div></>;
   }
   const live = events.filter((e) => e.status !== "cancelled");
   const upcoming = live.filter((e) => e.status !== "done" && (!e.starts_at || new Date(e.starts_at).getTime() >= now - 864e5));
@@ -974,6 +1013,9 @@ function Events({ data, reload, notify }) {
 
   return (
     <>
+      <Headline title={upcoming[0] ? `Next up: ${upcoming[0].title}.` : "No events planned yet."}
+        sub="Meetups, pop-ups and café takeovers. Plan them here, then text the team from the same place."
+        action={<button type="button" className="th-btn" onClick={() => setForm("new")}>New event</button>} />
       <div className="th-row th-stats">
         <Stat label="Upcoming" value={upcoming.length} foot={upcoming[0] ? `next: ${upcoming[0].title}` : "nothing planned yet"} />
         <Stat label="Checklist items open" value={openItems} foot="across all events" />
@@ -1071,7 +1113,7 @@ export default function TeamHub() {
       </aside>
 
       <main className="th-main">
-        {page.key !== "overview" && (
+        {page.key !== "overview" && !page.own && (
           <header className="th-top"><h1>{page.label}</h1>{page.sub && <p>{page.sub}</p>}</header>
         )}
         {page.key === "overview" && data?.today && <header className="th-top"><h1>Overview</h1><p>{data.today} · Work &amp; Brew</p></header>}
