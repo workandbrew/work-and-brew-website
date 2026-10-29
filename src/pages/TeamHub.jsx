@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, NavLink, useParams, useLocation } from "react-router-dom";
+import { Link, NavLink, useParams, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import Navbar from "../components/Navbar";
@@ -7,7 +7,7 @@ import "./TeamHub.css";
 import { DailyBars, RankBars, DeliveryMeter, NotConnected, Delta, PipelineBar } from "./TeamHubCharts";
 
 // Private Team Hub for department heads: one place to run Work & Brew.
-// Six pages (Overview, Café Scouts, Cafés, Analytics, Growth & Social, Events) share one data load.
+// Five pages (Overview, Text Message System, Cafés, Analytics, Events) share one data load.
 // Access is checked on the server (/api/hub) against the hub_admins table; this page only shows
 // what the server returns.
 
@@ -33,10 +33,9 @@ const Icon = ({ name }) => (
 
 const PAGES = [
   { key: "overview", label: "Overview", short: "Home", sub: null },
-  { key: "messages", label: "Café Scouts", short: "Scouts", sub: "Text one person, a group or the whole team. Every text is logged and every lead can see it." },
+  { key: "messages", label: "Text Message System", short: "Texts", sub: "Text one person, a group or the whole team. Every text is logged and every lead can see it." },
   { key: "cafes", label: "Cafés", short: "Cafés", own: true },
   { key: "analytics", label: "Texting analytics", short: "Analytics", own: true },
-  { key: "growth", label: "Growth & Social", short: "Growth", own: true },
   { key: "events", label: "Events", short: "Events", own: true },
 ];
 const pathFor = (key) => (key === "overview" ? "/team" : `/team/${key}`);
@@ -492,7 +491,7 @@ function groupLabel(v, data) {
   return data.team.find((p) => p.id === v)?.name || v;
 }
 
-const SCOUT_TABS = ["send", "schedules", "templates", "log", "directory"];
+const SCOUT_TABS = ["send", "schedules", "templates", "log", "directory", "growth"];
 
 // Who has cafés on their plate right now (from the café database), with the quiet ones called out.
 function WhosScouting({ data }) {
@@ -527,11 +526,11 @@ function Messages({ data, reload, notify }) {
   const params = new URLSearchParams(search);
   const [tab, setTab] = useState(SCOUT_TABS.includes(params.get("tab")) ? params.get("tab") : "send");
   const active = (data.schedules || []).filter((x) => x.active).length;
-  const counts = { send: null, schedules: data.schedules?.length || 0, templates: data.templates.length, log: null, directory: data.team.length };
-  const labels = { send: "Send a text", schedules: "Schedules", templates: "Templates", log: "Log", directory: "Directory" };
+  const counts = { send: null, schedules: data.schedules?.length || 0, templates: data.templates.length, log: null, directory: data.team.length, growth: data.signups?.pending || 0 };
+  const labels = { send: "Send a text", schedules: "Schedules", templates: "Templates", log: "Log", directory: "Directory", growth: "Growth & Social" };
   return (
     <>
-      <nav className="th-subnav" aria-label="Café Scouts sections">
+      <nav className="th-subnav" aria-label="Text Message System sections">
         {SCOUT_TABS.map((t) => (
           <button key={t} type="button" className={`th-subtab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>
             {labels[t]}{counts[t] ? <span> · {counts[t]}</span> : null}
@@ -563,6 +562,7 @@ function Messages({ data, reload, notify }) {
       {tab === "templates" && <Templates data={data} onChange={reload} notify={notify} editId={params.get("edit")} />}
       {tab === "log" && <Log log={data.log} />}
       {tab === "directory" && <Directory team={data.team} />}
+      {tab === "growth" && <Growth data={data} reload={reload} notify={notify} />}
     </>
   );
 }
@@ -836,7 +836,7 @@ function Growth({ data, reload, notify }) {
   }, 0);
   return (
     <>
-      <Headline title="Who's finding Work & Brew." sub="Team sign-ups, website, email and social reach across Instagram, TikTok, YouTube and Lemon8 · last 30 days" />
+      <div className="th-section-h"><h2>Who's finding Work &amp; Brew.</h2><p>Team sign-ups, website, email and social reach across Instagram, TikTok, YouTube and Lemon8 · last 30 days</p></div>
       <div className="th-row th-stats">
         <Stat label="Team sign-ups · 30D" value={s?.last30 ?? "—"} foot={s ? `${s.pending} waiting for approval` : "Not set up yet"} />
         <Stat label="Website visitors · 30D" value={web.connected && !web.error ? web.visitors30.toLocaleString() : "—"} foot={web.connected && !web.error ? <Delta now={web.visitors30} before={web.prior30} /> : "Connect Google Analytics"} />
@@ -1079,13 +1079,15 @@ export default function TeamHub() {
     return () => { alive = false; };
   }, [user]);
 
+  if (section === "growth") return <Navigate to="/team/messages?tab=growth" replace />;
+
   let body;
   if (!user) {
     body = <div className="th-card th-center"><p>The Team Hub is for Work &amp; Brew department heads.</p><Link className="th-btn" to={`/login?next=${pathFor(page.key)}`}>Log in</Link></div>;
   } else if (error) body = <div className="th-card th-center"><p>{error}</p></div>;
   else if (!data) body = <p className="th-empty">Loading…</p>;
   else {
-    const View = { overview: Overview, messages: Messages, cafes: Cafes, analytics: Analytics, growth: Growth, events: Events }[page.key];
+    const View = { overview: Overview, messages: Messages, cafes: Cafes, analytics: Analytics, events: Events }[page.key];
     body = <View data={data} reload={load} notify={notify} />;
   }
 

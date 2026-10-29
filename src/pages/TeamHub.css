@@ -261,3 +261,5 @@
   .th-headline h1 { font-size: 24px; }
   .th-filters { justify-content: flex-start; } .th-filters .th-search { flex: 1 1 100%; max-width: none; }
 }
+.th-section-h h2 { font-family: var(--serif); font-size: 24px; color: var(--navy); margin: 0; }
+.th-section-h p { color: var(--ink2); font-size: 14px; margin: 2px 0 0; }
