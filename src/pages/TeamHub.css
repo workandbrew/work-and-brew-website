@@ -328,3 +328,10 @@
 .th-loading-live { display: flex; align-items: center; gap: 10px; }
 .th-loading-live::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--beige); border-top-color: var(--navy); animation: thSpin .8s linear infinite; }
 @keyframes thSpin { to { transform: rotate(360deg); } }
+
+/* Growth: weekly follower gains, likes and views */
+.th-social-top { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.th-gain { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: normal; white-space: nowrap; }
+.th-gain.up { color: #11734B; background: rgba(17,115,75,.12); }
+.th-gain.down { color: #5F6B78; background: rgba(165,171,176,.2); }
+.th-social-extra { font-size: 13px; color: var(--ink2); }

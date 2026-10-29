@@ -222,3 +222,19 @@ create table if not exists public.sms_replies (
 create index if not exists sms_replies_received_idx on public.sms_replies (received_at desc);
 alter table public.sms_replies enable row level security;  -- server-only
 grant all on public.sms_replies to service_role;
+
+-- ---------------------------------------------------------------------------------------------
+-- One row per platform per day (followers, likes, views) so Growth & Social can show "+N this week".
+-- Written automatically whenever the hub loads social numbers; no setup beyond creating the table.
+-- ---------------------------------------------------------------------------------------------
+create table if not exists public.growth_daily (
+  platform text not null,
+  day date not null,
+  followers integer,
+  likes bigint,
+  views bigint,
+  updated_at timestamptz not null default now(),
+  primary key (platform, day)
+);
+alter table public.growth_daily enable row level security;  -- server-only
+grant all on public.growth_daily to service_role;

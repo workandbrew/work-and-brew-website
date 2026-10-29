@@ -99,7 +99,26 @@ export async function instagram() {
   const token = await instagramToken();
   if (!token) return { connected: false };
   const d = await getJSON(`https://graph.instagram.com/v21.0/me?fields=followers_count,media_count,username&access_token=${encodeURIComponent(token)}`);
-  return { connected: true, followers: d.followers_count ?? 0, posts: d.media_count ?? 0, handle: d.username ? `@${d.username}` : null };
+  const [likes, views30] = await Promise.all([instagramLikes(token).catch(() => null), instagramViews30(token).catch(() => null)]);
+  return { connected: true, followers: d.followers_count ?? 0, posts: d.media_count ?? 0, likes, views: views30, viewsWindow: views30 == null ? null : "30d", handle: d.username ? `@${d.username}` : null };
+}
+
+// Total likes across posts (Instagram has no account-wide like count). Up to 500 posts.
+async function instagramLikes(token) {
+  let url = `https://graph.instagram.com/v21.0/me/media?fields=like_count&limit=100&access_token=${encodeURIComponent(token)}`, total = 0;
+  for (let page = 0; url && page < 5; page++) {
+    const d = await getJSON(url);
+    for (const m of d.data || []) total += Number(m.like_count || 0);
+    url = d.paging?.next || null;
+  }
+  return total;
+}
+// Views in the last 30 days (Instagram only reports views over a window, and only with insights access)
+async function instagramViews30(token) {
+  const until = Math.floor(Date.now() / 1000), since = until - 30 * 86400;
+  const d = await getJSON(`https://graph.instagram.com/v21.0/me/insights?metric=views&period=day&metric_type=total_value&since=${since}&until=${until}&access_token=${encodeURIComponent(token)}`);
+  const v = d.data?.[0]?.total_value?.value;
+  return v == null ? null : Number(v);
 }
 
 // Long-lived Instagram tokens last 60 days; refreshing extends them another 60. Run by /api/cron.
@@ -119,7 +138,26 @@ export async function youtube() {
   const d = await getJSON(`https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=${encodeURIComponent(channel)}&key=${encodeURIComponent(key)}`);
   const s = d.items?.[0]?.statistics;
   if (!s) throw new Error("Channel not found. Check YOUTUBE_CHANNEL_ID.");
-  return { connected: true, followers: Number(s.subscriberCount || 0), views: Number(s.viewCount || 0), posts: Number(s.videoCount || 0), handle: d.items[0].snippet?.customUrl || null };
+  const likes = await youtubeLikes(key, channel).catch(() => null);
+  return { connected: true, followers: Number(s.subscriberCount || 0), views: Number(s.viewCount || 0), likes, posts: Number(s.videoCount || 0), handle: d.items[0].snippet?.customUrl || null };
+}
+
+// Total likes across the channel's uploads (YouTube only reports likes per video). Up to 500 videos.
+async function youtubeLikes(key, channel) {
+  const k = encodeURIComponent(key);
+  const uploads = "UU" + channel.slice(2); // a channel's uploads playlist id
+  let pageToken = "", total = 0;
+  for (let page = 0; page < 10; page++) {
+    const pl = await getJSON(`https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&playlistId=${uploads}&key=${k}${pageToken ? `&pageToken=${pageToken}` : ""}`);
+    const ids = (pl.items || []).map((i) => i.contentDetails?.videoId).filter(Boolean);
+    if (ids.length) {
+      const v = await getJSON(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids.join(",")}&key=${k}`);
+      for (const it of v.items || []) total += Number(it.statistics?.likeCount || 0);
+    }
+    if (!pl.nextPageToken) break;
+    pageToken = pl.nextPageToken;
+  }
+  return total;
 }
 
 // TikTok: a department head clicks "Connect TikTok" once (see /api/connect). TikTok hands back a
@@ -148,7 +186,9 @@ export const tiktokReady = () => !!(env("TIKTOK_CLIENT_KEY") && env("TIKTOK_CLIE
 // Where "Connect TikTok" sends the browser. `state` is checked when TikTok sends the person back.
 export function tiktokAuthUrl(state) {
   return "https://www.tiktok.com/v2/auth/authorize/?" + new URLSearchParams({
-    client_key: env("TIKTOK_CLIENT_KEY"), scope: "user.info.basic,user.info.stats", response_type: "code",
+    // Add video.list in the TikTok developer app and set TIKTOK_SCOPES=user.info.basic,user.info.stats,video.list
+    // in Vercel (then reconnect) to get total views.
+    client_key: env("TIKTOK_CLIENT_KEY"), scope: env("TIKTOK_SCOPES") || "user.info.basic,user.info.stats", response_type: "code",
     redirect_uri: TIKTOK_REDIRECT, state,
   });
 }
@@ -169,7 +209,23 @@ export async function tiktok() {
     headers: { authorization: `Bearer ${tok.access_token}` },
   });
   const u = d.data?.user || {};
-  return { connected: true, followers: u.follower_count ?? 0, likes: u.likes_count ?? 0, posts: u.video_count ?? 0, handle: u.display_name || null };
+  const views = await tiktokViews(tok.access_token).catch(() => null); // needs the video.list scope
+  return { connected: true, followers: u.follower_count ?? 0, likes: u.likes_count ?? 0, views, posts: u.video_count ?? 0, handle: u.display_name || null };
+}
+
+async function tiktokViews(accessToken) {
+  let cursor = 0, total = 0;
+  for (let page = 0; page < 10; page++) {
+    const d = await getJSON("https://open.tiktokapis.com/v2/video/list/?fields=view_count", {
+      method: "POST", headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ max_count: 20, ...(cursor ? { cursor } : {}) }),
+    });
+    if (d.error && d.error.code && d.error.code !== "ok") throw new Error(d.error.message || d.error.code);
+    for (const v of d.data?.videos || []) total += Number(v.view_count || 0);
+    if (!d.data?.has_more) break;
+    cursor = d.data.cursor;
+  }
+  return total;
 }
 
 // ---- Manual numbers (Lemon8, or any platform before it's connected) ----
@@ -211,5 +267,34 @@ export async function growthSnapshot() {
     const ageDays = (Date.now() - new Date(`${rows[0].recorded_on}T12:00:00Z`).getTime()) / 864e5;
     social[p].manual = { followers: rows[0].followers, previous: rows[1]?.followers ?? null, on: rows[0].recorded_on, by: rows[0].recorded_by, fresh: ageDays <= 7 };
   }
-  return { website: ga, email, social, manualReady: !!manual };
+  const week = await recordAndCompare(social).catch(() => null);
+  if (week) for (const p of PLATFORMS) if (social[p] && week[p] != null) social[p].weekGain = week[p];
+  return { website: ga, email, social, manualReady: !!manual, followersWeekGain: week ? Object.values(week).reduce((n, v) => n + (v || 0), 0) : null };
+}
+
+// Save today's numbers (one row per platform per day), then compare with about a week ago.
+async function recordAndCompare(social) {
+  const day = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  const now = {};
+  for (const p of PLATFORMS) {
+    const s = social[p];
+    const followers = s?.connected && !s.error ? s.followers : s?.manual?.followers;
+    if (followers == null) continue;
+    now[p] = followers;
+  }
+  const rows = Object.entries(now).map(([platform, followers]) => ({
+    platform, day, followers, likes: social[platform]?.likes ?? null, views: social[platform]?.views ?? null, updated_at: new Date().toISOString(),
+  }));
+  if (rows.length) {
+    const { error } = await db().from("growth_daily").upsert(rows, { onConflict: "platform,day" });
+    if (error) return null; // table not created yet
+  }
+  const weekAgo = new Date(Date.now() - 7 * 864e5).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  const { data } = await db().from("growth_daily").select("platform, day, followers").gte("day", weekAgo).lt("day", day).order("day");
+  const out = {};
+  for (const p of Object.keys(now)) {
+    const first = (data || []).find((r) => r.platform === p && r.followers != null); // oldest in the last 7 days
+    out[p] = first ? now[p] - first.followers : null;
+  }
+  return out;
 }

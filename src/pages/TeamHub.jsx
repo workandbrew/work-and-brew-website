@@ -957,19 +957,27 @@ function ConnectTikTok({ notify }) {
   );
 }
 
+const gainChip = (n, label = "this week") => (n ? <span className={`th-gain ${n > 0 ? "up" : "down"}`} title={`${n > 0 ? "+" : ""}${n} ${label}`}>{n > 0 ? "+" : ""}{n.toLocaleString()} {label}</span> : null);
+
 function SocialCard({ meta, src, manualReady, onChange, notify }) {
   const live = src?.connected && !src.error;
   const manual = src?.manual;
   const value = live ? src.followers : manual?.followers;
   const fresh = !!manual?.fresh; // hand-entered numbers count as fresh for a week
+  const gain = src?.weekGain ?? (manual && manual.previous != null ? manual.followers - manual.previous : null);
+  const extra = live ? [
+    src.likes != null && `${Number(src.likes).toLocaleString()} likes`,
+    src.views != null && `${Number(src.views).toLocaleString()} views${src.viewsWindow === "30d" ? " (30 days)" : ""}`,
+    src.posts != null && `${Number(src.posts).toLocaleString()} ${meta.key === "youtube" || meta.key === "tiktok" ? "videos" : "posts"}`,
+  ].filter(Boolean) : [];
   return (
     <Card title={meta.label} sub={live ? `Live${src.handle ? ` · ${src.handle}` : ""}` : manual ? `Updated by hand · ${manual.on}` : "Not connected yet"} className="th-half"
       right={live ? <span className="th-tag g">Live</span> : manual ? <span className={`th-tag ${fresh ? "g" : "b"}`}>{fresh ? "Up to date" : "Update due"}</span> : null}>
       {value != null ? (
         <div className="th-social">
-          <div className="th-stat-v">{Number(value).toLocaleString()}</div>
-          <div className="th-stat-c">{meta.unit}{live && src.posts != null ? ` · ${src.posts.toLocaleString()} posts` : ""}{live && src.views ? ` · ${src.views.toLocaleString()} views` : ""}</div>
-          {!live && manual?.previous != null && <Delta now={manual.followers} before={manual.previous} label="vs. last update" />}
+          <div className="th-social-top"><div className="th-stat-v">{Number(value).toLocaleString()}</div>{gainChip(gain, live ? "this week" : "since last update")}</div>
+          <div className="th-stat-c">{meta.unit}</div>
+          {extra.length > 0 && <div className="th-social-extra">{extra.join(" · ")}</div>}
         </div>
       ) : src?.error ? <p className="th-note bad">Couldn't load: {src.error}</p>
         : <NotConnected icon={meta.icon} source={meta.label} what={`${meta.unit} and growth`} setup={meta.setup} />}
@@ -1004,7 +1012,7 @@ function Growth({ data, reload, notify }) {
       <div className="th-row th-stats">
         <Stat label="Website visitors · 30D" value={web.connected && !web.error ? web.visitors30.toLocaleString() : "—"} foot={web.connected && !web.error ? <Delta now={web.visitors30} before={web.prior30} /> : "Connect Google Analytics"} />
         <Stat label="Email subscribers" value={email.connected && !email.error ? email.subscribers.toLocaleString() : "—"} foot={email.connected && !email.error ? (email.new30 != null ? `+${email.new30} in 30 days` : "Brevo") : "Connect Brevo"} />
-        <Stat label="Social followers" value={followers ? followers.toLocaleString() : "—"} foot="Instagram, TikTok, YouTube, Lemon8" />
+        <Stat label="Social followers" value={followers ? <span className="th-social-top">{followers.toLocaleString()}{gainChip(g.followersWeekGain)}</span> : "—"} foot="Instagram, TikTok, YouTube, Lemon8" />
       </div>
 
       <div className="th-row">
