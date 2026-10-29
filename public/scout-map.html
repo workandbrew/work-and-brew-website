@@ -2232,6 +2232,7 @@ function applyLoadedCafes(data, src) {
           newCafe: !!row.new_cafe,
         };
       });
+      wbRepaintPins();
       applyFilters();
       updateStats();
       renderPanel();
@@ -2243,6 +2244,29 @@ function applyLoadedCafes(data, src) {
     }
   }
 }
+// After loading a fresh café list: repaint pins whose color/status changed, move pins whose address moved,
+// refresh an open card, and drop pins for cafés that are gone. Without this, existing pins kept their old look.
+function wbRepaintPins() {
+  const live = new Set(state.cafes.map(c => String(c.id)));
+  Object.keys(markers).forEach(id => {
+    if (!live.has(String(id))) { try { markerLayer.removeLayer(markers[id]); } catch (e) {} delete markers[id]; }
+  });
+  state.cafes.forEach(c => {
+    const m = markers[c.id];
+    if (!m) return;
+    const ll = m.getLatLng();
+    if (Number.isFinite(c.lat) && Number.isFinite(c.lng) && (ll.lat !== c.lat || ll.lng !== c.lng)) m.setLatLng([c.lat, c.lng]);
+    const color = getMarkerColor(c), key = color + '|' + c.status;
+    if (m._wbKey !== key) {
+      const glow = m._icon && m._icon.classList.contains('marker-nearby');
+      m.setIcon(createMarkerIcon(color, c.status));
+      if (glow && m._icon) m._icon.classList.add('marker-nearby');
+      m._wbKey = key;
+    }
+    if (m.isPopupOpen && m.isPopupOpen()) m.setPopupContent(buildPopupContent(c));
+  });
+}
+
 function cafeSyncKey(c) { return JSON.stringify([c.status || 'Ready To Be Assigned', c.notes || '', c.assignedToName || '']); }
 // Live-ish: once a minute, while the tab is open and nothing is being edited, ask the sheet whether anything
 // changed (a tiny fingerprint) and reload only then. Keeps every map in the team in step with the spreadsheet.
@@ -3708,13 +3732,16 @@ function refreshMarker(cafe) {
 function createMarker(cafe) {
   const color = getMarkerColor(cafe);
   const m = L.marker([cafe.lat, cafe.lng], {
-    icon: createMarkerIcon(color)
+    icon: createMarkerIcon(color, cafe.status)
   });
-  // Bind empty popup: content is built lazily on first open (faster marker creation)
+  m._wbKey = color + '|' + cafe.status;
+  // Bind empty popup: content is built lazily on first open (faster marker creation).
+  // Always from the latest copy of the café: a background reload replaces the café objects.
   m.bindPopup('', {maxWidth: 280, minWidth: 240});
   m.on('popupopen', () => {
-    m.setPopupContent(buildPopupContent(cafe));
-    if (cafe.status === 'In Review' && typeof wfGetSubmission === 'function' && wfApiReady()) wfGetSubmission(cafe).catch(() => {});
+    const cur = state.cafes.find(c => String(c.id) === String(cafe.id)) || cafe;
+    m.setPopupContent(buildPopupContent(cur));
+    if (cur.status === 'In Review' && typeof wfGetSubmission === 'function' && wfApiReady()) wfGetSubmission(cur).catch(() => {});
   });
   markers[cafe.id] = m;
   return m;
