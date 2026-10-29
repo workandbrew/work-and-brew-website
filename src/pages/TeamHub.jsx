@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, NavLink, useParams, useLocation, Navigate } from "react-router-dom";
+import { Link, NavLink, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import Navbar from "../components/Navbar";
@@ -7,7 +7,7 @@ import "./TeamHub.css";
 import { DailyBars, RankBars, DeliveryMeter, NotConnected, Delta, PipelineBar } from "./TeamHubCharts";
 
 // Private Team Hub for department heads: one place to run Work & Brew.
-// Five pages (Overview, Text Message System, Cafés, Analytics, Events) share one data load.
+// Six pages (Overview, Text Message System, Cafés, Analytics, Growth & Social, Events) share one data load.
 // Access is checked on the server (/api/hub) against the hub_admins table; this page only shows
 // what the server returns.
 
@@ -36,6 +36,7 @@ const PAGES = [
   { key: "messages", label: "Text Message System", short: "Texts", sub: "Text one person, a group or the whole team. Every text is logged and every lead can see it." },
   { key: "cafes", label: "Cafés", short: "Cafés", own: true },
   { key: "analytics", label: "Texting analytics", short: "Analytics", own: true },
+  { key: "growth", label: "Growth & Social", short: "Growth", own: true },
   { key: "events", label: "Events", short: "Events", own: true },
 ];
 const pathFor = (key) => (key === "overview" ? "/team" : `/team/${key}`);
@@ -491,7 +492,7 @@ function groupLabel(v, data) {
   return data.team.find((p) => p.id === v)?.name || v;
 }
 
-const SCOUT_TABS = ["send", "schedules", "templates", "log", "directory", "growth"];
+const SCOUT_TABS = ["send", "schedules", "templates", "log", "directory", "signups"];
 
 // Who has cafés on their plate right now (from the café database), with the quiet ones called out.
 function WhosScouting({ data }) {
@@ -526,8 +527,8 @@ function Messages({ data, reload, notify }) {
   const params = new URLSearchParams(search);
   const [tab, setTab] = useState(SCOUT_TABS.includes(params.get("tab")) ? params.get("tab") : "send");
   const active = (data.schedules || []).filter((x) => x.active).length;
-  const counts = { send: null, schedules: data.schedules?.length || 0, templates: data.templates.length, log: null, directory: data.team.length, growth: data.signups?.pending || 0 };
-  const labels = { send: "Send a text", schedules: "Schedules", templates: "Templates", log: "Log", directory: "Directory", growth: "Growth & Social" };
+  const counts = { send: null, schedules: data.schedules?.length || 0, templates: data.templates.length, log: null, directory: data.team.length, signups: data.signups?.pending || 0 };
+  const labels = { send: "Send a text", schedules: "Schedules", templates: "Templates", log: "Log", directory: "Directory", signups: "Sign-ups" };
   return (
     <>
       <nav className="th-subnav" aria-label="Text Message System sections">
@@ -562,7 +563,15 @@ function Messages({ data, reload, notify }) {
       {tab === "templates" && <Templates data={data} onChange={reload} notify={notify} editId={params.get("edit")} />}
       {tab === "log" && <Log log={data.log} />}
       {tab === "directory" && <Directory team={data.team} />}
-      {tab === "growth" && <Growth data={data} reload={reload} notify={notify} />}
+      {tab === "signups" && (
+        <>
+          <div className="th-row th-stats">
+            <Stat label="Team sign-ups · 30D" value={data.signups?.last30 ?? "—"} foot={data.signups ? `${data.signups.approved30} approved` : "Not set up yet"} />
+            <Stat label="Waiting for approval" value={data.signups?.pending ?? "—"} foot="Approving sends the welcome texts" />
+          </div>
+          <Signups data={data} onChange={reload} notify={notify} />
+        </>
+      )}
     </>
   );
 }
@@ -836,15 +845,13 @@ function Growth({ data, reload, notify }) {
   }, 0);
   return (
     <>
-      <div className="th-section-h"><h2>Who's finding Work &amp; Brew.</h2><p>Team sign-ups, website, email and social reach across Instagram, TikTok, YouTube and Lemon8 · last 30 days</p></div>
+      <Headline title="Who's finding Work & Brew." sub="Website, email and social reach across Instagram, TikTok, YouTube and Lemon8 · last 30 days"
+        action={<Link to="/team/messages?tab=signups" className="th-btn ghost">Team sign-ups{s?.pending ? ` · ${s.pending} waiting` : ""}</Link>} />
       <div className="th-row th-stats">
-        <Stat label="Team sign-ups · 30D" value={s?.last30 ?? "—"} foot={s ? `${s.pending} waiting for approval` : "Not set up yet"} />
         <Stat label="Website visitors · 30D" value={web.connected && !web.error ? web.visitors30.toLocaleString() : "—"} foot={web.connected && !web.error ? <Delta now={web.visitors30} before={web.prior30} /> : "Connect Google Analytics"} />
         <Stat label="Email subscribers" value={email.connected && !email.error ? email.subscribers.toLocaleString() : "—"} foot={email.connected && !email.error ? (email.new30 != null ? `+${email.new30} in 30 days` : "Brevo") : "Connect Brevo"} />
         <Stat label="Social followers" value={followers ? followers.toLocaleString() : "—"} foot="Instagram, TikTok, YouTube, Lemon8" />
       </div>
-
-      <Signups data={data} onChange={reload} notify={notify} />
 
       <div className="th-row">
         <Card title="Website visitors" sub="Google Analytics · last 30 days" className="th-grow">
@@ -1079,15 +1086,13 @@ export default function TeamHub() {
     return () => { alive = false; };
   }, [user]);
 
-  if (section === "growth") return <Navigate to="/team/messages?tab=growth" replace />;
-
   let body;
   if (!user) {
     body = <div className="th-card th-center"><p>The Team Hub is for Work &amp; Brew department heads.</p><Link className="th-btn" to={`/login?next=${pathFor(page.key)}`}>Log in</Link></div>;
   } else if (error) body = <div className="th-card th-center"><p>{error}</p></div>;
   else if (!data) body = <p className="th-empty">Loading…</p>;
   else {
-    const View = { overview: Overview, messages: Messages, cafes: Cafes, analytics: Analytics, events: Events }[page.key];
+    const View = { overview: Overview, messages: Messages, cafes: Cafes, analytics: Analytics, growth: Growth, events: Events }[page.key];
     body = <View data={data} reload={load} notify={notify} />;
   }
 
