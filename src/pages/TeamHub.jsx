@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, NavLink, useParams, useLocation } from "react-router-dom";
+import { Link, NavLink, useParams, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import Navbar from "../components/Navbar";
@@ -7,7 +7,7 @@ import "./TeamHub.css";
 import { DailyBars, RankBars, DeliveryMeter, NotConnected, Delta, PipelineBar } from "./TeamHubCharts";
 
 // Private Team Hub for department heads: one place to run Work & Brew.
-// Six pages (Overview, Text Message System, Cafés, Analytics, Growth & Social, Events) share one data load.
+// Five pages (Overview, Text Message System, Cafés, Growth & Social, Events) share one data load.
 // Access is checked on the server (/api/hub) against the hub_admins table; this page only shows
 // what the server returns.
 
@@ -35,7 +35,6 @@ const PAGES = [
   { key: "overview", label: "Overview", short: "Home", sub: null },
   { key: "messages", label: "Text Message System", short: "Texts", sub: "Text one person, a group or the whole team. Every text is logged and every lead can see it." },
   { key: "cafes", label: "Cafés", short: "Cafés", own: true },
-  { key: "analytics", label: "Texting analytics", short: "Analytics", own: true },
   { key: "growth", label: "Growth & Social", short: "Growth", own: true },
   { key: "events", label: "Events", short: "Events", own: true },
 ];
@@ -441,7 +440,7 @@ function Log({ log, compact, onMore }) {
 
 function Directory({ team }) {
   return (
-    <Card title="Team directory" sub="Phone numbers stay hidden: only the last 4 digits show" right={<span className="th-tag n">{team.length} members</span>}>
+    <Card title="Contacts" sub="Everyone the system can text · phone numbers stay hidden, only the last 4 digits show" right={<span className="th-tag n">{team.length} members</span>}>
       <div className="th-table-wrap">
         <table className="th-table">
           <thead><tr><th>Name</th><th>Role</th><th>Chapters</th><th>Phone</th><th>Status</th></tr></thead>
@@ -492,7 +491,7 @@ function groupLabel(v, data) {
   return data.team.find((p) => p.id === v)?.name || v;
 }
 
-const SCOUT_TABS = ["send", "schedules", "templates", "log", "directory", "signups"];
+const SCOUT_TABS = ["overview", "templates", "directory", "send", "schedules", "log", "signups"];
 
 // Who has cafés on their plate right now (from the café database), with the quiet ones called out.
 function WhosScouting({ data }) {
@@ -525,10 +524,10 @@ function WhosScouting({ data }) {
 function Messages({ data, reload, notify }) {
   const { search } = useLocation();
   const params = new URLSearchParams(search);
-  const [tab, setTab] = useState(SCOUT_TABS.includes(params.get("tab")) ? params.get("tab") : "send");
+  const [tab, setTab] = useState(SCOUT_TABS.includes(params.get("tab")) ? params.get("tab") : "overview");
   const active = (data.schedules || []).filter((x) => x.active).length;
-  const counts = { send: null, schedules: data.schedules?.length || 0, templates: data.templates.length, log: null, directory: data.team.length, signups: data.signups?.pending || 0 };
-  const labels = { send: "Send a text", schedules: "Schedules", templates: "Templates", log: "Log", directory: "Directory", signups: "Sign-ups" };
+  const counts = { overview: null, send: null, schedules: data.schedules?.length || 0, templates: data.templates.length, log: null, directory: data.team.length, signups: data.signups?.pending || 0 };
+  const labels = { overview: "Overview", templates: "Templates", directory: "Contacts", send: "Send a text", schedules: "Schedules", log: "Log", signups: "Sign-ups" };
   return (
     <>
       <nav className="th-subnav" aria-label="Text Message System sections">
@@ -559,6 +558,7 @@ function Messages({ data, reload, notify }) {
           </div>
         </div>
       )}
+      {tab === "overview" && <Analytics data={data} />}
       {tab === "schedules" && <Schedules data={data} onChange={reload} />}
       {tab === "templates" && <Templates data={data} onChange={reload} notify={notify} editId={params.get("edit")} />}
       {tab === "log" && <Log log={data.log} />}
@@ -709,8 +709,10 @@ function Analytics({ data }) {
   const label = `last ${days} days`;
   return (
     <>
-      <Headline title="How the team is using texting." sub={`${label[0].toUpperCase()}${label.slice(1)} · every sender · from the shared message log`}
-        action={<div className="th-chips">{[7, 30].map((d) => <button key={d} type="button" className={`th-chip sm ${days === d ? "on" : ""}`} onClick={() => setDays(d)}>{d} days</button>)}</div>} />
+      <div className="th-section-h th-section-row">
+        <div><h2>How the team is using texting.</h2><p>{label[0].toUpperCase()}{label.slice(1)} · every sender · from the shared message log</p></div>
+        <div className="th-chips">{[7, 30].map((d) => <button key={d} type="button" className={`th-chip sm ${days === d ? "on" : ""}`} onClick={() => setDays(d)}>{d} days</button>)}</div>
+      </div>
       <div className="th-row th-stats">
         <Stat label="Texts sent" value={sent} foot={<Delta now={sent} before={prev} label={`vs. previous ${days} days`} />} />
         <Stat label="Delivered" value={`${sent} of ${sent + failed}`} foot={`${failed} failed`} />
@@ -1086,13 +1088,15 @@ export default function TeamHub() {
     return () => { alive = false; };
   }, [user]);
 
+  if (section === "analytics") return <Navigate to="/team/messages?tab=overview" replace />;
+
   let body;
   if (!user) {
     body = <div className="th-card th-center"><p>The Team Hub is for Work &amp; Brew department heads.</p><Link className="th-btn" to={`/login?next=${pathFor(page.key)}`}>Log in</Link></div>;
   } else if (error) body = <div className="th-card th-center"><p>{error}</p></div>;
   else if (!data) body = <p className="th-empty">Loading…</p>;
   else {
-    const View = { overview: Overview, messages: Messages, cafes: Cafes, analytics: Analytics, growth: Growth, events: Events }[page.key];
+    const View = { overview: Overview, messages: Messages, cafes: Cafes, growth: Growth, events: Events }[page.key];
     body = <View data={data} reload={load} notify={notify} />;
   }
 
