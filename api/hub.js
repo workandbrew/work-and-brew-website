@@ -287,6 +287,15 @@ export default async function handler(req, res) {
       const { error } = await db().from("events").delete().eq("id", String(id || ""));
       return reply(error ? { status: 500, error: error.message } : {});
     }
+    if (action === "template-edit") {
+      const n = String(name || "").trim().slice(0, 60);
+      const b = String(body || "").trim();
+      if (!n || !b) return res.status(400).json({ ok: false, error: "A template needs a name and a message." });
+      if (b.length > MAX_MESSAGE_CHARS) return res.status(400).json({ ok: false, error: `Keep it under ${MAX_MESSAGE_CHARS} characters.` });
+      const { error } = await db().from("sms_templates").update({ name: n, body: b }).eq("id", String(id || ""));
+      if (error) return res.status(500).json({ ok: false, error: error.message });
+      return res.status(200).json({ ok: true });
+    }
     if (action === "template-delete") {
       const { error } = await db().from("sms_templates").delete().eq("id", String(id || ""));
       if (error) return res.status(500).json({ ok: false, error: error.message });

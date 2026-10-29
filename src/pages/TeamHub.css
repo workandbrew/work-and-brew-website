@@ -237,3 +237,8 @@
 .th-whos-quiet { font-size: 13px; color: var(--ink2); margin: 10px 0 0; }
 @media (max-width: 760px) { .th-subnav { margin: -4px -16px 0; padding: 0 16px; } }
 .th-acts li .th-tag { align-self: center; margin-left: auto; }
+.th-tpl-acts { display: flex; gap: 12px; flex-shrink: 0; }
+.th-tpl-edit { display: flex; flex-direction: column; gap: 8px; }
+.th-templates li.editing { border-color: var(--navy); }
+.th-tlist li { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.th-tlist li a.th-x { text-decoration: none; }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, NavLink, useParams } from "react-router-dom";
+import { Link, NavLink, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import Navbar from "../components/Navbar";
@@ -110,7 +110,7 @@ function CurrentWorks({ data, reload, notify }) {
     <div className={`th-focus th-works ${open ? "" : "closed"}`}>
       <div className="th-works-h">
         <button type="button" className="th-works-toggle" onClick={toggle} aria-expanded={open}>
-          <span className="th-caps th-hero-caps">Work &amp; Brew · Leads announcements</span>
+          <span className="th-caps th-hero-caps">Team Lead Announcements &amp; Updates</span>
           <Icon name="chev" />
         </button>
         {canEdit && !editing && <button type="button" className="th-works-edit" onClick={start}>Edit</button>}
@@ -189,6 +189,16 @@ function Overview({ data, reload, notify }) {
         <Card title="Team by chapter" sub="People per NYC chapter" className="th-grow"><RankBars rows={byChapter} unit="People" share={false} suffix="people" /></Card>
         <Card title="Café statuses" sub="From the scout map" className="th-grow">
           {cafeRows.length ? <RankBars rows={cafeRows} unit="Cafés" share={false} suffix="cafés" /> : <p className="th-empty">No café updates yet.</p>}
+        </Card>
+        <Card title="Templates" sub="Ready-to-send messages" className="th-grow">
+          <ul className="th-tlist">
+            {data.templates.slice(0, 5).map((t) => (
+              <li key={t.id}><span>{t.name}</span>
+                {data.templatesSaved && <Link to={`/team/messages?tab=templates&edit=${t.id}`} className="th-x plain">Edit</Link>}
+              </li>
+            ))}
+          </ul>
+          <Link to="/team/messages?tab=templates" className="th-link">All templates →</Link>
         </Card>
         <Card title="Scheduled this week" sub="Texts that send themselves" className="th-grow">
           {data.schedules?.filter((x) => x.active).length ? (
@@ -326,18 +336,46 @@ function Compose({ data, onSent, notify }) {
   );
 }
 
-function Templates({ data, onChange }) {
+function Templates({ data, onChange, notify, editId }) {
+  const [editing, setEditing] = useState(editId || null);
+  const [form, setForm] = useState(() => { const t = data.templates.find((x) => String(x.id) === String(editId)); return t ? { name: t.name, body: t.body } : { name: "", body: "" }; });
+  const [busy, setBusy] = useState(false);
   const remove = async (id) => { await hubFetch("POST", { action: "template-delete", id }); onChange(); };
+  const start = (t) => { setEditing(t.id); setForm({ name: t.name, body: t.body }); };
+  const save = async () => {
+    setBusy(true);
+    const r = await hubFetch("POST", { action: "template-edit", id: editing, name: form.name, body: form.body });
+    setBusy(false);
+    if (r.ok) { setEditing(null); notify?.({ text: "Template updated." }); onChange(); }
+    else notify?.({ bad: true, text: r.error || "Couldn't save the template." });
+  };
   return (
-    <Card title="Templates" sub={data.templatesSaved ? "Saved by the team" : "Starter templates · save your own from Send a text"}>
+    <Card title="Templates" sub={data.templatesSaved ? "Saved by the team · tap Edit to change one" : "Starter templates · save your own from Send a text"}>
       <ul className="th-templates">
         {data.templates.map((t) => (
-          <li key={t.id}>
-            <div className="th-tpl-top"><b>{t.name}</b>{data.templatesSaved && <button className="th-x" onClick={() => remove(t.id)} aria-label={`Delete ${t.name}`}>Delete</button>}</div>
-            <div className="th-tpl-body">{t.body}</div>
+          <li key={t.id} className={editing === t.id ? "editing" : ""}>
+            {editing === t.id ? (
+              <div className="th-tpl-edit">
+                <input className="th-input" value={form.name} maxLength={60} placeholder="Template name" onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <textarea className="th-text" rows={4} value={form.body} maxLength={MAX_CHARS} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+                <div className="th-hint">{form.body.length}/{MAX_CHARS} · “Reply STOP to opt out.” is always added when it sends</div>
+                <div className="th-btns">
+                  <button className="th-btn" disabled={busy || !form.name.trim() || !form.body.trim()} onClick={save}>{busy ? "Saving…" : "Save"}</button>
+                  <button className="th-btn ghost" disabled={busy} onClick={() => setEditing(null)}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="th-tpl-top"><b>{t.name}</b>
+                  {data.templatesSaved && <span className="th-tpl-acts"><button className="th-x plain" onClick={() => start(t)}>Edit</button><button className="th-x" onClick={() => remove(t.id)} aria-label={`Delete ${t.name}`}>Delete</button></span>}
+                </div>
+                <div className="th-tpl-body">{t.body}</div>
+              </>
+            )}
           </li>
         ))}
       </ul>
+      {!data.templatesSaved && <p className="th-hint">Starter templates can't be edited. Save a template from Send a text and it becomes yours to edit.</p>}
     </Card>
   );
 }
@@ -475,7 +513,9 @@ function WhosScouting({ data }) {
 }
 
 function Messages({ data, reload, notify }) {
-  const [tab, setTab] = useState("send");
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  const [tab, setTab] = useState(SCOUT_TABS.includes(params.get("tab")) ? params.get("tab") : "send");
   const active = (data.schedules || []).filter((x) => x.active).length;
   const counts = { send: null, schedules: data.schedules?.length || 0, templates: data.templates.length, log: null, directory: data.team.length };
   const labels = { send: "Send a text", schedules: "Schedules", templates: "Templates", log: "Log", directory: "Directory" };
@@ -510,7 +550,7 @@ function Messages({ data, reload, notify }) {
         </div>
       )}
       {tab === "schedules" && <Schedules data={data} onChange={reload} />}
-      {tab === "templates" && <Templates data={data} onChange={reload} />}
+      {tab === "templates" && <Templates data={data} onChange={reload} notify={notify} editId={params.get("edit")} />}
       {tab === "log" && <Log log={data.log} />}
       {tab === "directory" && <Directory team={data.team} />}
     </>
