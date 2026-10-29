@@ -130,7 +130,7 @@ function CurrentWorks({ data, reload, notify }) {
         <div key={w.department} className="th-works-row">
           <b>{w.department}</b>
           {editing
-            ? <textarea className="th-works-input" rows={2} maxLength={600} value={draft[w.department] ?? ""} placeholder="What's this team on right now?" onChange={(e) => setDraft({ ...draft, [w.department]: e.target.value })} />
+            ? <textarea className="th-works-input" rows={4} maxLength={600} value={draft[w.department] ?? ""} placeholder="What's this team on right now?" onChange={(e) => setDraft({ ...draft, [w.department]: e.target.value })} />
             : <span>{w.body || <i>Nothing posted yet.</i>}</span>}
           {!editing && w.updatedAt && <small className="th-works-stamp">Updated {when(w.updatedAt)}{w.updatedBy ? ` · ${w.updatedBy.split(" ")[0]}` : ""}</small>}
         </div>
