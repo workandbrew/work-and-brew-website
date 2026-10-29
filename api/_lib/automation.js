@@ -96,21 +96,26 @@ export async function runWelcomeSeries(now = Date.now()) {
 
 export async function listSchedules() {
   const { data, error } = await db().from("sms_schedules")
-    .select("id, name, body, recipients, weekday, active, last_sent_on, created_by").order("weekday");
+    .select("*").order("weekday"); // "*" so this keeps working before and after the ends_on column exists
   if (error) throw new Error(error.message);
   return data || [];
 }
 
-export async function saveSchedule({ name, body, recipients, weekday, createdBy }) {
+export async function saveSchedule({ name, body, recipients, weekday, createdBy, endsOn }) {
   const day = Number(weekday);
+  const until = endsOn ? String(endsOn).slice(0, 10) : null;
+  if (until && !/^\d{4}-\d{2}-\d{2}$/.test(until)) return { status: 400, error: "That end date doesn't look right." };
+  if (until && until < nyToday().date) return { status: 400, error: "Pick an end date that's today or later." };
   if (!String(body || "").trim()) return { status: 400, error: "The scheduled text needs a message." };
   if (!Array.isArray(recipients) || !recipients.length) return { status: 400, error: "Pick who gets it." };
   if (!(day >= 0 && day <= 6)) return { status: 400, error: "Pick a day of the week." };
   const row = {
     name: String(name || "").trim().slice(0, 60) || `Every ${WEEKDAYS[day]}`,
     body: String(body).trim(), recipients: recipients.map(String), weekday: day, active: true, created_by: createdBy,
+    ...(until ? { ends_on: until } : {}),
   };
   const { error } = await db().from("sms_schedules").insert(row);
+  if (error && until && /ends_on/.test(error.message)) return { status: 500, error: "End dates need one database update first: run the ends_on line at the end of supabase/sms.sql in Supabase." };
   if (error) return { status: 500, error: `Couldn't save (${error.message}). Has supabase/sms.sql been run?` };
   return { status: 200 };
 }
@@ -127,6 +132,8 @@ export async function runSchedules(now = new Date()) {
   const { date, weekday } = nyToday(now);
   const out = [];
   for (const s of await listSchedules()) {
+    // Past its end date: pause it so it stops showing as active, and send nothing
+    if (s.active && s.ends_on && date > s.ends_on) { await db().from("sms_schedules").update({ active: false }).eq("id", s.id); continue; }
     if (!s.active || s.weekday !== weekday || s.last_sent_on === date) continue;
     // Claim today's run first so a retry can never send the same text twice.
     const { data: claimed } = await db().from("sms_schedules")

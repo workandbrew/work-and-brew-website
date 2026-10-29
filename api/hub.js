@@ -303,7 +303,7 @@ export default async function handler(req, res) {
     const reply = (r) => res.status(r.status || 200).json(r.error ? { ok: false, error: r.error } : { ok: true, ...r });
     const by = me.name || me.email;
     const extra = readBody(req);
-    if (action === "schedule-save") return reply(await saveSchedule({ name, body, recipients: to, weekday: extra.weekday, createdBy: by }));
+    if (action === "schedule-save") return reply(await saveSchedule({ name, body, recipients: to, weekday: extra.weekday, createdBy: by, endsOn: extra.endsOn }));
     if (action === "schedule-toggle") { await updateSchedule(String(id), { active: !!extra.active }); return reply({}); }
     if (action === "schedule-delete") { await updateSchedule(String(id), null); return reply({}); }
     if (action === "signup-approve") {

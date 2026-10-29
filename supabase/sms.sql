@@ -201,3 +201,6 @@ create table if not exists public.current_works (
 );
 alter table public.current_works enable row level security;  -- server-only
 grant all on public.current_works to service_role;
+
+-- Weekly texts can stop on a date: the last day a schedule may send (New York time). Null = runs until paused.
+alter table public.sms_schedules add column if not exists ends_on date;

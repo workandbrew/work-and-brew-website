@@ -240,7 +240,7 @@ function Overview({ data, reload, notify }) {
             <ul className="th-scheds">
               {data.schedules.map((x) => (
                 <li key={x.id} className={x.active ? "" : "off"}><span className="th-sched-day">{x.weekdayName.slice(0, 3).toUpperCase()}</span>
-                  <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}{x.active ? "" : " · paused"}</small></div>
+                  <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}{untilLabel(x)}{x.active ? "" : " · paused"}</small></div>
                   <button type="button" className="th-x plain" onClick={async () => { await hubFetch("POST", { action: "schedule-toggle", id: x.id, active: !x.active }); notify({ text: `${x.name} ${x.active ? "paused" : "resumed"}.` }); reload(); }}>{x.active ? "Pause" : "Resume"}</button></li>
               ))}
             </ul>
@@ -263,6 +263,8 @@ function Compose({ data, onSent, notify }) {
   const [tplName, setTplName] = useState("");
   const [when, setWhen] = useState("now"); // "now", "once" (a date and time) or 0-6 (weekday, New York time)
   const [sendAt, setSendAt] = useState(""); // local date-time for a one-off scheduled text
+  const [endsOn, setEndsOn] = useState(""); // optional last day for a weekly text (YYYY-MM-DD)
+  const endsLabel = endsOn ? new Date(endsOn + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
   const local = (d) => { const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
   const [nowAt, setNowAt] = useState(() => Date.now()); // refreshed when "Pick a date & time" is tapped
   const minAt = local(new Date(nowAt + 16 * 60000)), maxAt = local(new Date(nowAt + 7 * 864e5 - 60000));
@@ -296,11 +298,11 @@ function Compose({ data, onSent, notify }) {
   const doSchedule = async () => {
     setBusy(true);
     // Saves the groups/chapters themselves, so new members are included each week.
-    const r = await hubFetch("POST", { action: "schedule-save", to, body: message, weekday: when, name: data.templates.find((t) => t.body === message)?.name });
+    const r = await hubFetch("POST", { action: "schedule-save", to, body: message, weekday: when, endsOn: endsOn || undefined, name: data.templates.find((t) => t.body === message)?.name });
     setBusy(false);
     if (r.ok) {
-      notify({ text: `Scheduled: goes out every ${WEEKDAYS[when]} morning.` });
-      setPreview(null); setMessage(""); setTo([]); setWhen("now");
+      notify({ text: `Scheduled: goes out every ${WEEKDAYS[when]} morning${endsOn ? ` until ${endsLabel}` : ""}.` });
+      setPreview(null); setMessage(""); setTo([]); setWhen("now"); setEndsOn("");
       onSent();
     } else notify({ bad: true, text: r.error || "Couldn't schedule it." });
   };
@@ -345,6 +347,14 @@ function Compose({ data, onSent, notify }) {
           <button type="button" key={d} className={`th-chip ${when === d ? "on" : ""}`} onClick={() => { setWhen(d); setPreview(null); }}>Every {WEEKDAYS[d].slice(0, 3)}</button>
         ))}
       </div>
+      {typeof when === "number" && (
+        <div className="th-btns th-once">
+          <label className="th-until">Until
+            <input className="th-input" type="date" value={endsOn} min={local(new Date(nowAt)).slice(0, 10)} onChange={(e) => { setEndsOn(e.target.value); setPreview(null); }} />
+          </label>
+          {endsOn ? <button type="button" className="th-x plain" onClick={() => setEndsOn("")}>No end date</button> : <span className="th-hint">Optional. Leave empty to repeat every {WEEKDAYS[when]} until you pause it.</span>}
+        </div>
+      )}
       {when === "once" && (
         <div className="th-btns th-once">
           <input className="th-input" type="datetime-local" value={sendAt} min={minAt} max={maxAt} onChange={(e) => { setSendAt(e.target.value); setPreview(null); }} />
@@ -375,7 +385,7 @@ function Compose({ data, onSent, notify }) {
           <div className="th-btns">
             {when === "now" || when === "once"
               ? <button className="th-btn" disabled={busy} onClick={doSend}>{busy ? (when === "once" ? "Scheduling…" : "Sending…") : when === "once" ? `Schedule for ${sendAtLabel}` : `Send to ${preview.recipients.length}`}</button>
-              : <button className="th-btn" disabled={busy} onClick={doSchedule}>{busy ? "Saving…" : `Schedule every ${WEEKDAYS[when]}`}</button>}
+              : <button className="th-btn" disabled={busy} onClick={doSchedule}>{busy ? "Saving…" : `Schedule every ${WEEKDAYS[when]}${endsOn ? ` until ${endsLabel}` : ""}`}</button>}
             <button className="th-btn ghost" disabled={busy} onClick={() => setPreview(null)}>Edit</button>
           </div>
         </div>
@@ -534,7 +544,7 @@ function Schedules({ data, onChange }) {
               <span className="th-sched-day">{s.weekdayName.slice(0, 3).toUpperCase()}</span>
               <div className="th-sched-body">
                 <b>{s.name}</b>
-                <small>To {s.recipients.map((r) => groupLabel(r, data)).join(", ")}{s.last_sent_on ? ` · last sent ${s.last_sent_on}` : ""}</small>
+                <small>To {s.recipients.map((r) => groupLabel(r, data)).join(", ")}{untilLabel(s)}{s.last_sent_on ? ` · last sent ${s.last_sent_on}` : ""}</small>
               </div>
               <button className="th-x plain" onClick={() => act("schedule-toggle", s, { active: !s.active })}>{s.active ? "Pause" : "Resume"}</button>
               <button className="th-x" onClick={() => act("schedule-delete", s)} aria-label={`Delete ${s.name}`}>Delete</button>
@@ -544,6 +554,13 @@ function Schedules({ data, onChange }) {
       )}
     </Card>
   );
+}
+
+// "until Nov 30" / "ended Nov 30" for a weekly text with an end date
+function untilLabel(s) {
+  if (!s.ends_on) return "";
+  const d = new Date(s.ends_on + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return new Date(s.ends_on + "T23:59:59") < new Date() ? ` · ended ${d}` : ` · until ${d}`;
 }
 
 function groupLabel(v, data) {
@@ -609,7 +626,7 @@ function Messages({ data, reload, notify }) {
                   <ul className="th-scheds">
                     {data.schedules.slice(0, 3).map((x) => (
                       <li key={x.id} className={x.active ? "" : "off"}><span className="th-sched-day">{x.weekdayName.slice(0, 3).toUpperCase()}</span>
-                        <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}{x.last_sent_on ? ` · last sent ${x.last_sent_on}` : ""}</small></div></li>
+                        <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}{untilLabel(x)}{x.last_sent_on ? ` · last sent ${x.last_sent_on}` : ""}</small></div></li>
                     ))}
                   </ul>
                 )}
