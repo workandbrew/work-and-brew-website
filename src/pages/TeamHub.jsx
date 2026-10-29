@@ -44,12 +44,20 @@ const pathFor = (key) => (key === "overview" ? "/team" : `/team/${key}`);
 async function hubFetch(method, body) {
   const { data } = await supabase.auth.getSession();
   const token = data?.session?.access_token;
-  const r = await fetch("/api/hub", {
-    method,
-    headers: { "content-type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const json = await r.json().catch(() => ({}));
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 25000);
+  let r;
+  try {
+    r = await fetch("/api/hub", {
+      method,
+      headers: { "content-type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    return { status: 0, ok: false, error: e?.name === "AbortError" ? "The Team Hub took too long to load." : "Couldn't reach the Team Hub. Check your connection." };
+  } finally { clearTimeout(timer); }
+  const json = await r.json().catch(() => ({ ok: false, error: r.status >= 500 ? "The Team Hub server had a problem. Try again in a minute." : "Unexpected reply from the Team Hub." }));
   return { status: r.status, ...json };
 }
 
@@ -1151,7 +1159,7 @@ export default function TeamHub() {
   let body;
   if (!user) {
     body = <div className="th-card th-center"><p>The Team Hub is for Work &amp; Brew department heads.</p><Link className="th-btn" to={`/login?next=${pathFor(page.key)}`}>Log in</Link></div>;
-  } else if (error) body = <div className="th-card th-center"><p>{error}</p></div>;
+  } else if (error) body = <div className="th-card th-center"><p>{error}</p><button className="th-btn" onClick={() => { setError(null); setData(null); load(); }}>Try again</button></div>;
   else if (!data) body = <p className="th-empty">Loading…</p>;
   else {
     const View = { overview: Overview, messages: Messages, cafes: Cafes, growth: Growth, events: Events }[page.key];

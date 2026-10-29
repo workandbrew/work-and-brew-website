@@ -42,7 +42,7 @@ const SCOUT_API_URL = process.env.SCOUT_API_URL || "https://script.google.com/ma
 async function sheetCafes(token) {
   if (!token) return null;
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 7000);
+  const t = setTimeout(() => ctrl.abort(), 4000); // slow sheet: fall back to the Supabase copy instead of holding the hub
   try {
     const r = await fetch(SCOUT_API_URL, { method: "POST", headers: { "content-type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "listCafes", token }), signal: ctrl.signal, redirect: "follow" });
     const json = await r.json();

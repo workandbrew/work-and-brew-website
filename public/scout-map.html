@@ -2331,14 +2331,18 @@ async function sbIsTeamMember() {
     const { data } = await sb.auth.getSession();
     const token = data && data.session ? data.session.access_token : null;
     if (!token) return false;
-    const res = await fetch('/api/hub?access=1', { headers: { Authorization: 'Bearer ' + token } });
+    const ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 12000);
+    const res = await fetch('/api/hub?access=1', { headers: { Authorization: 'Bearer ' + token }, signal: ctrl.signal });
+    if (!res.ok && res.status >= 500) return 'unknown';
     const json = await res.json();
     return !!(json && json.map);
-  } catch (e) { return false; }
+  } catch (e) { return 'unknown'; } // slow or unreachable: don't lock a team member out (the sheet checks every request itself)
 }
 
 async function sbOnAuthSuccess(user) {
-  if (!(await sbIsTeamMember())) {
+  const member = await sbIsTeamMember();
+  if (member === 'unknown') showToast('Could not confirm team access right now, loading anyway');
+  if (member === false) {
     await sb.auth.signOut();
     alert('The café map is for Work & Brew team members only. If you should have access, ask Denisse to add your email.');
     return;
@@ -5874,12 +5878,22 @@ async function wfApi(action, payload) {
   if (!wfApiReady()) throw new Error('The scout form backend is not connected yet (Apps Script URL missing).');
   const { data } = await sb.auth.getSession();
   const token = data && data.session ? data.session.access_token : null;
-  const res = await fetch(SCOUT_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign({ action, token }, payload || {})),
-  });
-  const json = await res.json();
+  // Never wait forever on the spreadsheet: big reads get 30s, everything else 20s
+  const ctrl = new AbortController();
+  const limit = action === 'listCafes' || action === 'approveSuggestion' || action === 'submit' || action === 'upload' ? 45000 : 20000;
+  const timer = setTimeout(() => ctrl.abort(), limit);
+  let res;
+  try {
+    res = await fetch(SCOUT_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action, token }, payload || {})),
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    throw new Error(e && e.name === 'AbortError' ? 'The spreadsheet took too long to answer' : 'Could not reach the spreadsheet');
+  } finally { clearTimeout(timer); }
+  const json = await res.json().catch(() => { throw new Error('The spreadsheet script sent back an error page (check the deployment)'); });
   if (!json.ok) throw new Error(json.error || 'Request failed');
   return json;
 }
