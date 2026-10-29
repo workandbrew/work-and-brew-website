@@ -176,10 +176,31 @@ function findRow_(sh, h, cafe) {
   return byName;
 }
 
+// Write every cell of one row in a single call: much faster than cell-by-cell, and the row is
+// either written or not (no half-written cafés if something fails midway).
 function setCells_(sh, h, row, obj) {
-  Object.keys(obj).forEach(function (k) {
-    if (h[k]) sh.getRange(row, h[k]).setValue(obj[k]);
-  });
+  var cols = Object.keys(obj).filter(function (k) { return h[k]; }).map(function (k) { return h[k]; });
+  if (!cols.length) return;
+  var lo = Math.min.apply(null, cols), hi = Math.max.apply(null, cols), width = hi - lo + 1;
+  var rng = sh.getRange(row, lo, 1, width);
+  var vals = row <= sh.getLastRow() ? rng.getValues()[0] : new Array(width).fill('');
+  Object.keys(obj).forEach(function (k) { if (h[k]) vals[h[k] - lo] = obj[k]; });
+  try {
+    rng.setValues([vals]);
+  } catch (e) {
+    // A strict dropdown (e.g. a multi-select chip on Status) can refuse a plain value: loosen it to a warning and retry once
+    if (!/validation/i.test(String(e.message || e))) throw e;
+    relaxValidation_(sh, h.Status); relaxValidation_(sh, h.AssignedTo);
+    rng.setValues([vals]);
+  }
+}
+function relaxValidation_(sh, col) {
+  if (!col) return;
+  try {
+    var rng = sh.getRange(2, col, Math.max(1, sh.getMaxRows() - 1), 1);
+    var dv = rng.getDataValidation();
+    if (dv) rng.setDataValidation(dv.copy().setAllowInvalid(true).build());
+  } catch (e) {}
 }
 function getRowObj_(sh, h, row) {
   var vals = sh.getRange(row, 1, 1, sh.getLastColumn()).getValues()[0];
@@ -531,15 +552,17 @@ function approveSuggestionLocked_(body, user) {
   var full = String(v[12]) === 'Full';
   var c = { name: v[2], address: v[3], borough: v[4], type: v[5], lat: v[6], lng: v[7], kind: full ? 'Full' : 'Quick', status: full ? 'In Review' : 'New Cafe Added' };
   var sh = sheet_(), h = ensureColumns_(sh);
-  var last = sh.getLastRow(), maxNum = 0;
+  var last = sh.getLastRow(), maxNum = 0, reuseRow = 0, reuseNum = '';
   // Already on the map? Stop here so approving a repeat cannot add the café twice.
   if (last >= 2 && h.Name) {
     var nm = norm_(c.name), ad = norm_(c.address);
     var nms = sh.getRange(2, h.Name, last - 1, 1).getValues();
     var ads = h.Address ? sh.getRange(2, h.Address, last - 1, 1).getValues() : [];
     var nums0 = h.Number ? sh.getRange(2, h.Number, last - 1, 1).getValues() : [];
+    var sts = h.Status ? sh.getRange(2, h.Status, last - 1, 1).getValues() : [];
     for (var z = 0; z < nms.length; z++) {
       if (norm_(nms[z][0]) === nm && (!ad || !ads.length || norm_(ads[z][0]) === ad)) {
+        if (sts.length && !String(sts[z][0] || '').trim()) { reuseRow = z + 2; reuseNum = nums0.length ? String(nums0[z][0]) : ''; break; } // an earlier save stopped halfway: finish that row
         ssh.getRange(r, 9, 1, 4).setValues([['Rejected', user.email, now_(), 'Duplicate of ' + (nums0.length ? nums0[z][0] : 'a café already on the map')]]);
         throw new Error('This café is already on the map' + (nums0.length ? ' (' + nums0[z][0] + ')' : '') + '. I marked this repeat as rejected so you only keep one.');
       }
@@ -551,10 +574,10 @@ function approveSuggestionLocked_(body, user) {
       if (n > maxNum) maxNum = n;
     });
   }
-  c.number = '#' + (maxNum + 1);
+  c.number = reuseNum || ('#' + (maxNum + 1));
   var zipM = String(c.address || '').match(/\b(1[0-9]{4})\b/);
   c.zip = zipM ? zipM[1] : '';
-  var row = last + 1;
+  var row = reuseRow || (last + 1);
   var cells = {
     Number: c.number, Name: c.name, isChain: 'FALSE', Address: c.address, Borough: c.borough,
     Zipcode: c.zip, Latitude: c.lat || '', Longitude: c.lng || '', Status: c.status,
@@ -937,7 +960,7 @@ function handleListCafes_(body, user) {
     var name = String(g(v, 'Name') || '').trim();
     var lat = parseFloat(g(v, 'Latitude')), lng = parseFloat(g(v, 'Longitude'));
     // A café typed into the sheet without coordinates: look them up once and save them
-    if (name && (isNaN(lat) || isNaN(lng)) && g(v, 'Address') && h.Latitude && h.Longitude && looked < 10) {
+    if (name && (isNaN(lat) || isNaN(lng)) && g(v, 'Address') && h.Latitude && h.Longitude && looked < 3) {
       looked++;
       var geo = geocode_(g(v, 'Address'), g(v, 'Borough'));
       if (geo.lat && geo.lng) {
@@ -950,7 +973,7 @@ function handleListCafes_(body, user) {
     cafes.push({
       id: i + 2, number: String(g(v, 'Number') || ''), name: name, address: String(g(v, 'Address') || ''),
       borough: String(g(v, 'Borough') || ''), zipcode: String(g(v, 'Zipcode') || ''), latitude: lat, longitude: lng,
-      status: String(g(v, 'Status') || '') || 'Ready To Be Assigned', assigned_to: String(g(v, 'AssignedTo') || '') || null,
+      status: String(g(v, 'Status') || '') || (/^scout suggestion/i.test(String(g(v, 'Source') || '')) ? 'New Cafe Added' : 'Ready To Be Assigned'), assigned_to: String(g(v, 'AssignedTo') || '') || null,
       description: String(g(v, 'Description') || ''),
       wifi: yesNoCell_(g(v, 'WiFi')), secured: yesNoCell_(g(v, 'Secured')), outlets: yesNoCell_(g(v, 'Outlets')),
       hot_food: yesNoCell_(g(v, 'HotFood')), restroom: yesNoCell_(g(v, 'Restroom')),
