@@ -150,11 +150,12 @@
   .th-hero h2 { font-size: 32px; }
   .th-stat { padding: 14px 16px; } .th-stat-v { font-size: 26px; }
   .th-card { padding: 16px; }
-  .th-tabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: var(--card);
+  .th-tabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1001; background: #FFFFFF;
     border-top: 1px solid var(--border); padding: 8px 4px calc(8px + env(safe-area-inset-bottom)); justify-content: space-around; }
-  .th-tab { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; color: var(--muted); min-width: 60px; }
+  .th-tab { display: flex; flex-direction: column; align-items: center; gap: 3px; font: 600 11px/1 Inter, system-ui, sans-serif; letter-spacing: normal; color: #5F6B78; min-width: 60px; padding: 4px 0; border-radius: 10px; text-decoration: none; }
   .th-tab svg { width: 22px; height: 22px; }
-  .th-tab.on { color: var(--navy); font-weight: 800; }
+  .th-tab.on { color: #17274E; font-weight: 800; }
+  .th-tab.on svg { stroke-width: 2.2; }
 }
 .th a.th-btn { color: var(--soft); } .th a.th-btn.ghost { color: var(--navy); }
 
@@ -264,3 +265,38 @@
 .th-section-h h2 { font-family: var(--serif); font-size: 24px; color: var(--navy); margin: 0; }
 .th-section-h p { color: var(--ink2); font-size: 14px; margin: 2px 0 0; }
 .th-section-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* ---- phone polish (web app) ---- */
+@media (max-width: 760px) {
+  .th-tabs { border-top: 1px solid #D1C7BB; box-shadow: 0 -6px 20px rgba(43,26,18,.06); }
+  .th-main { padding: 16px 16px calc(96px + env(safe-area-inset-bottom)); gap: 14px; }
+  .th-top h1 { font-size: 26px; }
+  .th-headline { gap: 10px; } .th-headline .th-btn { width: 100%; }
+  .th-hero { padding: 18px 16px; } .th-hero h2 { font-size: 30px; }
+  .th-focus { padding: 14px 14px; }
+  .th-stats { gap: 10px; } .th-stat { padding: 12px 14px; } .th-stat-v { font-size: 24px; } .th-caps { font-size: 11px; }
+  .th-stats-6 .th-stat { flex: 1 1 calc(50% - 5px); }
+  .th-card { padding: 14px; border-radius: 14px; }
+  .th-card-h { flex-wrap: wrap; gap: 8px; }
+  /* section tabs stick under the site navbar while you scroll */
+  .th-subnav { position: sticky; top: 80px; z-index: 5; background: var(--page); margin: -4px -16px 0; padding: 0 16px; box-shadow: 0 10px 10px -10px rgba(43,26,18,.12); scrollbar-width: none; }
+  .th-subnav::-webkit-scrollbar { display: none; }
+  .th-subtab { padding: 12px 12px; font-size: 14px; }
+  /* list rows (events, schedules): details on the first line, actions wrap to the next */
+  .th-scheds li { flex-wrap: wrap; row-gap: 8px; }
+  .th-scheds li .th-sched-body { flex: 1 1 100%; }
+  .th-scheds li .th-sched-day { order: -1; }
+  .th-scheds li .th-tag, .th-scheds li .th-btn, .th-scheds li .th-x { margin-left: auto; }
+  .th-scheds li .th-btn.sm { margin-left: 8px; }
+  .th-prog.sm { width: 100%; }
+  /* café table filters: search full width, dropdowns side by side, export under them */
+  .th-filters { width: 100%; } .th-filters .th-select { flex: 1 1 40%; } .th-filters .th-btn { flex: 1 1 100%; }
+  .th-table { font-size: 13px; } .th-table td { padding: 10px 6px; }
+  .th-btns .th-btn { flex: 1 1 auto; }
+  .th-ev-nums { gap: 20px; }
+  .th-works-h .th-caps { font-size: 11px; }
+}
+/* Installed as a web app: no browser chrome, so give the bottom bar the home-indicator space */
+@media (display-mode: standalone) and (max-width: 760px) {
+  .th-tabs { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+}

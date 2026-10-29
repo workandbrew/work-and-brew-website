@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, NavLink, useParams, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
@@ -1137,13 +1138,17 @@ export default function TeamHub() {
         {body}
       </main>
 
-      <nav className="th-tabs" aria-label="Team Hub pages">
-        {PAGES.map((p) => (
-          <NavLink key={p.key} to={pathFor(p.key)} end className={({ isActive }) => `th-tab ${isActive ? "on" : ""}`}>
-            <Icon name={p.key} />{p.short}
-          </NavLink>
-        ))}
-      </nav>
+      {/* Phone tab bar: rendered on <body> so the page-fade animation can't pin it to the page instead of the screen */}
+      {createPortal(
+        <nav className="th-tabs" aria-label="Team Hub pages">
+          {PAGES.map((p) => (
+            <NavLink key={p.key} to={pathFor(p.key)} end className={({ isActive }) => `th-tab ${isActive ? "on" : ""}`}>
+              <Icon name={p.key} />{p.short}
+            </NavLink>
+          ))}
+        </nav>,
+        document.body
+      )}
     </div>
     </>
   );
