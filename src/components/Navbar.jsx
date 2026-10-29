@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTeamAccess } from "../hooks/useTeamAccess";
+import NotificationBell from "./NotificationBell";
 import "./Navbar.css";
 
 export default function Navbar() {
@@ -33,6 +34,9 @@ export default function Navbar() {
           {access.hub && <Link to="/team" className="navbar-team">Team Hub</Link>}
         </div>
       )}
+
+      {/* Team Hub notifications: hub admins only, on every page, next to the profile button */}
+      {user && access.hub && <NotificationBell />}
 
       <div className="navbar-buttons">
         {user ? (
