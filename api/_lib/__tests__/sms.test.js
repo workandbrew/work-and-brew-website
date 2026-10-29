@@ -103,3 +103,18 @@ describe("personalize", () => {
     expect(personalize("Due Friday.", { name: "Iris" })).toBe("Due Friday.");
   });
 });
+
+describe("also_groups", () => {
+  const roster = [
+    { id: "s1", name: "Scout Sam", role: "Cafe Scout", phone: "+17185550101", chapters: [], sms_opt_in: true, active: true },
+    { id: "l1", name: "Lead Lu", role: "Scout Lead", phone: "+17185550102", chapters: [], sms_opt_in: true, active: true, also_groups: ["scouts"] },
+    { id: "l2", name: "Lead Lee", role: "Scout Lead", phone: "+17185550103", chapters: [], sms_opt_in: true, active: true },
+  ];
+  it("adds leads who opted into Café scout texts to the scouts group, and only them", () => {
+    const r = resolveRecipients("group:scouts", roster);
+    expect(r.recipients.map((s) => s.name).sort()).toEqual(["Lead Lu", "Scout Sam"]);
+  });
+  it("still keeps them in their own group", () => {
+    expect(resolveRecipients("group:leads", roster).recipients.map((s) => s.name).sort()).toEqual(["Lead Lee", "Lead Lu"]);
+  });
+});

@@ -528,12 +528,21 @@ function Log({ log, compact, onMore, reload, notify }) {
   );
 }
 
-function Directory({ team }) {
+function Directory({ team, reload, notify }) {
+  const [busy, setBusy] = useState(null);
+  const toggleScouts = async (p) => {
+    const has = p.alsoGroups.includes("scouts");
+    setBusy(p.id);
+    const r = await hubFetch("POST", { action: "contact-also", id: p.id, alsoGroups: has ? p.alsoGroups.filter((g) => g !== "scouts") : [...p.alsoGroups, "scouts"] });
+    setBusy(null);
+    if (r.ok) { notify?.({ text: `${p.name.split(" ")[0]} ${has ? "no longer gets" : "now also gets"} Café scout texts.` }); reload?.(); }
+    else notify?.({ bad: true, text: r.error || "Couldn't update." });
+  };
   return (
     <Card title="Contacts" sub="Everyone the system can text · phone numbers stay hidden, only the last 4 digits show" right={<span className="th-tag n">{team.length} members</span>}>
       <div className="th-table-wrap">
         <table className="th-table">
-          <thead><tr><th>Name</th><th>Role</th><th>Chapters</th><th>Phone</th><th>Status</th></tr></thead>
+          <thead><tr><th>Name</th><th>Role</th><th>Chapters</th><th>Phone</th><th>Status</th><th>Gets Café scout texts</th></tr></thead>
           <tbody>
             {team.map((p) => (
               <tr key={p.id}>
@@ -542,6 +551,9 @@ function Directory({ team }) {
                 <td>{p.chapters.join(", ") || "All"}</td>
                 <td>{p.phoneLast4 ? `•••• ${p.phoneLast4}` : "n/a"}</td>
                 <td><span className={`th-tag ${p.canText ? "g" : "b"}`}>{p.canText ? "Texts on" : p.optedOut ? "Opted out" : "No texts"}</span></td>
+                <td>{p.group === "scouts" ? <span className="th-hint">Yes (café scout)</span> : (
+                  <label className="th-switch"><input type="checkbox" checked={p.alsoGroups.includes("scouts")} disabled={busy === p.id} onChange={() => toggleScouts(p)} /><span>{p.alsoGroups.includes("scouts") ? "Yes" : "No"}</span></label>
+                )}</td>
               </tr>
             ))}
           </tbody>
@@ -709,7 +721,7 @@ function Messages({ data, reload, notify }) {
       {tab === "schedules" && <Schedules data={data} onChange={reload} />}
       {tab === "templates" && <Templates data={data} onChange={reload} notify={notify} editId={params.get("edit")} />}
       {tab === "log" && <Log log={data.log} reload={reload} notify={notify} />}
-      {tab === "directory" && <Directory team={data.team} />}
+      {tab === "directory" && <Directory team={data.team} reload={reload} notify={notify} />}
       {tab === "signups" && (
         <>
           <div className="th-row th-stats">

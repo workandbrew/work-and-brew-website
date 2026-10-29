@@ -364,7 +364,7 @@ export default async function handler(req, res) {
       const team = scouts.map((s) => ({ ...publicScout(s), optedOut: !!s.opted_out_at, optedIn: !!s.sms_opt_in }));
       const chapters = [...new Set(team.flatMap((s) => s.chapters))].sort();
       const groups = Object.entries(GROUP_LABELS)
-        .map(([key, label]) => ({ key, label, count: team.filter((p) => p.group === key).length }))
+        .map(([key, label]) => ({ key, label, count: team.filter((p) => p.group === key || p.alsoGroups.includes(key)).length }))
         .filter((g) => g.count);
       const sent30 = daily.reduce((n, d) => n + d.sent, 0);
       const failed30 = daily.reduce((n, d) => n + d.failed, 0);
@@ -414,6 +414,13 @@ export default async function handler(req, res) {
         if (r.ok) { canceled++; await db().from("sms_messages").update({ status: "canceled" }).eq("id", m.id); } else problems.push(r.error);
       }
       return reply(problems.length && !canceled ? { status: 502, error: `Couldn't cancel: ${problems[0]}` } : { canceled, notCanceled: problems.length });
+    }
+    if (action === "contact-also") {
+      // e.g. a lead who should also get every Café scouts text
+      const groups = (Array.isArray(extra.alsoGroups) ? extra.alsoGroups : []).map(String).filter((g) => g in GROUP_LABELS);
+      const { error } = await db().from("sms_contacts").update({ also_groups: groups }).eq("id", String(id || ""));
+      if (error && /also_groups/.test(error.message)) return reply({ status: 500, error: "This needs one database update first: run the also_groups line from supabase/sms.sql in Supabase." });
+      return reply(error ? { status: 500, error: error.message } : {});
     }
     if (action === "replies-read") {
       let q = db().from("sms_replies").update({ read_at: new Date().toISOString(), read_by: by }).is("read_at", null);

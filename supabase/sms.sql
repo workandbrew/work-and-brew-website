@@ -238,3 +238,7 @@ create table if not exists public.growth_daily (
 );
 alter table public.growth_daily enable row level security;  -- server-only
 grant all on public.growth_daily to service_role;
+
+-- People who should also get another group's texts, on top of the group their role puts them in.
+-- Example: leads who get every "Café scouts" text: also_groups = {scouts}. Editable in Team Hub → Contacts.
+alter table public.sms_contacts add column if not exists also_groups text[] not null default '{}';

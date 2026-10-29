@@ -88,6 +88,7 @@ export function teamGroup(s) {
   if (/(lead|founder|manager|head|director|captain)/.test(role)) return "leads";
   return "scouts";
 }
+export const inGroup = (s, g) => teamGroup(s) === g || (Array.isArray(s.also_groups) && s.also_groups.includes(g));
 export const GROUP_LABELS = { leads: "Leads", scouts: "Café scouts", creators: "Content creators" };
 
 // "{first name}" in a message becomes each person's first name.
@@ -107,7 +108,8 @@ function matchEntry(entry, scouts) {
   }
   const lower = q.toLowerCase();
   if (lower === "all" || lower === "everyone") return scouts;
-  if (lower.startsWith("group:")) return scouts.filter((s) => teamGroup(s) === lower.slice(6));
+  // A group is everyone whose role puts them there, plus anyone added to it on purpose (e.g. leads who get scout texts)
+  if (lower.startsWith("group:")) return scouts.filter((s) => inGroup(s, lower.slice(6)));
   const chapters = (s) => (s.chapters || []).map((c) => c.toLowerCase());
   // exact chapter ("Bronx", "Manhattan-UWS"), then chapter prefix ("Manhattan" → every Manhattan chapter)
   let hits = scouts.filter((s) => chapters(s).includes(lower));
@@ -149,6 +151,7 @@ export function publicScout(s) {
     name: s.name,
     role: s.role,
     group: teamGroup(s),
+    alsoGroups: Array.isArray(s.also_groups) ? s.also_groups : [],
     chapters: s.chapters || [],
     phoneLast4: last4(s.phone),
     canText: canText(s),
@@ -170,7 +173,7 @@ export function db() {
 export async function loadScouts() {
   const { data, error } = await db()
     .from("sms_contacts")
-    .select("id, name, phone, role, chapters, sms_opt_in, active, opted_out_at")
+    .select("*") // "*" keeps working before and after newer optional columns (also_groups) exist
     .eq("active", true)
     .order("name");
   if (error) throw new Error(`Supabase: ${error.message}`);

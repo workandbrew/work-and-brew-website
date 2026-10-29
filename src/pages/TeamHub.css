@@ -336,3 +336,5 @@
 .th-gain.down { color: #5F6B78; background: rgba(165,171,176,.2); }
 .th-social-extra { font-size: 13px; color: var(--ink2); }
 .th-sched-state { color: var(--navy); display: inline-flex; align-items: center; gap: 10px; }
+.th-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink2); }
+.th-switch input { width: 18px; height: 18px; accent-color: var(--navy); cursor: pointer; }
