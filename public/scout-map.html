@@ -2694,7 +2694,7 @@ document.getElementById('sb-login-form').addEventListener('submit', async (e) =>
 
 // The Apps Script this map was built for. If the live deployment answers with anything else, tell the admins:
 // their edits are going to a script that does not know about them.
-const EXPECTED_SCRIPT_VERSION = 'v32-2026-10-29';
+const EXPECTED_SCRIPT_VERSION = 'v33-2026-10-29';
 async function wbCheckScriptVersion() {
   try {
     const r = await fetch(SCOUT_API_URL + '?action=ping', { cache: 'no-store' });
@@ -6939,6 +6939,8 @@ async function sgApprove(row, extra, btn) {
     } else {
       showToast(c.name + ' added to the map as ' + c.number + '. Check the pin, then set it to Ready To Be Assigned.');
     }
+    // The script also opens the café's Jira ticket and Drive folder; say how that went once the first toast has been read
+    if (c.jira) setTimeout(() => showToast(c.jira.key ? 'Jira ticket ' + c.jira.key + ' and Drive folder created.' : (c.jira.error || 'Jira ticket not created.')), 4000);
   } catch (e) { showToast(e.message); if (btn) { btn.disabled = false; btn.textContent = label; } }
   finally { _sgInFlight.delete(String(row)); }
 }
