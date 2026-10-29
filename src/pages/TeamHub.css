@@ -335,3 +335,4 @@
 .th-gain.up { color: #11734B; background: rgba(17,115,75,.12); }
 .th-gain.down { color: #5F6B78; background: rgba(165,171,176,.2); }
 .th-social-extra { font-size: 13px; color: var(--ink2); }
+.th-sched-state { color: var(--navy); display: inline-flex; align-items: center; gap: 10px; }

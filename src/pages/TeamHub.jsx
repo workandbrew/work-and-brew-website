@@ -68,6 +68,9 @@ const SLOW_KEYS = ["cafes", "cafeList", "cafeWeek", "cafesFrom", "growth", "slow
 const keepSlow = (prev) => (prev ? Object.fromEntries(SLOW_KEYS.filter((k) => k in prev).map((k) => [k, prev[k]])) : {});
 const LiveLoading = ({ what = "live numbers" }) => <p className="th-empty th-loading-live">Loading {what}…</p>;
 
+const sendTime = (iso) => new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const batchStatus = (b) => (b.state === "scheduled" ? `Scheduled · ${sendTime(b.scheduledFor)}` : b.state === "canceled" ? "Canceled" : null);
+
 const fromLabel = (from) => (from === "gwen" ? "Den (via Gwen)" : String(from || "").replace(/^Team Hub · /, ""));
 const initials = (name) => String(name).trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 const sum = (arr, k) => arr.reduce((n, d) => n + d[k], 0);
@@ -217,8 +220,8 @@ function Overview({ data, reload, notify }) {
                 <li key={b.id} className={b.failed ? "bad" : ""}>
                   <span className="th-act-ic"><Icon name="messages" /></span>
                   <div>
-                    <div className="th-act-t">{fromLabel(b.from)} texted {b.recipients.length === 1 ? b.recipients[0].name : `${b.recipients.length} people`}</div>
-                    <div className="th-act-m">{b.failed ? `${b.failed} failed · ` : `${b.sent} delivered · `}{when(b.at)}</div>
+                    <div className="th-act-t">{fromLabel(b.from)} {b.state === "scheduled" ? "scheduled a text to" : "texted"} {b.recipients.length === 1 ? b.recipients[0].name : `${b.recipients.length} people`}</div>
+                    <div className="th-act-m">{batchStatus(b) ? `${batchStatus(b)} · ` : b.failed ? `${b.failed} failed · ` : `${b.sent} sent · `}{when(b.at)}</div>
                   </div>
                 </li>
               ))}
@@ -298,7 +301,7 @@ function Compose({ data, onSent, notify }) {
     const r = await hubFetch("POST", { action: "send", to: preview.recipients.map((p) => p.id), message, sendAt: sendAtIso });
     setBusy(false);
     if (r.sent) {
-      notify({ bad: !!r.failed, text: r.scheduledAt ? `Scheduled for ${sendAtLabel}: ${r.sent} text${r.sent > 1 ? "s" : ""}${r.failed ? `, ${r.failed} failed` : ""}.` : `Sent to ${r.sent}${r.failed ? `, ${r.failed} failed` : ""}.` });
+      notify({ bad: !!r.failed || !!r.error, text: r.error || (r.scheduledAt ? `Scheduled for ${sendAtLabel}: ${r.sent} text${r.sent > 1 ? "s" : ""} waiting${r.failed ? `, ${r.failed} failed` : ""}. You can cancel it from the Log.` : `Sent to ${r.sent}${r.failed ? `, ${r.failed} failed` : ""}.`) });
       setPreview(null); setMessage(""); setTo([]); setWhen("now"); setSendAt("");
       onSent();
     } else notify({ bad: true, text: r.error || (r.results || []).map((x) => `${x.name}: ${x.error}`).join("; ") || "Not sent." });
@@ -468,8 +471,14 @@ function Templates({ data, onChange, notify, editId }) {
   );
 }
 
-function Log({ log, compact, onMore }) {
+function Log({ log, compact, onMore, reload, notify }) {
   const [filter, setFilter] = useState("all");
+  const cancelScheduled = async (b) => {
+    if (!window.confirm(`Cancel this scheduled text to ${b.recipients.length} ${b.recipients.length === 1 ? "person" : "people"}? Nobody will get it.`)) return;
+    const r = await hubFetch("POST", { action: "scheduled-cancel", id: b.id });
+    if (r.ok) { notify?.({ text: `Canceled. ${r.canceled} scheduled text${r.canceled === 1 ? "" : "s"} won't go out.` }); reload?.(); }
+    else notify?.({ bad: true, text: r.error || "Couldn't cancel." });
+  };
   const rows = filter === "failed" ? log.filter((b) => b.failed) : log;
   if (compact) {
     return (
@@ -481,9 +490,9 @@ function Log({ log, compact, onMore }) {
                 <span className="th-av">{initials(fromLabel(b.from))}</span>
                 <div>
                   <div className="th-act-t">{fromLabel(b.from)} → {b.recipients.length === 1 ? b.recipients[0].name : `${b.recipients.length} people`}</div>
-                  <div className="th-act-m">{b.body.slice(0, 48)}{b.body.length > 48 ? "…" : ""} · {b.failed ? `${b.failed} failed` : `${b.sent} delivered`} · {when(b.at)}</div>
+                  <div className="th-act-m">{b.body.slice(0, 48)}{b.body.length > 48 ? "…" : ""} · {batchStatus(b) || (b.failed ? `${b.failed} failed` : `${b.sent} sent`)} · {when(b.at)}</div>
                 </div>
-                <span className={`th-tag ${b.failed ? "b" : "g"}`}>{b.failed ? "Failed" : "Delivered"}</span>
+                <span className={`th-tag ${b.state === "scheduled" ? "n" : b.state === "canceled" ? "n" : b.failed ? "b" : "g"}`}>{b.state === "scheduled" ? "Scheduled" : b.state === "canceled" ? "Canceled" : b.failed ? "Failed" : "Sent"}</span>
               </li>
             ))}
           </ul>
@@ -502,7 +511,9 @@ function Log({ log, compact, onMore }) {
               <div className="th-bubble">{b.body}</div>
               <div className="th-log-bot">
                 <span>To {b.recipients.length} · {b.recipients.map((r) => r.name).join(", ")}</span>
-                <b className={b.failed ? "bad" : "good"}>✓ {b.sent} delivered{b.failed ? ` · ✗ ${b.failed} failed` : ""}</b>
+                {batchStatus(b)
+                  ? <b className="th-sched-state">{batchStatus(b)}{b.state === "scheduled" && <button type="button" className="th-x" onClick={() => cancelScheduled(b)}>Cancel</button>}</b>
+                  : <b className={b.failed ? "bad" : "good"}>✓ {b.sent} sent{b.failed ? ` · ✗ ${b.failed} failed` : ""}</b>}
               </div>
               {b.failed > 0 && (
                 <details className="th-fail"><summary>Why it failed</summary>
@@ -697,7 +708,7 @@ function Messages({ data, reload, notify }) {
       {tab === "replies" && <Replies data={data} reload={reload} notify={notify} onReply={(r) => { try { sessionStorage.setItem("wb-hub-draft-to", JSON.stringify([r.contactId])); sessionStorage.setItem("wb-hub-draft", `Hi ${String(r.name || "").split(" ")[0]}! `); } catch { /* private mode */ } setTab("send"); }} />}
       {tab === "schedules" && <Schedules data={data} onChange={reload} />}
       {tab === "templates" && <Templates data={data} onChange={reload} notify={notify} editId={params.get("edit")} />}
-      {tab === "log" && <Log log={data.log} />}
+      {tab === "log" && <Log log={data.log} reload={reload} notify={notify} />}
       {tab === "directory" && <Directory team={data.team} />}
       {tab === "signups" && (
         <>

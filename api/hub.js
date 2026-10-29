@@ -19,7 +19,7 @@
 // Sending goes through the same deliver() as Gwen, so the same rules apply: only active,
 // opted-in team members, STOP line always added, max 25 recipients per send.
 
-import { readBody, db, loadScouts, publicScout, deliver, last4, GROUP_LABELS, MAX_MESSAGE_CHARS } from "./_lib/sms.js";
+import { readBody, db, loadScouts, publicScout, deliver, last4, twilioCancel, GROUP_LABELS, MAX_MESSAGE_CHARS } from "./_lib/sms.js";
 import { listSchedules, saveSchedule, updateSchedule, approveSignup, rejectSignup, WEEKDAYS } from "./_lib/automation.js";
 import { growthSnapshot, saveManual, tiktokReady, brevo } from "./_lib/growth.js";
 import { makeState } from "./_lib/connectState.js";
@@ -156,7 +156,12 @@ async function notifications() {
   // Texts that went out
   for (const b of (logData.log || []).filter((b) => b.at >= since).slice(0, 30)) {
     const n = b.recipients.length;
-    add("text", `${senderName(b.from)} texted ${n === 1 ? b.recipients[0].name : `${n} people`}: “${snippet(b.body, 60)}”${b.failed ? ` · ${b.failed} failed` : ""}`, b.at, "/team/messages?tab=log");
+    const whom = n === 1 ? b.recipients[0].name : `${n} people`;
+    const sendTime = b.scheduledFor ? new Date(b.scheduledFor).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }) : "";
+    const text = b.state === "scheduled" ? `${senderName(b.from)} scheduled a text to ${whom} for ${sendTime}: “${snippet(b.body, 50)}”`
+      : b.state === "canceled" ? `Scheduled text to ${whom} was canceled: “${snippet(b.body, 50)}”`
+      : `${senderName(b.from)} texted ${whom}: “${snippet(b.body, 60)}”${b.failed ? ` · ${b.failed} failed` : ""}`;
+    add(b.state === "scheduled" ? "scheduled" : "text", text, b.at, "/team/messages?tab=log");
   }
   // Going out tomorrow: weekly texts and one-off scheduled texts
   for (const s of schedules.filter((s) => s.active && s.weekday === tomorrowDay && (!s.ends_on || s.ends_on >= tomorrow))) {
@@ -279,6 +284,7 @@ async function hubUser(req) {
 
 // Groups log rows from one send (same batch) into a single entry, newest first.
 async function recentLog() {
+  const nowIso = new Date().toISOString();
   const [{ data: rows, error }, { data: people }] = await Promise.all([
     db().from("sms_messages").select("*").order("created_at", { ascending: false }).limit(400),
     db().from("sms_contacts").select("id, name"),
@@ -289,18 +295,23 @@ async function recentLog() {
   for (const r of rows || []) {
     const key = r.batch_id || r.id;
     if (!batches.has(key)) {
-      batches.set(key, { id: key, at: r.created_at, from: r.sent_by || "unknown", body: r.body, recipients: [] });
+      batches.set(key, { id: key, at: r.created_at, from: r.sent_by || "unknown", body: r.body, recipients: [], scheduledFor: null });
     }
-    batches.get(key).recipients.push({
+    const b = batches.get(key);
+    if (r.scheduled_for && !b.scheduledFor) b.scheduledFor = r.scheduled_for;
+    b.recipients.push({
       name: names.get(r.scout_id) || "Removed contact",
-      ok: r.status !== "failed",
+      ok: r.status !== "failed" && r.status !== "canceled",
+      state: r.status === "canceled" ? "canceled" : r.status === "failed" ? "failed" : r.status === "scheduled" && r.scheduled_for > nowIso ? "scheduled" : "sent",
       error: r.error || null,
     });
   }
   const log = [...batches.values()].slice(0, 60).map((b) => ({
     ...b,
     sent: b.recipients.filter((x) => x.ok).length,
-    failed: b.recipients.filter((x) => !x.ok).length,
+    failed: b.recipients.filter((x) => x.state === "failed").length,
+    // "scheduled" = Twilio is still holding it; "canceled" = called off before it went out
+    state: b.recipients.some((x) => x.state === "scheduled") ? "scheduled" : b.recipients.every((x) => x.state === "canceled") ? "canceled" : "sent",
   }));
   const days = dailyCounts(rows || [], 60);
   return { log, daily: days.slice(30), prevSent30: days.slice(0, 30).reduce((n, d) => n + d.sent, 0) };
@@ -321,8 +332,10 @@ function dailyCounts(rows, days = 30) {
   const out = new Map();
   for (let i = days - 1; i >= 0; i--) out.set(nyDay(Date.now() - i * 864e5), { date: "", sent: 0, failed: 0 });
   for (const [k, v] of out) v.date = k;
+  const nowIso = new Date().toISOString();
   for (const r of rows) {
-    const day = out.get(nyDay(r.created_at));
+    if (r.status === "canceled" || (r.status === "scheduled" && r.scheduled_for > nowIso)) continue; // not sent (yet)
+    const day = out.get(nyDay(r.scheduled_for || r.created_at));
     if (day) day[r.status === "failed" ? "failed" : "sent"]++;
   }
   return [...out.values()];
@@ -392,6 +405,16 @@ export default async function handler(req, res) {
     }
     if (action === "growth-manual") return reply(await saveManual(extra.platform, extra.followers, by));
     if (action === "works-save") return reply(await saveWorks(me, extra));
+    if (action === "scheduled-cancel") {
+      const { data: rows, error } = await db().from("sms_messages").select("id, twilio_sid").eq("batch_id", String(id || "")).eq("status", "scheduled");
+      if (error) return reply({ status: 500, error: error.message });
+      let canceled = 0; const problems = [];
+      for (const m of rows || []) {
+        const r = m.twilio_sid ? await twilioCancel(m.twilio_sid).catch((e) => ({ ok: false, error: e.message })) : { ok: false, error: "no Twilio id" };
+        if (r.ok) { canceled++; await db().from("sms_messages").update({ status: "canceled" }).eq("id", m.id); } else problems.push(r.error);
+      }
+      return reply(problems.length && !canceled ? { status: 502, error: `Couldn't cancel: ${problems[0]}` } : { canceled, notCanceled: problems.length });
+    }
     if (action === "replies-read") {
       let q = db().from("sms_replies").update({ read_at: new Date().toISOString(), read_by: by }).is("read_at", null);
       if (id) q = q.eq("id", String(id));

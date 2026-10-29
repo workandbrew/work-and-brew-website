@@ -260,7 +260,7 @@ export async function deliver({ to, message, dryRun, sentBy, sendAt }) {
     const mins = (t - Date.now()) / 60000;
     if (mins < 15) return { status: 400, json: { ok: false, error: "A scheduled text must be at least 15 minutes from now" } };
     if (mins > 7 * 24 * 60) return { status: 400, json: { ok: false, error: "A scheduled text must be within 7 days" } };
-    scheduleAt = new Date(t).toISOString();
+    scheduleAt = new Date(t).toISOString().replace(/\.\d{3}Z$/, "Z"); // Twilio's format: 2026-11-01T18:00:00Z
   }
 
   let scouts;
@@ -285,10 +285,17 @@ export async function deliver({ to, message, dryRun, sentBy, sendAt }) {
 
   const batch_id = randomUUID(); // groups one send to many people in the log
   const results = [];
+  let heldOk = !scheduleAt; // for a scheduled text: did Twilio confirm it is holding the first one?
   for (const s of recipients) {
     let r;
     const personal = personalize(template, s);
+    // Safety: if Twilio sent the first "scheduled" text right away instead of holding it, stop before anyone else gets one early
+    if (scheduleAt && !heldOk && results.some((x) => x.ok)) {
+      results.push({ id: s.id, name: s.name, ok: false, error: "Not sent: Twilio did not hold the first text for the scheduled time, so the rest were stopped." });
+      continue;
+    }
     try { r = await twilioSend(s.phone, personal, scheduleAt); } catch (e) { r = { ok: false, error: e.message }; }
+    if (scheduleAt && r.ok) heldOk = heldOk || r.status === "scheduled";
     results.push({ id: s.id, name: s.name, ok: r.ok, sid: r.sid, error: r.error });
     try {
       await logMessage({
@@ -302,5 +309,10 @@ export async function deliver({ to, message, dryRun, sentBy, sendAt }) {
     } catch { /* the log is best-effort; never block a send on it */ }
   }
   const sent = results.filter((r) => r.ok).length;
-  return { status: sent ? 200 : 502, json: { ok: sent === results.length, sent, failed: results.length - sent, body, template, results, skipped, scheduledAt: scheduleAt } };
+  const notHeld = scheduleAt && sent > 0 && !heldOk;
+  return { status: sent ? 200 : 502, json: {
+    ok: sent === results.length && !notHeld, sent, failed: results.length - sent, body, template, results, skipped,
+    scheduledAt: notHeld ? null : scheduleAt,
+    ...(notHeld ? { error: `Twilio sent this right away instead of holding it until the scheduled time. Only ${sent} ${sent === 1 ? "person" : "people"} got it; the rest were stopped. Check that scheduling is enabled on the Twilio Messaging Service.` } : {}),
+  } };
 }
