@@ -42,7 +42,7 @@ const SCOUT_API_URL = process.env.SCOUT_API_URL || "https://script.google.com/ma
 async function sheetCafes(token) {
   if (!token) return null;
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 4000); // slow sheet: fall back to the Supabase copy instead of holding the hub
+  const t = setTimeout(() => ctrl.abort(), 9000);
   try {
     const r = await fetch(SCOUT_API_URL, { method: "POST", headers: { "content-type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "listCafes", token }), signal: ctrl.signal, redirect: "follow" });
     const json = await r.json();
@@ -50,29 +50,10 @@ async function sheetCafes(token) {
   } catch { return null; } finally { clearTimeout(t); }
 }
 
-async function extras(token) {
-  const since = new Date(Date.now() - 30 * 864e5).toISOString();
-  const [templates, signups, cafes, pendingList, schedules, growth, events, worksRows] = await Promise.all([
-    optional(db().from("sms_templates").select("id, name, body, created_by").order("created_at"), null),
-    optional(db().from("signup_requests").select("status, created_at").gte("created_at", since), null),
-    sheetCafes(token).then((rows) => rows || optional(db().from("cafes").select("*").limit(2000), null)),
-    optional(db().from("signup_requests").select("id, name, phone, sms_consent, created_at").eq("status", "pending").order("created_at"), []),
-    listSchedules().catch(() => null),
-    growthSnapshot().catch((e) => ({ error: e.message })),
-    optional(db().from("events").select("*").order("starts_at", { ascending: true, nullsFirst: false }).limit(300), null),
-    optional(db().from("current_works").select("*"), null),
-  ]);
-  // Always the four departments, in order, even before anyone has written anything.
-  const works = DEPARTMENTS.map((department) => {
-    const row = (worksRows || []).find((r) => r.department === department);
-    return { department, body: row?.body || "", updatedBy: row?.updated_by || null, updatedAt: row?.updated_at || null };
-  });
-  const pending = await optional(
-    db().from("signup_requests").select("id", { count: "exact", head: true }).eq("status", "pending").then((r) => ({ data: r.count, error: r.error })), 0);
-  // Same names as the spreadsheet (older rows may still say Unvisited or Needs Revisit).
-  const statusOf = (st) => (!st || st === "Unvisited" ? "Ready To Be Assigned" : st === "Needs Revisit" ? "Incomplete" : st);
+// Café numbers in the shape the hub uses. Takes rows from the sheet or from Supabase.
+const statusOf = (st) => (!st || st === "Unvisited" ? "Ready To Be Assigned" : st === "Needs Revisit" ? "Incomplete" : st);
+function cafeParts(cafes) {
   const cafeCounts = cafes ? cafes.reduce((m, c) => ((m[statusOf(c.status)] = (m[statusOf(c.status)] || 0) + 1), m), {}) : null;
-  // A compact café list for the Cafés page (the table has more columns than the hub needs).
   const yes = (v) => (v == null || v === "" ? null : /^(true|yes|y|1)$/i.test(String(v)) ? "Yes" : /^(false|no|n|0)$/i.test(String(v)) ? "No" : String(v));
   const cafeList = cafes ? cafes.map((c) => ({
     id: c.id, number: c.number ?? c.cafe_number ?? null, name: c.name || "Unnamed café", borough: c.borough || "", status: statusOf(c.status),
@@ -83,22 +64,52 @@ async function extras(token) {
   // What happened in the last 7 days, from the dates the sheet keeps on each café
   const weekAgo = Date.now() - 7 * 864e5;
   const recent = (iso) => !!iso && new Date(iso).getTime() >= weekAgo;
-  const week = cafes && cafes.some((c) => "submitted_at" in c) ? {
+  const cafeWeek = cafes && cafes.some((c) => "submitted_at" in c) ? {
     added: cafes.filter((c) => recent(c.submitted_at)).length,
     assigned: cafes.filter((c) => recent(c.assigned_at)).length,
     scouted: cafes.filter((c) => recent(c.date_scouted)).length,
     official: cafes.filter((c) => recent(c.approved_at) && statusOf(c.status) === "Official Cafe Listing").length,
   } : null;
+  return { cafes: cafeCounts, cafeList, cafeWeek };
+}
+
+// The slow half of the hub: live café numbers from the Google Sheet and social/website stats.
+// The page asks for this after it has already drawn everything else.
+async function slowExtras(token) {
+  const [sheet, growth] = await Promise.all([
+    sheetCafes(token),
+    growthSnapshot().catch((e) => ({ error: e.message })),
+  ]);
+  return { ...(sheet ? { ...cafeParts(sheet), cafesFrom: "sheet" } : {}), growth };
+}
+
+async function extras() {
+  const since = new Date(Date.now() - 30 * 864e5).toISOString();
+  const [templates, signups, cafes, pendingList, schedules, events, worksRows] = await Promise.all([
+    optional(db().from("sms_templates").select("id, name, body, created_by").order("created_at"), null),
+    optional(db().from("signup_requests").select("status, created_at").gte("created_at", since), null),
+    optional(db().from("cafes").select("*").limit(2000), null), // quick saved copy; the sheet's live numbers follow
+    optional(db().from("signup_requests").select("id, name, phone, sms_consent, created_at").eq("status", "pending").order("created_at"), []),
+    listSchedules().catch(() => null),
+    optional(db().from("events").select("*").order("starts_at", { ascending: true, nullsFirst: false }).limit(300), null),
+    optional(db().from("current_works").select("*"), null),
+  ]);
+  // Always the four departments, in order, even before anyone has written anything.
+  const works = DEPARTMENTS.map((department) => {
+    const row = (worksRows || []).find((r) => r.department === department);
+    return { department, body: row?.body || "", updatedBy: row?.updated_by || null, updatedAt: row?.updated_at || null };
+  });
+  const pending = await optional(
+    db().from("signup_requests").select("id", { count: "exact", head: true }).eq("status", "pending").then((r) => ({ data: r.count, error: r.error })), 0);
   return {
     templates: templates && templates.length ? templates : DEFAULT_TEMPLATES,
     templatesSaved: !!templates,
     signups: signups ? { last30: signups.length, approved30: signups.filter((r) => r.status === "approved").length, pending } : null,
-    cafes: cafeCounts,
-    cafeList,
-    cafeWeek: week,
+    ...cafeParts(cafes),
+    cafesFrom: "saved",
     pendingSignups: pendingList.map(({ phone, ...r }) => ({ ...r, phoneLast4: last4(phone) })),
     schedules: schedules && schedules.map((s) => ({ ...s, weekdayName: WEEKDAYS[s.weekday] })),
-    growth,
+    growth: null,
     events,
     works,
     worksSaved: !!worksRows,
@@ -267,7 +278,8 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const bearer = String(req.headers?.authorization || "").replace(/^Bearer /, "");
-      const [scouts, { log, daily, prevSent30 }, more] = await Promise.all([loadScouts(), recentLog(), extras(bearer)]);
+      if (req.query?.more) return res.status(200).json({ ok: true, ...(await slowExtras(bearer)) });
+      const [scouts, { log, daily, prevSent30 }, more] = await Promise.all([loadScouts(), recentLog(), extras()]);
       const team = scouts.map((s) => ({ ...publicScout(s), optedOut: !!s.opted_out_at, optedIn: !!s.sms_opt_in }));
       const chapters = [...new Set(team.flatMap((s) => s.chapters))].sort();
       const groups = Object.entries(GROUP_LABELS)

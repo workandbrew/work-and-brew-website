@@ -51,7 +51,7 @@
 .th-side-col { width: 420px; flex: 0 0 420px; }
 .th-stack { display: flex; flex-direction: column; gap: 16px; }
 
-.th-hero { background: var(--cream); color: var(--espresso); border: 1px solid var(--beige); border-radius: 18px; padding: 32px 36px; display: flex; gap: 32px; align-items: center; }
+.th-hero { background: var(--cream); color: var(--espresso); border: 1px solid var(--beige); border-radius: 18px; padding: 32px 36px; display: flex; gap: 32px; align-items: flex-start; }
 .th-hero > div:first-child { flex: 1; }
 .th-hero-caps { color: var(--navy); }
 .th-hero h2 { font-family: var(--serif); font-size: 46px; font-weight: 600; line-height: 1.1; margin: 10px 0; color: var(--navy); }
@@ -310,3 +310,4 @@
 .th-plus:hover { background: var(--slate); }
 .th-tpl-new { border: 1px solid var(--navy); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
 .th-once .th-input { flex: 0 1 260px; min-width: 0; }
+.th-hero > div:first-child { align-self: flex-start; }

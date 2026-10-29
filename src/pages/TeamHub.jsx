@@ -41,14 +41,14 @@ const PAGES = [
 ];
 const pathFor = (key) => (key === "overview" ? "/team" : `/team/${key}`);
 
-async function hubFetch(method, body) {
+async function hubFetch(method, body, query = "") {
   const { data } = await supabase.auth.getSession();
   const token = data?.session?.access_token;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 25000);
   let r;
   try {
-    r = await fetch("/api/hub", {
+    r = await fetch("/api/hub" + query, {
       method,
       headers: { "content-type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: body ? JSON.stringify(body) : undefined,
@@ -1139,17 +1139,28 @@ export default function TeamHub() {
     return () => clearTimeout(t);
   }, [notice]);
 
-  const load = useCallback(async () => {
-    const r = await hubFetch("GET");
-    if (r.ok) { setData(r); setError(null); } else setError(r.error || "Couldn't load the Team Hub.");
-  }, []);
+  // Two steps so the hub appears right away: everything saved in our database first, then the live
+  // café numbers from the Google Sheet and the social stats, which can take a few seconds.
+  const fetchAll = (isAlive) => hubFetch("GET").then((r) => {
+    if (!isAlive()) return;
+    if (!r.ok) { setError(r.error || "Couldn't load the Team Hub."); return; }
+    setData(r); setError(null);
+    return hubFetch("GET", undefined, "?more=1").then((more) => {
+      if (isAlive() && more.ok) setData((d) => (d ? { ...d, ...more } : d));
+    });
+  });
+  const load = useCallback(() => fetchAll(() => true), []);
 
   useEffect(() => {
     if (!user) return;
     let alive = true;
     hubFetch("GET").then((r) => {
       if (!alive) return;
-      if (r.ok) { setData(r); setError(null); } else setError(r.error || "Couldn't load the Team Hub.");
+      if (!r.ok) { setError(r.error || "Couldn't load the Team Hub."); return; }
+      setData(r); setError(null);
+      return hubFetch("GET", undefined, "?more=1").then((more) => {
+        if (alive && more.ok) setData((d) => (d ? { ...d, ...more } : d));
+      });
     });
     return () => { alive = false; };
   }, [user]);

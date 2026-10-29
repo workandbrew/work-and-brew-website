@@ -2152,12 +2152,21 @@ let _sbInitialized = false;
 let _sheetSnap = {};
 let _lastCafeLoad = 0;
 let _cafesVersion = null, _quietLoad = false, _lastLocalEdit = 0;
+// The last café list this browser loaded, so the map can open instantly and refresh behind the scenes
+const CAFE_CACHE_KEY = 'wb-cafes-cache';
+function cachedCafes() {
+  try { const c = JSON.parse(localStorage.getItem(CAFE_CACHE_KEY) || 'null'); return c && Array.isArray(c.cafes) && c.cafes.length ? c.cafes : null; } catch (e) { return null; }
+}
 async function loadFromSupabase() {
   if (!_sbUser) return;
   try {
     const r = await wfApi('listCafes');
     if (r && r.version) _cafesVersion = r.version;
-    if (r && r.cafes && r.cafes.length) { applyLoadedCafes(r.cafes, 'sheet'); return; }
+    if (r && r.cafes && r.cafes.length) {
+      applyLoadedCafes(r.cafes, 'sheet');
+      try { localStorage.setItem(CAFE_CACHE_KEY, JSON.stringify({ at: Date.now(), cafes: r.cafes })); } catch (e) {}
+      return;
+    }
   } catch (e) { console.warn('Sheet load failed, using the cloud copy:', e.message); showToast('Could not reach the sheet, showing the last saved copy'); }
   return loadFromSupabaseLegacy();
 }
@@ -2230,7 +2239,7 @@ function applyLoadedCafes(data, src) {
       state.cafes.forEach(c => { _sheetSnap[c.number] = cafeSyncKey(c); });
       _lastCafeLoad = Date.now();
       const completed = state.cafes.filter(c => c.status === 'Visit Completed').length;
-      showToast(_quietLoad ? 'Updated from the spreadsheet' : (src === 'sheet' ? 'Loaded ' : 'Loaded ') + data.length + ' cafés: ' + completed + ' completed');
+      if (src !== 'cache') showToast(_quietLoad ? 'Updated from the spreadsheet' : 'Loaded ' + data.length + ' cafés: ' + completed + ' completed');
     }
   }
 }
@@ -2375,8 +2384,18 @@ async function sbOnAuthSuccess(user) {
     const exportBtn = document.getElementById('btn-export-sql');
     if (exportBtn) exportBtn.style.display = 'inline-block';
 
-    await loadFromSupabase();
-    wfInit(user);
+    const saved = cachedCafes();
+    if (saved) {
+      // Open straight away on the last copy, then pull the live sheet quietly
+      applyLoadedCafes(saved, 'cache');
+      wfInit(user);
+      showToast('Refreshing cafés from the spreadsheet…');
+      _quietLoad = true;
+      loadFromSupabase().finally(() => { _quietLoad = false; });
+    } else {
+      await loadFromSupabase();
+      wfInit(user);
+    }
   } catch(e) {
     console.error('Auth success error:', e);
     showToast('⚠ Load error: ' + e.message + ': map loaded without latest data');
@@ -3058,6 +3077,7 @@ function renderAssignPanel() {
 
 document.getElementById('btn-logout').onclick = async function() {
   this.disabled = true; this.textContent = 'Logging out';
+  try { localStorage.removeItem(CAFE_CACHE_KEY); } catch (e) {}
   try { await sb.auth.signOut(); } catch (e) {}
   location.reload(); // no session left, so the login screen shows
 };
