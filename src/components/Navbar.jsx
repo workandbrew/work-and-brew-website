@@ -17,7 +17,7 @@ export default function Navbar() {
   const isLoginPage = location.pathname === "/login";
 
   return (
-    <nav className="navbar">
+    <nav className={`navbar${location.pathname.startsWith("/team") ? " on-hub" : ""}`}>
       <Link to="/" className="navbar-logo" onClick={close}>
         <img src="/logo.png" alt="Work & Brew" className="navbar-logo-img" />
       </Link>

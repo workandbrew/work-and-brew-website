@@ -52,10 +52,10 @@ export default function ScoutPortal() {
         title="Work & Brew Scout Portal"
         style={{
           position: "fixed",
-          top: 80,
+          top: "var(--nav-h, 80px)",
           left: 0,
           width: "100vw",
-          height: "calc(100dvh - 80px)",
+          height: "calc(100dvh - var(--nav-h, 80px))",
           border: "none",
           zIndex: 10,
         }}

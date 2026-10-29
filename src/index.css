@@ -137,6 +137,9 @@ html, body, #root {
   width: 100%;
 }
 
+:root { --nav-h: 80px; }
+@media (max-width: 1000px) { :root { --nav-h: 60px; } }
+
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;

@@ -8,7 +8,7 @@
   --ink: var(--espresso); --ink2: var(--slate); --muted: #5F6B78; --on-dark: var(--soft);
   --border: var(--beige); --border2: #BFB4A6; --good: #11734B; --bad: #B4442A;
   --serif: Newsreader, Georgia, "Times New Roman", serif; --sans: Inter, system-ui, sans-serif;
-  min-height: 100vh; padding-top: 80px; /* room for the site navbar */
+  min-height: 100vh; padding-top: var(--nav-h, 80px); /* room for the site navbar */
   display: flex; background: linear-gradient(to right, var(--cream) 248px, var(--page) 248px); color: var(--ink); font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
 }
@@ -23,7 +23,7 @@
 
 /* ---- sidebar ---- */
 .th-sidebar { width: 248px; flex: 0 0 248px; background: var(--cream); color: var(--espresso); border-right: 1px solid var(--beige); padding: 28px 20px 24px;
-  display: flex; flex-direction: column; gap: 6px; position: sticky; top: 80px; height: calc(100vh - 80px); }
+  display: flex; flex-direction: column; gap: 6px; position: sticky; top: var(--nav-h, 80px); height: calc(100vh - var(--nav-h, 80px)); }
 .th-brand { display: flex; flex-direction: column; padding: 0 12px 24px; }
 .th-brand span { font-family: var(--serif); font-size: 24px; font-weight: 600; }
 .th-brand small { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--navy); margin-top: 2px; }
@@ -279,7 +279,7 @@
   .th-card { padding: 14px; border-radius: 14px; }
   .th-card-h { flex-wrap: wrap; gap: 8px; }
   /* section tabs stick under the site navbar while you scroll */
-  .th-subnav { position: sticky; top: 80px; z-index: 5; background: var(--page); margin: -4px -16px 0; padding: 0 16px; box-shadow: 0 10px 10px -10px rgba(43,26,18,.12); scrollbar-width: none; }
+  .th-subnav { position: sticky; top: var(--nav-h, 60px); z-index: 5; background: var(--page); margin: -4px -16px 0; padding: 0 16px; box-shadow: 0 10px 10px -10px rgba(43,26,18,.12); scrollbar-width: none; }
   .th-subnav::-webkit-scrollbar { display: none; }
   .th-subtab { padding: 12px 12px; font-size: 14px; }
   /* list rows (events, schedules): details on the first line, actions wrap to the next */

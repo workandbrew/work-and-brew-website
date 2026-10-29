@@ -259,6 +259,7 @@ export default function About() {
           <div className="page-badge">Our Story So Far</div>
         </div>
 
+        <div className="timeline-swipe-hint" aria-hidden="true">Swipe to see more →</div>
         <div className="timeline-track-wrap">
           <div className="timeline-track">
             {TIMELINE.map((item, index) => {

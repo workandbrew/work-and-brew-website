@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 2rem;
-  height: 80px;
+  height: var(--nav-h, 80px);
   background: rgba(245, 240, 232, 0.97);
   backdrop-filter: blur(14px);
   border-bottom: 1.5px solid #D9CFC3;
@@ -231,6 +231,8 @@
    RESPONSIVE BREAKPOINTS
 ════════════════════════════════════════════════════════════ */
 @media (max-width: 1000px) {
+  .navbar { padding: 0 1rem; }
+  .navbar-logo-img { height: 48px; }
   .navbar-links {
     display: none;
   }
@@ -261,3 +263,6 @@
   .navbar-buttons { flex-basis: 110px; }
   .navbar-links { font-size: 0.98rem; gap: 1rem; padding: 0 0.5rem; }
 }
+
+/* Team Hub on phones: the bottom tab bar does the navigating, so the hamburger steps aside */
+@media (max-width: 760px) { .navbar.on-hub .navbar-hamburger { display: none; } }

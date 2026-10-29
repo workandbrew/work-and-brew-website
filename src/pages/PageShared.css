@@ -184,7 +184,7 @@
   min-height: 100vh;
   background: #180A02;
   color: #E0D9CF;
-  padding-top: 80px; /* offset for fixed navbar */
+  padding-top: var(--nav-h, 80px); /* offset for fixed navbar */
 }
 
 .page-content {
@@ -305,7 +305,7 @@
   display: flex;
   align-items: stretch;
   gap: 0;
-  min-height: calc(100vh - 80px);
+  min-height: calc(100vh - var(--nav-h, 80px));
 }
 
 .about-hero-left {
@@ -2238,6 +2238,12 @@
   .timeline-track-wrap::-webkit-scrollbar {
     display: none;
   }
+  /* the strip fades out on the right so it reads as "there is more" */
+  .timeline-track-wrap {
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 82%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 82%, transparent 100%);
+  }
+  .timeline-swipe-hint { display: block; }
   .timeline-track {
     min-width: 560px;
     padding: 1rem 0.75rem 0.5rem;
@@ -3626,3 +3632,6 @@
     text-align: center;
   }
 }
+
+.timeline-swipe-hint { text-align: center; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: #A5ABB0; margin: 6px 0 -6px; }
+@media (min-width: 769px) { .timeline-swipe-hint { display: none; } }

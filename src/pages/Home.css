@@ -5,7 +5,7 @@
   background: #180A02;
   display: flex;
   flex-direction: column;
-  padding-top: 80px; /* offset for fixed navbar */
+  padding-top: var(--nav-h, 80px); /* offset for fixed navbar */
 }
 
 /* Hero Title */
@@ -1021,7 +1021,7 @@
 ════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   .home {
-    padding-top: 80px;
+    padding-top: var(--nav-h, 80px);
   }
 
   /* Hero */
