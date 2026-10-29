@@ -204,3 +204,21 @@ grant all on public.current_works to service_role;
 
 -- Weekly texts can stop on a date: the last day a schedule may send (New York time). Null = runs until paused.
 alter table public.sms_schedules add column if not exists ends_on date;
+
+-- ---------------------------------------------------------------------------------------------
+-- Texts people send back (Twilio → /api/inbound). Shown in Team Hub → Text Message System → Replies.
+-- ---------------------------------------------------------------------------------------------
+create table if not exists public.sms_replies (
+  id uuid default gen_random_uuid() primary key,
+  from_phone text not null,
+  contact_id uuid references public.sms_contacts on delete set null,
+  body text not null default '',
+  kind text not null default 'message' check (kind in ('message', 'stop', 'start', 'help')),
+  twilio_sid text unique,
+  received_at timestamptz not null default now(),
+  read_at timestamptz,
+  read_by text
+);
+create index if not exists sms_replies_received_idx on public.sms_replies (received_at desc);
+alter table public.sms_replies enable row level security;  -- server-only
+grant all on public.sms_replies to service_role;

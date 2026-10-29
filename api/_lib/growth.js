@@ -74,12 +74,14 @@ export async function brevo() {
   const headers = { "api-key": key, accept: "application/json" };
   const list = env("BREVO_LIST_ID");
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
-  const [total, recent] = await Promise.all([
+  const day = new Date(Date.now() - 864e5).toISOString();
+  const [total, recent, last24] = await Promise.all([
     list ? getJSON(`https://api.brevo.com/v3/contacts/lists/${list}`, { headers }).then((d) => d.totalSubscribers ?? d.uniqueSubscribers ?? 0)
       : getJSON("https://api.brevo.com/v3/contacts?limit=1", { headers }).then((d) => d.count ?? 0),
     getJSON(`https://api.brevo.com/v3/contacts?limit=1&createdSince=${encodeURIComponent(since)}`, { headers }).then((d) => d.count ?? 0).catch(() => null),
+    getJSON(`https://api.brevo.com/v3/contacts?limit=1&createdSince=${encodeURIComponent(day)}`, { headers }).then((d) => d.count ?? 0).catch(() => null),
   ]);
-  return { connected: true, subscribers: total, new30: recent };
+  return { connected: true, subscribers: total, new30: recent, new24: last24 };
 }
 
 // ---- Social ----

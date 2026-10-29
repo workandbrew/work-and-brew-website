@@ -62,6 +62,12 @@ async function hubFetch(method, body, query = "") {
 }
 
 const when = (iso) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+// The live numbers (café counts from the sheet, social stats) arrive a moment after the rest. Carry the last
+// ones over on refresh so the page never flips back to "Connect…" or old numbers in between.
+const SLOW_KEYS = ["cafes", "cafeList", "cafeWeek", "cafesFrom", "growth", "slowLoaded"];
+const keepSlow = (prev) => (prev ? Object.fromEntries(SLOW_KEYS.filter((k) => k in prev).map((k) => [k, prev[k]])) : {});
+const LiveLoading = ({ what = "live numbers" }) => <p className="th-empty th-loading-live">Loading {what}…</p>;
+
 const fromLabel = (from) => (from === "gwen" ? "Den (via Gwen)" : String(from || "").replace(/^Team Hub · /, ""));
 const initials = (name) => String(name).trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 const sum = (arr, k) => arr.reduce((n, d) => n + d[k], 0);
@@ -158,6 +164,7 @@ function Overview({ data, reload, notify }) {
   const week = daily.slice(-7);
   const textable = data.team.filter((p) => p.canText).length;
   const visited = data.cafes ? (data.cafes["Visit Completed"] || 0) + (data.cafes["Official Cafe Listing"] || 0) : null;
+  const waiting = !data.slowLoaded;
   const byChapter = data.chapters.map((c) => ({ label: c, value: data.team.filter((p) => p.chapters.includes(c)).length })).sort((a, b) => b.value - a.value);
   const cafeRows = data.cafes ? Object.entries(data.cafes).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value) : [];
 
@@ -174,7 +181,7 @@ function Overview({ data, reload, notify }) {
 
       <div className="th-row th-stats">
         <Stat label="Texts · 30D" value={data.stats?.sent30 ?? 0} foot={<Delta now={data.stats?.sent30 ?? 0} before={data.stats?.prevSent30 ?? 0} />} />
-        <Stat label="Cafés visited" value={visited ?? "—"} foot={visited == null ? "Connect the scout map" : "Visits completed"} />
+        <Stat label="Cafés visited" value={visited ?? (waiting ? "…" : "—")} foot={visited == null ? (waiting ? "Loading from the sheet" : "Connect the scout map") : "Visits completed"} />
         <Stat label="Reachable by text" value={`${textable} of ${data.team.length}`} foot="Opted in to texts" />
         <Stat label="Sign-ups · 30D" value={data.signups?.last30 ?? "—"} foot={data.signups ? `${data.signups.pending} waiting for approval` : "Not set up yet"} />
         <Stat label="Chapters" value={data.chapters.length} foot={`${data.team.length} people on the team`} />
@@ -191,6 +198,7 @@ function Overview({ data, reload, notify }) {
               [data.cafeWeek.scouted, "visit scouted", "visits scouted"],
               [data.cafeWeek.official, "made official", "made official"],
             ] : []),
+            ...(data.replies ? [[data.replies.filter((r) => !r.read_at).length, "new reply", "new replies"]] : []),
             ...(data.signups ? [[data.signups.pending, "sign-up waiting", "sign-ups waiting"]] : []),
             ...((data.events || []).length ? [[(data.events || []).filter((e) => e.starts_at && new Date(e.starts_at) > new Date() && new Date(e.starts_at) - new Date() < 7 * 864e5).length, "event coming up", "events coming up"]] : []),
           ].map(([n, one, many]) => <li key={many}><b>{n}</b> {n === 1 ? one : many}</li>)}
@@ -223,7 +231,7 @@ function Overview({ data, reload, notify }) {
       <div className="th-row">
         <Card title="Team by chapter" sub="People per NYC chapter" className="th-grow"><RankBars rows={byChapter} unit="People" share={false} suffix="people" /></Card>
         <Card title="Café statuses" sub="From the scout map" className="th-grow">
-          {cafeRows.length ? <RankBars rows={cafeRows} unit="Cafés" share={false} suffix="cafés" /> : <p className="th-empty">No café updates yet.</p>}
+          {cafeRows.length ? <RankBars rows={cafeRows} unit="Cafés" share={false} suffix="cafés" /> : waiting ? <LiveLoading what="café numbers" /> : <p className="th-empty">No café updates yet.</p>}
         </Card>
         <Card title="Templates" sub="Ready-to-send messages" className="th-grow">
           <ul className="th-tlist">
@@ -329,7 +337,7 @@ function Compose({ data, onSent, notify }) {
         {data.groups.map((g) => chip(`group:${g.key}`, `${g.label} · ${g.count}`))}
       </div>
       <div className="th-chips">{data.chapters.map((c) => chip(c, c))}</div>
-      <details className="th-people">
+      <details className="th-people" open={to.some((v) => textable.some((p) => p.id === v)) || undefined}>
         <summary>Pick specific people</summary>
         <div className="th-chips">{textable.map((p) => chip(p.id, p.name))}</div>
       </details>
@@ -569,7 +577,7 @@ function groupLabel(v, data) {
   return data.team.find((p) => p.id === v)?.name || v;
 }
 
-const SCOUT_TABS = ["overview", "templates", "directory", "send", "schedules", "log", "signups"];
+const SCOUT_TABS = ["overview", "templates", "directory", "send", "replies", "schedules", "log", "signups"];
 
 // Who has cafés on their plate right now (from the café database), with the quiet ones called out.
 function WhosScouting({ data }) {
@@ -599,13 +607,62 @@ function WhosScouting({ data }) {
   );
 }
 
+// Texts people sent back to the Work & Brew number
+function Replies({ data, reload, notify, onReply }) {
+  const [busy, setBusy] = useState(false);
+  const list = data.replies;
+  if (!list) {
+    return (
+      <Card title="Replies" sub="Not set up yet">
+        <p className="th-empty">Two one-time steps: run the sms_replies block at the end of supabase/sms.sql in Supabase, then paste https://workandbrew.app/api/inbound into Twilio as the incoming-message webhook. Replies show up here after that.</p>
+      </Card>
+    );
+  }
+  const unread = list.filter((r) => !r.read_at).length;
+  const markRead = async (id) => {
+    setBusy(true);
+    const r = await hubFetch("POST", { action: "replies-read", id });
+    setBusy(false);
+    if (r.ok) reload(); else notify({ bad: true, text: r.error || "Couldn't update." });
+  };
+  const at = (iso) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return (
+    <Card title="Replies" sub={unread ? `${unread} new · texts people sent back to the Work & Brew number` : "Texts people sent back to the Work & Brew number"}
+      right={unread ? <button type="button" className="th-btn ghost sm" disabled={busy} onClick={() => markRead()}>Mark all read</button> : null}>
+      {!list.length ? <p className="th-empty">No replies yet. When someone texts back, it shows up here.</p> : (
+        <ul className="th-replies">
+          {list.map((r) => (
+            <li key={r.id} className={r.read_at ? "" : "new"}>
+              <span className="th-av">{r.name ? initials(r.name) : "?"}</span>
+              <div className="th-reply-body">
+                <div className="th-reply-top">
+                  <b>{r.name || `Unknown number •••• ${r.phoneLast4}`}</b>
+                  {r.kind === "stop" && <span className="th-tag b">Opted out</span>}
+                  {r.kind === "start" && <span className="th-tag g">Opted back in</span>}
+                  {!r.read_at && <span className="th-dot" aria-label="New" />}
+                </div>
+                <div className="th-bubble">{r.body || <i>(empty message)</i>}</div>
+                <small className="th-reply-when">{at(r.received_at)}</small>
+              </div>
+              <div className="th-reply-acts">
+                {r.canReply && <button type="button" className="th-btn sm" onClick={() => onReply(r)}>Reply</button>}
+                {!r.read_at && <button type="button" className="th-x plain" disabled={busy} onClick={() => markRead(r.id)}>Mark read</button>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 function Messages({ data, reload, notify }) {
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   const [tab, setTab] = useState(SCOUT_TABS.includes(params.get("tab")) ? params.get("tab") : "overview");
   const active = (data.schedules || []).filter((x) => x.active).length;
-  const counts = { overview: null, send: null, schedules: data.schedules?.length || 0, templates: data.templates.length, log: null, directory: data.team.length, signups: data.signups?.pending || 0 };
-  const labels = { overview: "Overview", templates: "Templates", directory: "Contacts", send: "Send a text", schedules: "Schedules", log: "Log", signups: "Sign-ups" };
+  const counts = { overview: null, send: null, replies: (data.replies || []).filter((r) => !r.read_at).length, schedules: data.schedules?.length || 0, templates: data.templates.length, log: null, directory: data.team.length, signups: data.signups?.pending || 0 };
+  const labels = { overview: "Overview", templates: "Templates", directory: "Contacts", send: "Send a text", replies: "Replies", schedules: "Schedules", log: "Log", signups: "Sign-ups" };
   return (
     <>
       <nav className="th-subnav" aria-label="Text Message System sections">
@@ -637,6 +694,7 @@ function Messages({ data, reload, notify }) {
         </div>
       )}
       {tab === "overview" && <Analytics data={data} />}
+      {tab === "replies" && <Replies data={data} reload={reload} notify={notify} onReply={(r) => { try { sessionStorage.setItem("wb-hub-draft-to", JSON.stringify([r.contactId])); sessionStorage.setItem("wb-hub-draft", `Hi ${String(r.name || "").split(" ")[0]}! `); } catch { /* private mode */ } setTab("send"); }} />}
       {tab === "schedules" && <Schedules data={data} onChange={reload} />}
       {tab === "templates" && <Templates data={data} onChange={reload} notify={notify} editId={params.get("edit")} />}
       {tab === "log" && <Log log={data.log} />}
@@ -672,6 +730,14 @@ function Cafes({ data }) {
   const [borough, setBorough] = useState("all");
   const [q, setQ] = useState("");
   const [shown, setShown] = useState(25);
+  if (!data.cafes && !data.slowLoaded) {
+    return (
+      <>
+        <Headline title="Cafés" sub="Every café in the database, live from the scout map." />
+        <Card title="Café statuses" sub="From the café spreadsheet"><LiveLoading what="cafés from the spreadsheet" /></Card>
+      </>
+    );
+  }
   if (!data.cafes) {
     return (
       <>
@@ -914,6 +980,14 @@ function SocialCard({ meta, src, manualReady, onChange, notify }) {
 }
 
 function Growth({ data, reload, notify }) {
+  if (!data.slowLoaded && !data.growth) {
+    return (
+      <>
+        <Headline title="Who's finding Work & Brew." sub="Website, email and social reach across Instagram, TikTok, YouTube and Lemon8 · last 30 days" />
+        <Card title="Growth & Social" sub="Website, email and social"><LiveLoading what="website, email and social numbers" /></Card>
+      </>
+    );
+  }
   const s = data.signups;
   const g = data.growth || {};
   const web = g.website || {};
@@ -1161,9 +1235,9 @@ export default function TeamHub() {
   const fetchAll = (isAlive) => hubFetch("GET").then((r) => {
     if (!isAlive()) return;
     if (!r.ok) { setError(r.error || "Couldn't load the Team Hub."); return; }
-    setData(r); setError(null);
+    setData((prev) => ({ ...r, ...keepSlow(prev) })); setError(null);
     return hubFetch("GET", undefined, "?more=1").then((more) => {
-      if (isAlive() && more.ok) setData((d) => (d ? { ...d, ...more } : d));
+      if (isAlive()) setData((d) => (d ? { ...d, ...(more.ok ? more : {}), slowLoaded: true } : d));
     });
   });
   const load = useCallback(() => fetchAll(() => true), []);
@@ -1174,9 +1248,9 @@ export default function TeamHub() {
     hubFetch("GET").then((r) => {
       if (!alive) return;
       if (!r.ok) { setError(r.error || "Couldn't load the Team Hub."); return; }
-      setData(r); setError(null);
+      setData((prev) => ({ ...r, ...keepSlow(prev) })); setError(null);
       return hubFetch("GET", undefined, "?more=1").then((more) => {
-        if (alive && more.ok) setData((d) => (d ? { ...d, ...more } : d));
+        if (alive) setData((d) => (d ? { ...d, ...(more.ok ? more : {}), slowLoaded: true } : d));
       });
     });
     return () => { alive = false; };

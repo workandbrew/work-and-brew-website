@@ -1916,7 +1916,7 @@ body.wb-tab-scout #map-locate-btn, body.wb-listmode #map-locate-btn { display: n
       <div style="color:#27313E;font-size:0.8rem;">Syncing latest cafe data from the team</div>
     </div>
     <div style="width:180px;height:4px;background:#D1C7BB;border-radius:999px;overflow:hidden;">
-      <div id="sb-loading-bar" style="height:100%;width:0%;background:#17274E;border-radius:999px;transition:width 0.4s ease;"></div>
+      <div id="sb-loading-bar" style="height:100%;width:0%;background:#17274E;border-radius:999px;transition:width 0.2s ease;"></div>
     </div>
   </div>
 </div>
@@ -2349,13 +2349,19 @@ async function sbIsTeamMember() {
 }
 
 async function sbOnAuthSuccess(user) {
-  const member = await sbIsTeamMember();
-  if (member === 'unknown') showToast('Could not confirm team access right now, loading anyway');
-  if (member === false) {
-    await sb.auth.signOut();
-    alert('The café map is for Work & Brew team members only. If you should have access, ask Denisse to add your email.');
-    return;
-  }
+  // With a saved café list the map opens right away and the team check finishes in the background
+  // (the spreadsheet checks every request itself, so nothing new is exposed while it runs).
+  const memberCheck = sbIsTeamMember().then(async (member) => {
+    if (member === 'unknown') showToast('Could not confirm team access right now, loading anyway');
+    if (member === false) {
+      try { localStorage.removeItem(CAFE_CACHE_KEY); } catch (e) {}
+      await sb.auth.signOut();
+      alert('The café map is for Work & Brew team members only. If you should have access, ask Denisse to add your email.');
+      location.reload();
+    }
+    return member;
+  });
+  if (!cachedCafes() && (await memberCheck) === false) return;
   _sbUser = user;
   adminUnlocked = true;
 
@@ -2367,9 +2373,9 @@ async function sbOnAuthSuccess(user) {
 
   let barPct = 0;
   const barInterval = setInterval(() => {
-    barPct = Math.min(barPct + (barPct < 60 ? 8 : barPct < 85 ? 3 : 1), 90);
+    barPct = Math.min(barPct + (barPct < 60 ? 15 : barPct < 85 ? 5 : 1), 92);
     if (loadingBar) loadingBar.style.width = barPct + '%';
-  }, 200);
+  }, 120);
 
   try {
     if (!_sbInitialized) {
@@ -2402,12 +2408,12 @@ async function sbOnAuthSuccess(user) {
   } finally {
     clearInterval(barInterval);
     if (loadingBar) loadingBar.style.width = '100%';
-    await new Promise(r => setTimeout(r, 350));
+    await new Promise(r => setTimeout(r, 120));
     const overlay = document.getElementById('sb-login-overlay');
     if (overlay) {
-      overlay.style.transition = 'opacity 0.5s ease';
+      overlay.style.transition = 'opacity 0.25s ease';
       overlay.style.opacity = '0';
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 250));
       overlay.style.display = 'none';
       overlay.style.opacity = '';
       overlay.style.transition = '';

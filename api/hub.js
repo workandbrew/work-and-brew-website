@@ -21,7 +21,7 @@
 
 import { readBody, db, loadScouts, publicScout, deliver, last4, GROUP_LABELS, MAX_MESSAGE_CHARS } from "./_lib/sms.js";
 import { listSchedules, saveSchedule, updateSchedule, approveSignup, rejectSignup, WEEKDAYS } from "./_lib/automation.js";
-import { growthSnapshot, saveManual, tiktokReady } from "./_lib/growth.js";
+import { growthSnapshot, saveManual, tiktokReady, brevo } from "./_lib/growth.js";
 import { makeState } from "./_lib/connectState.js";
 
 // Starter templates shown until the team saves its own (the sms_templates table may not exist yet).
@@ -80,19 +80,20 @@ async function slowExtras(token) {
     sheetCafes(token),
     growthSnapshot().catch((e) => ({ error: e.message })),
   ]);
-  return { ...(sheet ? { ...cafeParts(sheet), cafesFrom: "sheet" } : {}), growth };
+  const cafes = sheet || await optional(db().from("cafes").select("*").limit(2000), null);
+  return { ...cafeParts(cafes), cafesFrom: sheet ? "sheet" : "saved", growth };
 }
 
 async function extras() {
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
-  const [templates, signups, cafes, pendingList, schedules, events, worksRows] = await Promise.all([
+  const [templates, signups, pendingList, schedules, events, worksRows, replies] = await Promise.all([
     optional(db().from("sms_templates").select("id, name, body, created_by").order("created_at"), null),
     optional(db().from("signup_requests").select("status, created_at").gte("created_at", since), null),
-    optional(db().from("cafes").select("*").limit(2000), null), // quick saved copy; the sheet's live numbers follow
     optional(db().from("signup_requests").select("id, name, phone, sms_consent, created_at").eq("status", "pending").order("created_at"), []),
     listSchedules().catch(() => null),
     optional(db().from("events").select("*").order("starts_at", { ascending: true, nullsFirst: false }).limit(300), null),
     optional(db().from("current_works").select("*"), null),
+    optional(db().from("sms_replies").select("id, from_phone, contact_id, body, kind, received_at, read_at").order("received_at", { ascending: false }).limit(150), null),
   ]);
   // Always the four departments, in order, even before anyone has written anything.
   const works = DEPARTMENTS.map((department) => {
@@ -105,15 +106,81 @@ async function extras() {
     templates: templates && templates.length ? templates : DEFAULT_TEMPLATES,
     templatesSaved: !!templates,
     signups: signups ? { last30: signups.length, approved30: signups.filter((r) => r.status === "approved").length, pending } : null,
-    ...cafeParts(cafes),
-    cafesFrom: "saved",
     pendingSignups: pendingList.map(({ phone, ...r }) => ({ ...r, phoneLast4: last4(phone) })),
     schedules: schedules && schedules.map((s) => ({ ...s, weekdayName: WEEKDAYS[s.weekday] })),
-    growth: null,
     events,
     works,
     worksSaved: !!worksRows,
+    replies,
   };
+}
+
+// --- Notifications (the bell) -----------------------------------------------------------------
+// Everything that happened around the hub in the last 14 days, newest first. Built from the data the hub
+// already keeps, so nothing extra has to be written when something changes.
+const nyDate = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+const nyStartOfDay = (date) => { // midnight New York time for a YYYY-MM-DD date, as ISO
+  const guess = new Date(`${date}T05:00:00Z`);
+  const hour = Number(guess.toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" }));
+  return new Date(guess.getTime() - hour * 3600e3).toISOString();
+};
+const senderName = (from) => (from === "gwen" ? "Den (via Gwen)" : String(from || "someone").replace(/^Team Hub · /, "").replace(/^Scheduled · /, "Scheduled text: "));
+const snippet = (t, n = 70) => { const s = String(t || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+
+async function notifications() {
+  const since = new Date(Date.now() - 14 * 864e5).toISOString();
+  const today = nyDate(Date.now()), tomorrow = nyDate(Date.now() + 864e5);
+  const tomorrowDay = WEEKDAYS.indexOf(new Date(`${tomorrow}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" }));
+  const [works, events, signups, replies, logData, schedules, oneOffs, people, email] = await Promise.all([
+    optional(db().from("current_works").select("department, updated_by, updated_at").gte("updated_at", since), []),
+    optional(db().from("events").select("id, title, created_by, created_at, starts_at").gte("created_at", since), []),
+    optional(db().from("signup_requests").select("id, name, created_at").gte("created_at", since), []),
+    optional(db().from("sms_replies").select("id, contact_id, from_phone, body, kind, received_at").gte("received_at", since).order("received_at", { ascending: false }).limit(60), []),
+    recentLog().catch(() => ({ log: [] })),
+    listSchedules().catch(() => []),
+    optional(db().from("sms_messages").select("body, scheduled_for").eq("status", "scheduled").gte("scheduled_for", nyStartOfDay(tomorrow)).lt("scheduled_for", nyStartOfDay(nyDate(Date.now() + 2 * 864e5))), []),
+    optional(db().from("sms_contacts").select("id, name, phone"), []),
+    brevo().catch(() => null),
+  ]);
+  const items = [];
+  const add = (kind, text, at, link) => at && items.push({ id: `${kind}-${at}-${items.length}`, kind, text, at, link });
+
+  // Announcements: one item per save (rows saved together within 10 minutes by the same person)
+  const sorted = [...works].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  for (const w of sorted) {
+    const last = items.find((i) => i.kind === "announcement" && i.by === (w.updated_by || "") && Math.abs(new Date(i.at) - new Date(w.updated_at)) < 600e3);
+    if (last) { last.depts.push(w.department); last.text = `${last.by || "Someone"} updated Team Lead Announcements · ${last.depts.join(", ")}`; continue; }
+    add("announcement", `${w.updated_by || "Someone"} updated Team Lead Announcements · ${w.department}`, w.updated_at, "/team");
+    Object.assign(items[items.length - 1], { by: w.updated_by || "", depts: [w.department] });
+  }
+  // Texts that went out
+  for (const b of (logData.log || []).filter((b) => b.at >= since).slice(0, 30)) {
+    const n = b.recipients.length;
+    add("text", `${senderName(b.from)} texted ${n === 1 ? b.recipients[0].name : `${n} people`}: “${snippet(b.body, 60)}”${b.failed ? ` · ${b.failed} failed` : ""}`, b.at, "/team/messages?tab=log");
+  }
+  // Going out tomorrow: weekly texts and one-off scheduled texts
+  for (const s of schedules.filter((s) => s.active && s.weekday === tomorrowDay && (!s.ends_on || s.ends_on >= tomorrow))) {
+    add("scheduled", `“${s.name}” goes out tomorrow morning to ${s.recipients.length > 1 ? `${s.recipients.length} groups` : s.recipients[0] === "all" ? "everyone" : s.recipients[0].replace(/^group:/, "")}`, nyStartOfDay(today), "/team/messages?tab=schedules");
+  }
+  const oneOffGroups = new Map();
+  for (const m of oneOffs) { const k = m.scheduled_for + "|" + m.body; oneOffGroups.set(k, { ...m, count: (oneOffGroups.get(k)?.count || 0) + 1 }); }
+  for (const m of oneOffGroups.values()) {
+    const t = new Date(m.scheduled_for).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
+    add("scheduled", `A text to ${m.count} ${m.count === 1 ? "person" : "people"} is scheduled for tomorrow at ${t}: “${snippet(m.body, 50)}”`, nyStartOfDay(today), "/team/messages?tab=log");
+  }
+  // Sign-ups
+  for (const s of signups) add("signup", `New team sign-up: ${s.name}`, s.created_at, "/team/messages?tab=signups");
+  if (email?.connected && email.new24) add("email", `${email.new24} new email sign-up${email.new24 > 1 ? "s" : ""} in the last 24 hours`, nyStartOfDay(today), "/team/growth");
+  // Events
+  for (const e of events) add("event", `Event added: ${e.title}${e.created_by ? ` · by ${String(e.created_by).split(" ")[0]}` : ""}`, e.created_at, "/team/events");
+  // Replies
+  const names = new Map(people.map((p) => [p.id, p.name])), byPhone = new Map(people.filter((p) => p.phone).map((p) => [p.phone, p.name]));
+  for (const r of replies) {
+    const who = names.get(r.contact_id) || byPhone.get(r.from_phone) || `•••• ${last4(r.from_phone)}`;
+    add("reply", r.kind === "stop" ? `${who} replied STOP and is now opted out` : `Reply from ${who}: “${snippet(r.body, 60)}”`, r.received_at, "/team/messages?tab=replies");
+  }
+  for (const i of items) { delete i.by; delete i.depts; } // bookkeeping for grouping announcements
+  return items.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 50);
 }
 
 // --- Current works (overview) ----------------------------------------------------------------
@@ -279,6 +346,7 @@ export default async function handler(req, res) {
     if (req.method === "GET") {
       const bearer = String(req.headers?.authorization || "").replace(/^Bearer /, "");
       if (req.query?.more) return res.status(200).json({ ok: true, ...(await slowExtras(bearer)) });
+      if (req.query?.notifications) return res.status(200).json({ ok: true, items: await notifications() });
       const [scouts, { log, daily, prevSent30 }, more] = await Promise.all([loadScouts(), recentLog(), extras()]);
       const team = scouts.map((s) => ({ ...publicScout(s), optedOut: !!s.opted_out_at, optedIn: !!s.sms_opt_in }));
       const chapters = [...new Set(team.flatMap((s) => s.chapters))].sort();
@@ -287,6 +355,13 @@ export default async function handler(req, res) {
         .filter((g) => g.count);
       const sent30 = daily.reduce((n, d) => n + d.sent, 0);
       const failed30 = daily.reduce((n, d) => n + d.failed, 0);
+      if (more.replies) {
+        const byId = new Map(scouts.map((s) => [s.id, s])), byPhone = new Map(scouts.filter((s) => s.phone).map((s) => [s.phone, s]));
+        more.replies = more.replies.map(({ from_phone, ...r }) => {
+          const who = byId.get(r.contact_id) || byPhone.get(from_phone);
+          return { ...r, contactId: who?.id || null, name: who?.name || null, phoneLast4: last4(from_phone), canReply: !!who && !who.opted_out_at && !!who.sms_opt_in };
+        });
+      }
       return res.status(200).json({ ok: true, me: { ...me, canEditWorks: canEditWorks(me) }, ...welcome(), team, chapters, groups, log, daily, stats: { sent30, failed30, prevSent30 }, ...more });
     }
 
@@ -317,6 +392,12 @@ export default async function handler(req, res) {
     }
     if (action === "growth-manual") return reply(await saveManual(extra.platform, extra.followers, by));
     if (action === "works-save") return reply(await saveWorks(me, extra));
+    if (action === "replies-read") {
+      let q = db().from("sms_replies").update({ read_at: new Date().toISOString(), read_by: by }).is("read_at", null);
+      if (id) q = q.eq("id", String(id));
+      const { error } = await q;
+      return reply(error ? { status: 500, error: error.message } : {});
+    }
     if (action === "event-save") return reply(await saveEvent(id, extra, by));
     if (action === "event-check") return reply(await checkEvent(String(id || ""), extra));
     if (action === "event-delete") {
