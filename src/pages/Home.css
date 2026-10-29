@@ -1031,6 +1031,8 @@
   .map-hero-subtitle {
     font-size: 0.92rem;
     max-width: 100%;
+    white-space: normal;   /* phones: wrap instead of pushing the page wider than the screen */
+    line-height: 1.4;
   }
 
   /* Welcome */
