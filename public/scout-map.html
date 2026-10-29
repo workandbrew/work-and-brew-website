@@ -1720,9 +1720,7 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
 }
 /* scout's own list header (D style) */
 .wb-hello { margin: 2px 0 12px; }
-@keyframes wbBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-.wb-load-bear { animation: wbBob 1.4s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .wb-load-bear { animation: none; } }
+.wb-load-bear { animation: none; }
 /* Maps app choice (iPhone/iPad only): one-time chooser + "change" link under the scout's name */
 .wb-maps-pref { font-size: 0.72rem; font-weight: 600; color: var(--wb-slate); margin: -8px 0 12px; display: none; }
 .wb-maps-pref a { color: var(--wb-navy); text-decoration: underline; cursor: pointer; }
@@ -2242,6 +2240,7 @@ function wbRefreshBusy() {
   return state.formCafeId || state.reviewCafeId || WF_BUSY || typing
     || document.querySelector('.leaflet-popup, #sg-modal, #sc-modal')
     || (panel && panel.classList.contains('dragging'))
+    || _syncPending || _sbSyncTimer
     || Date.now() - _lastLocalEdit < 8000;
 }
 let _wbChecking = false;
@@ -2262,7 +2261,7 @@ async function wbCheckForSheetChanges() {
 setInterval(wbCheckForSheetChanges, 60000);
 // Pick up edits made straight in the spreadsheet when the person comes back to the tab
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible' || !_sbUser || Date.now() - _lastCafeLoad < 90000) return;
+  if (document.visibilityState !== 'visible' || !_sbUser || Date.now() - _lastCafeLoad < 90000 || _syncPending || _sbSyncTimer) return;
   // Not while someone is in the middle of a form, a review or a café card: the refresh would redraw under their fingers
   if (state.formCafeId || state.reviewCafeId || document.querySelector('.leaflet-popup')) return;
   loadFromSupabase();
@@ -2286,28 +2285,36 @@ async function sbUpdateRows(rows) {
   } catch (e) { return { error: e }; }
 }
 
+// Push every café whose status, notes or assignment changed since the last sync to the spreadsheet.
+// (A change back to Ready To Be Assigned counts too.) If the sheet can't be reached, say so and retry.
+let _syncPending = false;
 async function syncToSupabase() {
   if (!_sbUser) return;
   try {
-    const toSync = state.cafes
-      .filter(c => c.status !== 'Ready To Be Assigned' || c.notes)
-      .map(c => ({
-        id: c.id,
-        status: c.status || 'Ready To Be Assigned',
-        notes: c.notes || null,
-        assigned_to: c.assignedToName || null,
-      }));
-    if (toSync.length === 0) return;
+    const toSync = state.cafes.map(c => ({
+      id: c.id,
+      status: c.status || 'Ready To Be Assigned',
+      notes: c.notes || null,
+      assigned_to: c.assignedToName || null,
+    }));
     const { error } = await sbUpdateRows(toSync);
-    if (error) console.warn('Supabase sync error:', error.message);
-  } catch(e) { console.warn('Supabase sync failed:', e); }
+    if (error) {
+      _syncPending = true;
+      showToast('⚠ Could not save to the spreadsheet: ' + (error.message || 'no connection') + '. Retrying…');
+      _lastLocalEdit = Date.now();
+      if (_sbSyncTimer) clearTimeout(_sbSyncTimer);
+      _sbSyncTimer = setTimeout(() => { _sbSyncTimer = null; syncToSupabase(); }, 8000);
+      return;
+    }
+    _syncPending = false;
+  } catch(e) { console.warn('Sheet sync failed:', e); }
 }
 
 function debouncedSync() {
   if (!_sbUser) return;
   if (_sbSyncTimer) clearTimeout(_sbSyncTimer);
   _lastLocalEdit = Date.now();
-  _sbSyncTimer = setTimeout(syncToSupabase, 1500);
+  _sbSyncTimer = setTimeout(() => { _sbSyncTimer = null; syncToSupabase(); }, 1500);
 }
 
 // Only the Work & Brew team (team_access list, checked by the website server) may use the map.

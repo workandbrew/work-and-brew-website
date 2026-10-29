@@ -1022,9 +1022,18 @@ function handleSyncCafes_(body, user) {
     if (r.assigned_to !== undefined) cA[i][0] = String(r.assigned_to || '');
     done++;
   });
-  sh.getRange(2, h.Status, n, 1).setValues(cS);
-  sh.getRange(2, h.Notes, n, 1).setValues(cN);
-  sh.getRange(2, h.AssignedTo, n, 1).setValues(cA);
+  if (!done) return { updated: 0 };
+  // A strict dropdown can refuse a value: loosen it to a warning and write again rather than lose the change
+  var write = function () {
+    sh.getRange(2, h.Status, n, 1).setValues(cS);
+    sh.getRange(2, h.Notes, n, 1).setValues(cN);
+    sh.getRange(2, h.AssignedTo, n, 1).setValues(cA);
+  };
+  try { write(); } catch (e) {
+    if (!/validation/i.test(String(e.message || e))) throw e;
+    relaxValidation_(sh, h.Status); relaxValidation_(sh, h.AssignedTo);
+    write();
+  }
   CacheService.getScriptCache().remove('markers_csv');
   return { updated: done };
 }
