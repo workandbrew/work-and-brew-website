@@ -2270,7 +2270,37 @@ async function wbCheckForSheetChanges() {
     }
   } catch (e) {} finally { _wbChecking = false; }
 }
-setInterval(wbCheckForSheetChanges, 60000);
+setInterval(wbCheckForSheetChanges, 60000); // backup: the instant signal below does the real work
+
+// Instant updates: the spreadsheet script broadcasts "changed" on a Supabase Realtime channel after any save
+// from any map and after any hand edit in the sheet. Reload quietly a moment later, never mid-edit, and skip
+// signals caused by this person's own saves (their screen already shows the change).
+let _rtChan = null, _rtTimer = null, _rtPending = false;
+function wbListenForChanges() {
+  if (_rtChan || !sb.channel) return;
+  _rtChan = sb.channel('cafes')
+    .on('broadcast', { event: 'changed' }, (msg) => {
+      const p = (msg && msg.payload) || {};
+      if (p.source === 'map' && _sbUser && p.by && p.by.toLowerCase() === String(_sbUser.email || '').toLowerCase()) return;
+      wbRemoteChanged();
+    })
+    .subscribe();
+}
+function wbRemoteChanged() {
+  clearTimeout(_rtTimer);
+  _rtTimer = setTimeout(async () => {
+    if (!_sbUser) return;
+    if (wbRefreshBusy()) { _rtPending = true; return; }
+    _rtPending = false;
+    const body = document.getElementById('panel-body'), keep = body ? body.scrollTop : 0;
+    _quietLoad = true;
+    try { await loadFromSupabase(); if (_wfIsApprover && typeof sgLoadPending === 'function') sgLoadPending(); }
+    finally { _quietLoad = false; }
+    if (body) body.scrollTop = keep;
+  }, 900);
+}
+// A change that arrived mid-edit is applied as soon as the person is done
+setInterval(() => { if (_rtPending && !wbRefreshBusy()) wbRemoteChanged(); }, 3000);
 // Pick up edits made straight in the spreadsheet when the person comes back to the tab
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible' || !_sbUser || Date.now() - _lastCafeLoad < 90000 || _syncPending || _sbSyncTimer) return;
@@ -2640,7 +2670,7 @@ document.getElementById('sb-login-form').addEventListener('submit', async (e) =>
 
 // The Apps Script this map was built for. If the live deployment answers with anything else, tell the admins:
 // their edits are going to a script that does not know about them.
-const EXPECTED_SCRIPT_VERSION = 'v31-2026-10-29';
+const EXPECTED_SCRIPT_VERSION = 'v32-2026-10-29';
 async function wbCheckScriptVersion() {
   try {
     const r = await fetch(SCOUT_API_URL + '?action=ping', { cache: 'no-store' });
@@ -5971,6 +6001,7 @@ function wfDetectRole(user) {
   wfSyncFilterBar();
   if (typeof renderHomeBaseMarkers === 'function') renderHomeBaseMarkers(); // re-draw so approvers get long-press-to-move
   setTimeout(wbCheckScriptVersion, 1500);
+  wbListenForChanges();
 }
 
 // Approvers keep the filter bar on every tab (for the status filter); the scout-only

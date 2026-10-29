@@ -42,7 +42,43 @@ var EXTRA_COLUMNS = [
 
 // Bump this with every change. The scout map compares it with the version it expects and warns admins
 // when the live deployment is older (the usual cause: pasting into a different deployment).
-var SCRIPT_VERSION = 'v31-2026-10-29';
+var SCRIPT_VERSION = 'v32-2026-10-29';
+
+// ------------------------------------------------------------ instant updates
+// Every open café map listens on a Supabase Realtime channel. Whenever the sheet changes (a save from any
+// map, or someone typing in the spreadsheet) this sends one small "changed" message, and the maps reload.
+// The maps still check once a minute as a backup.
+var WRITE_ACTIONS = ['submit', 'flagAddress', 'suggestCafe', 'approveSuggestion', 'rejectSuggestion', 'resolveCorrection',
+  'approve', 'assign', 'editCafe', 'leadSave', 'leadReset', 'saveReview', 'sendBack', 'setStatus', 'syncCafes', 'deleteCafe'];
+function notifyChange_(source, by) {
+  try {
+    UrlFetchApp.fetch(SUPABASE_URL + '/realtime/v1/api/broadcast', {
+      method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
+      payload: JSON.stringify({ messages: [{ topic: 'cafes', event: 'changed', payload: { source: source, by: by || '', at: new Date().toISOString() } }] })
+    });
+  } catch (e) {} // never let a missed signal break a save; the once-a-minute check still catches it
+}
+// Runs when someone edits the spreadsheet by hand (installed by setupInstantUpdates below)
+function onSheetEdit(e) {
+  try {
+    var name = e && e.range ? e.range.getSheet().getName() : (e && e.source ? e.source.getActiveSheet().getName() : '');
+    if (name && name !== sheet_().getName() && name !== SUGGEST_SHEET) return;
+    var cache = CacheService.getScriptCache();
+    if (cache.get('notify_sheet')) return; // a burst of typing sends one signal per second at most
+    cache.put('notify_sheet', '1', 1);
+    notifyChange_('sheet', e && e.user ? String(e.user) : '');
+  } catch (err) {}
+}
+// RUN THIS ONCE from the Apps Script editor (pick it in the function menu, then Run). It makes the spreadsheet
+// call onSheetEdit whenever it is edited or rows are added/removed. Running it again is safe.
+function setupInstantUpdates() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'onSheetEdit') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('onSheetEdit').forSpreadsheet(SPREADSHEET_ID).onEdit().create();
+  ScriptApp.newTrigger('onSheetEdit').forSpreadsheet(SPREADSHEET_ID).onChange().create();
+  notifyChange_('setup', '');
+  Logger.log('Instant updates are on: maps refresh within seconds of any sheet edit.');
+}
 
 // ------------------------------------------------------------ entry points
 function doPost(e) {
@@ -82,6 +118,8 @@ function doPost(e) {
       default: throw new Error('Unknown action: ' + body.action);
     }
     out.ok = true;
+    // Saved something: tell every open map to refresh now (see notifyChange_)
+    if (WRITE_ACTIONS.indexOf(body.action) !== -1) notifyChange_('map', user && user.email);
   } catch (err) {
     out = { ok: false, error: String(err.message || err) };
   }
