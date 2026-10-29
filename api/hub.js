@@ -38,7 +38,7 @@ async function optional(query, fallback) {
 }
 
 // The scout map's Apps Script. It checks the caller's own login token, so the hub just forwards it.
-const SCOUT_API_URL = process.env.SCOUT_API_URL || "https://script.google.com/macros/s/AKfycbyWnK8CDeemB7TiWCc-4pcP5DIBPjdzQQI8dYmaUs1fZosN1TUJOVelETPqRwTfSpTJ/exec";
+const SCOUT_API_URL = process.env.SCOUT_API_URL || "https://script.google.com/macros/s/AKfycbxgN23ay_fxBIfvBWBP2cVBuM9Jj99-ZD_Aq0uqYOBXnb7_8iHBP5FZygkWerIaqyUL/exec";
 async function sheetCafes(token) {
   if (!token) return null;
   const ctrl = new AbortController();
