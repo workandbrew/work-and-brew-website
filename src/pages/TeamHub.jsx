@@ -149,7 +149,7 @@ function Overview({ data, reload, notify }) {
   const daily = data.daily || [];
   const week = daily.slice(-7);
   const textable = data.team.filter((p) => p.canText).length;
-  const visited = data.cafes ? data.cafes["Visit Completed"] || 0 : null;
+  const visited = data.cafes ? (data.cafes["Visit Completed"] || 0) + (data.cafes["Official Cafe Listing"] || 0) : null;
   const byChapter = data.chapters.map((c) => ({ label: c, value: data.team.filter((p) => p.chapters.includes(c)).length })).sort((a, b) => b.value - a.value);
   const cafeRows = data.cafes ? Object.entries(data.cafes).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value) : [];
 
@@ -172,6 +172,23 @@ function Overview({ data, reload, notify }) {
         <Stat label="Chapters" value={data.chapters.length} foot={`${data.team.length} people on the team`} />
       </div>
 
+      <section className="th-week" aria-label="What changed this week">
+        <div className="th-caps">This week · last 7 days</div>
+        <ul>
+          {[
+            [sum(week, "sent"), "text sent", "texts sent"],
+            ...(data.cafeWeek ? [
+              [data.cafeWeek.added, "new café added", "new cafés added"],
+              [data.cafeWeek.assigned, "café assigned", "cafés assigned"],
+              [data.cafeWeek.scouted, "visit scouted", "visits scouted"],
+              [data.cafeWeek.official, "made official", "made official"],
+            ] : []),
+            ...(data.signups ? [[data.signups.pending, "sign-up waiting", "sign-ups waiting"]] : []),
+            ...((data.events || []).length ? [[(data.events || []).filter((e) => e.starts_at && new Date(e.starts_at) > new Date() && new Date(e.starts_at) - new Date() < 7 * 864e5).length, "event coming up", "events coming up"]] : []),
+          ].map(([n, one, many]) => <li key={many}><b>{n}</b> {n === 1 ? one : many}</li>)}
+        </ul>
+      </section>
+
       <div className="th-row">
         <Card title="Texts this week" sub="Last 7 days · all senders" className="th-grow"
           right={<Delta now={sum(week, "sent")} before={sum(daily.slice(-14, -7), "sent")} label="vs. last week" />}>
@@ -191,7 +208,7 @@ function Overview({ data, reload, notify }) {
               ))}
             </ul>
           ) : <p className="th-empty">No texts sent yet.</p>}
-          <NavLink to="/team/messages" className="th-link">Open messages →</NavLink>
+          <NavLink to="/team/messages?tab=log" className="th-link">Open the log →</NavLink>
         </Card>
       </div>
 
@@ -211,15 +228,16 @@ function Overview({ data, reload, notify }) {
           <Link to="/team/messages?tab=templates" className="th-link">All templates →</Link>
         </Card>
         <Card title="Scheduled this week" sub="Texts that send themselves" className="th-grow">
-          {data.schedules?.filter((x) => x.active).length ? (
+          {data.schedules?.length ? (
             <ul className="th-scheds">
-              {data.schedules.filter((x) => x.active).map((x) => (
-                <li key={x.id}><span className="th-sched-day">{x.weekdayName.slice(0, 3).toUpperCase()}</span>
-                  <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}</small></div></li>
+              {data.schedules.map((x) => (
+                <li key={x.id} className={x.active ? "" : "off"}><span className="th-sched-day">{x.weekdayName.slice(0, 3).toUpperCase()}</span>
+                  <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}{x.active ? "" : " · paused"}</small></div>
+                  <button type="button" className="th-x plain" onClick={async () => { await hubFetch("POST", { action: "schedule-toggle", id: x.id, active: !x.active }); notify({ text: `${x.name} ${x.active ? "paused" : "resumed"}.` }); reload(); }}>{x.active ? "Pause" : "Resume"}</button></li>
               ))}
             </ul>
           ) : <p className="th-empty">Nothing scheduled this week.</p>}
-          <NavLink to="/team/messages" className="th-link">{data.schedules?.length ? "Manage →" : "Schedule a weekly text →"}</NavLink>
+          <NavLink to={data.schedules?.length ? "/team/messages?tab=schedules" : "/team/messages?tab=send"} className="th-link">{data.schedules?.length ? "Manage →" : "Schedule a weekly text →"}</NavLink>
         </Card>
       </div>
     </>
@@ -229,7 +247,7 @@ function Overview({ data, reload, notify }) {
 // ---------------------------------------------------------------- Messages
 
 function Compose({ data, onSent, notify }) {
-  const [to, setTo] = useState([]);
+  const [to, setTo] = useState(() => { try { const t = JSON.parse(sessionStorage.getItem("wb-hub-draft-to") || "[]"); sessionStorage.removeItem("wb-hub-draft-to"); return Array.isArray(t) ? t : []; } catch { return []; } });
   const [message, setMessage] = useState(() => { try { const d = sessionStorage.getItem("wb-hub-draft"); sessionStorage.removeItem("wb-hub-draft"); return d || ""; } catch { return ""; } });
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -929,8 +947,9 @@ function EventForm({ data, initial, onSaved, onCancel, notify }) {
   );
 }
 
-function EventDetail({ event, onChange, onEdit, notify }) {
+function EventDetail({ data, event, onChange, onEdit, notify }) {
   const [adding, setAdding] = useState("");
+  const [audience, setAudience] = useState(["all"]);
   const [busy, setBusy] = useState(false);
   const list = event.checklist || [];
   const done = eventDone(event);
@@ -948,7 +967,9 @@ function EventDetail({ event, onChange, onEdit, notify }) {
   const remove = async () => { if (window.confirm(`Delete “${event.title}”? This can't be undone.`)) { await post({ action: "event-delete" }); } };
   const markDone = () => post({ action: "event-save", title: event.title, startsAt: event.starts_at || "", venue: event.venue, host: event.host, status: event.status === "done" ? "planning" : "done", headcount: event.headcount_target ?? "", notes: event.notes });
   const draft = `${event.title}${event.starts_at ? ` · ${eventWhen(event)}` : ""}${event.venue ? ` at ${event.venue}` : ""}${event.host ? ` · host: ${event.host}` : ""}. Reply if you can make it!`;
-  const textTeam = () => { try { sessionStorage.setItem("wb-hub-draft", draft); } catch { /* private mode */ } };
+  const textTeam = () => { try { sessionStorage.setItem("wb-hub-draft", draft); sessionStorage.setItem("wb-hub-draft-to", JSON.stringify(audience)); } catch { /* private mode */ } };
+  const pick = (v) => setAudience((a) => (v === "all" ? ["all"] : a.includes(v) ? (a.filter((x) => x !== v).length ? a.filter((x) => x !== v) : ["all"]) : [...a.filter((x) => x !== "all"), v]));
+  const audienceChips = [["all", "Everyone"], ...(data?.groups || []).map((g) => [`group:${g.key}`, g.label]), ...(data?.chapters || []).map((c) => [c, c])];
   return (
     <Card title={event.title} sub={`${eventWhen(event)}${event.venue ? ` · ${event.venue}` : ""}${event.host ? ` · host: ${event.host}` : ""}`}
       right={<span className={`th-tag ev-${event.status}`}>{EVENT_STATUS[event.status] || event.status}</span>}>
@@ -972,8 +993,10 @@ function EventDetail({ event, onChange, onEdit, notify }) {
           <button className="th-btn ghost" disabled={busy || !adding.trim()} onClick={addItem}>Add</button>
         </li>
       </ul>
+      <div className="th-caps">Who to text</div>
+      <div className="th-chips">{audienceChips.map(([v, label]) => <button key={v} type="button" className={`th-chip sm ${audience.includes(v) ? "on" : ""}`} onClick={() => pick(v)}>{label}</button>)}</div>
       <div className="th-btns">
-        <Link className="th-btn" to="/team/messages" onClick={textTeam}>Text the team about this</Link>
+        <Link className="th-btn" to="/team/messages?tab=send" onClick={textTeam}>Text {audience.includes("all") ? "the team" : "them"} about this</Link>
         <button className="th-btn ghost" disabled={busy} onClick={markDone}>{event.status === "done" ? "Reopen" : "Mark done"}</button>
         <button className="th-btn ghost" disabled={busy} onClick={onEdit}>Edit</button>
         <button className="th-x" disabled={busy} onClick={remove}>Delete</button>
@@ -1042,7 +1065,7 @@ function Events({ data, reload, notify }) {
             onSaved={(ev) => { patch(ev); setOpenId(ev.id); setForm(null); }} onCancel={() => setForm(null)} />}
         </div>
         <div className="th-side-col th-stack">
-          {open ? <EventDetail event={open} notify={notify} onChange={onDetailChange} onEdit={() => setForm(open)} />
+          {open ? <EventDetail data={data} event={open} notify={notify} onChange={onDetailChange} onEdit={() => setForm(open)} />
             : <Card title="No event selected"><p className="th-empty">Add an event and it'll show up here with its checklist.</p></Card>}
         </div>
       </div>

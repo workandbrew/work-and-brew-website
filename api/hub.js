@@ -37,12 +37,25 @@ async function optional(query, fallback) {
   try { const { data, error } = await query; return error ? fallback : data ?? fallback; } catch { return fallback; }
 }
 
-async function extras() {
+// The scout map's Apps Script. It checks the caller's own login token, so the hub just forwards it.
+const SCOUT_API_URL = process.env.SCOUT_API_URL || "https://script.google.com/macros/s/AKfycbza5uMWpynLQzkdY5BGVSp9PNiaPT6nWR7vGiBfhUOFJgLcIRnIHW2YxAHfzMpZSEM8/exec";
+async function sheetCafes(token) {
+  if (!token) return null;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 7000);
+  try {
+    const r = await fetch(SCOUT_API_URL, { method: "POST", headers: { "content-type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "listCafes", token }), signal: ctrl.signal, redirect: "follow" });
+    const json = await r.json();
+    return json && json.ok && Array.isArray(json.cafes) ? json.cafes : null;
+  } catch { return null; } finally { clearTimeout(t); }
+}
+
+async function extras(token) {
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
   const [templates, signups, cafes, pendingList, schedules, growth, events, worksRows] = await Promise.all([
     optional(db().from("sms_templates").select("id, name, body, created_by").order("created_at"), null),
     optional(db().from("signup_requests").select("status, created_at").gte("created_at", since), null),
-    optional(db().from("cafes").select("*").limit(2000), null),
+    sheetCafes(token).then((rows) => rows || optional(db().from("cafes").select("*").limit(2000), null)),
     optional(db().from("signup_requests").select("id, name, phone, sms_consent, created_at").eq("status", "pending").order("created_at"), []),
     listSchedules().catch(() => null),
     growthSnapshot().catch((e) => ({ error: e.message })),
@@ -67,12 +80,22 @@ async function extras() {
     wifi: yes(c.wifi), outlets: yes(c.outlets), seats: c.seats || null,
     at: c.updated_at || c.visited_at || null,
   })) : null;
+  // What happened in the last 7 days, from the dates the sheet keeps on each café
+  const weekAgo = Date.now() - 7 * 864e5;
+  const recent = (iso) => !!iso && new Date(iso).getTime() >= weekAgo;
+  const week = cafes && cafes.some((c) => "submitted_at" in c) ? {
+    added: cafes.filter((c) => recent(c.submitted_at)).length,
+    assigned: cafes.filter((c) => recent(c.assigned_at)).length,
+    scouted: cafes.filter((c) => recent(c.date_scouted)).length,
+    official: cafes.filter((c) => recent(c.approved_at) && statusOf(c.status) === "Official Cafe Listing").length,
+  } : null;
   return {
     templates: templates && templates.length ? templates : DEFAULT_TEMPLATES,
     templatesSaved: !!templates,
     signups: signups ? { last30: signups.length, approved30: signups.filter((r) => r.status === "approved").length, pending } : null,
     cafes: cafeCounts,
     cafeList,
+    cafeWeek: week,
     pendingSignups: pendingList.map(({ phone, ...r }) => ({ ...r, phoneLast4: last4(phone) })),
     schedules: schedules && schedules.map((s) => ({ ...s, weekdayName: WEEKDAYS[s.weekday] })),
     growth,
@@ -243,7 +266,8 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const [scouts, { log, daily, prevSent30 }, more] = await Promise.all([loadScouts(), recentLog(), extras()]);
+      const bearer = String(req.headers?.authorization || "").replace(/^Bearer /, "");
+      const [scouts, { log, daily, prevSent30 }, more] = await Promise.all([loadScouts(), recentLog(), extras(bearer)]);
       const team = scouts.map((s) => ({ ...publicScout(s), optedOut: !!s.opted_out_at, optedIn: !!s.sms_opt_in }));
       const chapters = [...new Set(team.flatMap((s) => s.chapters))].sort();
       const groups = Object.entries(GROUP_LABELS)

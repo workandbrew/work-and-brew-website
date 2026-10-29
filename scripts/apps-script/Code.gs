@@ -948,6 +948,14 @@ function handleSetStatus_(body, user) {
 }
 
 // ------------------------------------------------------------ the sheet is the source of truth for the ops map
+// A date cell (or a typed date) as ISO text, so the Team Hub can tell what happened this week
+function when_(v) {
+  if (v instanceof Date && !isNaN(v)) return v.toISOString();
+  var s = String(v || '').trim();
+  if (!s) return '';
+  var d = new Date(s);
+  return isNaN(d) ? '' : d.toISOString();
+}
 function yesNoCell_(v) { return String(v === null || v === undefined ? '' : v).trim(); }
 // Any logged-in user: every café in the sheet, in the shape the map uses
 function handleListCafes_(body, user) {
@@ -980,7 +988,9 @@ function handleListCafes_(body, user) {
       seats: String(g(v, 'Seats') || ''), time_restrict: String(g(v, 'TimeRestriction')).toUpperCase() === 'TRUE',
       restrict_note: String(g(v, 'RestrictionAmount') || ''), scout_name: String(g(v, 'ScoutName') || ''),
       notes: String(g(v, 'Notes') || ''),
-      new_cafe: String(g(v, 'ReviewStatus') || '') === 'New cafe'
+      new_cafe: String(g(v, 'ReviewStatus') || '') === 'New cafe',
+      submitted_at: when_(g(v, 'SubmittedAt')), assigned_at: when_(g(v, 'AssignedAt')),
+      approved_at: when_(g(v, 'ApprovedAt')), date_scouted: when_(g(v, 'DateScouted'))
     });
   });
   return { cafes: cafes, version: cafesVersion_() };
