@@ -1720,6 +1720,9 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
 }
 /* scout's own list header (D style) */
 .wb-hello { margin: 2px 0 12px; }
+@keyframes wbBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.wb-load-bear { animation: wbBob 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .wb-load-bear { animation: none; } }
 /* Maps app choice (iPhone/iPad only): one-time chooser + "change" link under the scout's name */
 .wb-maps-pref { font-size: 0.72rem; font-weight: 600; color: var(--wb-slate); margin: -8px 0 12px; display: none; }
 .wb-maps-pref a { color: var(--wb-navy); text-decoration: underline; cursor: pointer; }
@@ -1893,14 +1896,7 @@ body.wb-tab-scout #map-locate-btn, body.wb-listmode #map-locate-btn { display: n
 <!-- SUPABASE LOGIN OVERLAY -->
 <div id="sb-login-overlay" style="position:fixed;inset:0;z-index:99999;background:#F6EEE3;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;">
   <div style="background:#F8F6F1;border:1px solid #D1C7BB;border-radius:24px;box-shadow:0 20px 50px rgba(43,26,18,0.12);padding:40px 36px;max-width:360px;width:90%;text-align:center;">
-    <svg width="44" height="44" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:16px">
-      <rect x="6" y="18" width="30" height="26" rx="4" fill="#17274E"/>
-      <path d="M36 24 Q46 24 46 31 Q46 38 36 38" stroke="#17274E" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-      <path d="M14 13 Q16 8 14 4" stroke="#90ADC9" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
-      <path d="M21 11 Q23 6 21 2" stroke="#90ADC9" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
-      <path d="M28 13 Q30 8 28 4" stroke="#90ADC9" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
-      <ellipse cx="21" cy="21" rx="12" ry="3" fill="#3e1f0d" opacity="0.5"/>
-    </svg>
+    <img src="/bear-black.png" alt="" width="64" height="60" style="display:block;margin:0 auto 14px;object-fit:contain">
     <h2 style="color:#2B1A12;font-size:1.4rem;font-weight:800;margin:0 0 4px">Work &amp; Brew</h2>
     <p style="color:#27313E;font-size:0.78rem;margin:0 0 28px;letter-spacing:0.06em;text-transform:uppercase">Scout Portal</p>
     <form id="sb-login-form" novalidate style="display:flex;flex-direction:column;gap:10px;">
@@ -1913,13 +1909,7 @@ body.wb-tab-scout #map-locate-btn, body.wb-listmode #map-locate-btn { display: n
   </div>
   <!-- Loading state shown after login while Supabase syncs -->
   <div id="sb-loading-state" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;">
-    <svg width="48" height="48" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="6" y="18" width="30" height="26" rx="4" fill="#17274E"/>
-      <path d="M36 24 Q46 24 46 31 Q46 38 36 38" stroke="#17274E" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-      <path d="M14 13 Q16 8 14 4" stroke="#90ADC9" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8"/>
-      <path d="M21 11 Q23 6 21 2" stroke="#90ADC9" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8"/>
-      <path d="M28 13 Q30 8 28 4" stroke="#90ADC9" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8"/>
-    </svg>
+    <img src="/bear-black.png" alt="" width="72" height="68" class="wb-load-bear" style="display:block;object-fit:contain">
     <div style="text-align:center;">
       <div style="color:#2B1A12;font-size:1rem;font-weight:700;margin-bottom:6px;">Loading updates…</div>
       <div style="color:#27313E;font-size:0.8rem;">Syncing latest cafe data from the team</div>
@@ -2604,13 +2594,23 @@ document.getElementById('sb-login-form').addEventListener('submit', async (e) =>
   await sbOnAuthSuccess(data.user);
 });
 
-// Restore existing session on page load
-(async function checkSession() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user) {
-    await sbOnAuthSuccess(session.user);
-  }
-  // If no session, the overlay stays visible: user must log in
+// Restore existing session on page load.
+// Someone who is already logged in should never glimpse the login form: if the browser holds a saved
+// session, show the loading screen at once and only fall back to the form if that session turns out dead.
+(function () {
+  const form = document.querySelector('#sb-login-overlay > div');
+  const loading = document.getElementById('sb-loading-state');
+  let saved = false;
+  try { saved = Object.keys(localStorage).some(k => /^sb-.*-auth-token$/.test(k)); } catch (e) {}
+  if (saved && form && loading) { form.style.display = 'none'; loading.style.display = 'flex'; }
+  (async function checkSession() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) {
+      await sbOnAuthSuccess(session.user);
+    } else if (form && loading) {
+      loading.style.display = 'none'; form.style.display = '';   // no live session: ask them to log in
+    }
+  })();
 })();
 
 // Wide screens (1024px and up): the Status and Scout dropdowns move up next to the search bar
