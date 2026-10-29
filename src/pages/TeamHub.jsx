@@ -253,7 +253,13 @@ function Compose({ data, onSent, notify }) {
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tplName, setTplName] = useState("");
-  const [when, setWhen] = useState("now"); // "now" or 0-6 (weekday, New York time)
+  const [when, setWhen] = useState("now"); // "now", "once" (a date and time) or 0-6 (weekday, New York time)
+  const [sendAt, setSendAt] = useState(""); // local date-time for a one-off scheduled text
+  const local = (d) => { const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+  const [nowAt, setNowAt] = useState(() => Date.now()); // refreshed when "Pick a date & time" is tapped
+  const minAt = local(new Date(nowAt + 16 * 60000)), maxAt = local(new Date(nowAt + 7 * 864e5 - 60000));
+  const sendAtIso = when === "once" && sendAt ? new Date(sendAt).toISOString() : undefined;
+  const sendAtLabel = sendAt ? new Date(sendAt).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
 
   const textable = useMemo(() => data.team.filter((p) => p.canText), [data.team]);
   const everyone = to.includes("all");
@@ -265,17 +271,17 @@ function Compose({ data, onSent, notify }) {
 
   const doPreview = async () => {
     setBusy(true);
-    const r = await hubFetch("POST", { action: "preview", to, message });
+    const r = await hubFetch("POST", { action: "preview", to, message, sendAt: sendAtIso });
     setBusy(false);
     if (r.ok) setPreview(r); else notify({ bad: true, text: r.error || "Something went wrong." });
   };
   const doSend = async () => {
     setBusy(true);
-    const r = await hubFetch("POST", { action: "send", to: preview.recipients.map((p) => p.id), message });
+    const r = await hubFetch("POST", { action: "send", to: preview.recipients.map((p) => p.id), message, sendAt: sendAtIso });
     setBusy(false);
     if (r.sent) {
-      notify({ bad: !!r.failed, text: `Sent to ${r.sent}${r.failed ? `, ${r.failed} failed` : ""}.` });
-      setPreview(null); setMessage(""); setTo([]);
+      notify({ bad: !!r.failed, text: r.scheduledAt ? `Scheduled for ${sendAtLabel}: ${r.sent} text${r.sent > 1 ? "s" : ""}${r.failed ? `, ${r.failed} failed` : ""}.` : `Sent to ${r.sent}${r.failed ? `, ${r.failed} failed` : ""}.` });
+      setPreview(null); setMessage(""); setTo([]); setWhen("now"); setSendAt("");
       onSent();
     } else notify({ bad: true, text: r.error || (r.results || []).map((x) => `${x.name}: ${x.error}`).join("; ") || "Not sent." });
   };
@@ -326,14 +332,21 @@ function Compose({ data, onSent, notify }) {
       <div className="th-caps">When</div>
       <div className="th-chips">
         <button type="button" className={`th-chip ${when === "now" ? "on" : ""}`} onClick={() => { setWhen("now"); setPreview(null); }}>Send now</button>
+        <button type="button" className={`th-chip ${when === "once" ? "on" : ""}`} onClick={() => { const t = Date.now(); setNowAt(t); setWhen("once"); setPreview(null); if (!sendAt) setSendAt(local(new Date(t + 60 * 60000))); }}>Pick a date &amp; time</button>
         {[1, 2, 3, 4, 5, 6, 0].map((d) => (
           <button type="button" key={d} className={`th-chip ${when === d ? "on" : ""}`} onClick={() => { setWhen(d); setPreview(null); }}>Every {WEEKDAYS[d].slice(0, 3)}</button>
         ))}
       </div>
+      {when === "once" && (
+        <div className="th-btns th-once">
+          <input className="th-input" type="datetime-local" value={sendAt} min={minAt} max={maxAt} onChange={(e) => { setSendAt(e.target.value); setPreview(null); }} />
+          <span className="th-hint">Sends once. Pick a time at least 15 minutes from now and within the next 7 days.</span>
+        </div>
+      )}
 
       {!preview && (
         <div className="th-btns">
-          <button className="th-btn" disabled={busy || !to.length || !message.trim()} onClick={doPreview}>{busy ? "Checking…" : "Preview"}</button>
+          <button className="th-btn" disabled={busy || !to.length || !message.trim() || (when === "once" && !sendAt)} onClick={doPreview}>{busy ? "Checking…" : "Preview"}</button>
           {message.trim() && !saving && <button className="th-btn ghost" onClick={() => setSaving(true)}>Save as template</button>}
         </div>
       )}
@@ -352,8 +365,8 @@ function Compose({ data, onSent, notify }) {
           {preview.skipped?.length > 0 && <p className="th-hint">Skipping: {preview.skipped.map((s) => `${s.name} (${s.reason})`).join(", ")}</p>}
           <div className="th-bubble">{preview.body}</div>
           <div className="th-btns">
-            {when === "now"
-              ? <button className="th-btn" disabled={busy} onClick={doSend}>{busy ? "Sending…" : `Send to ${preview.recipients.length}`}</button>
+            {when === "now" || when === "once"
+              ? <button className="th-btn" disabled={busy} onClick={doSend}>{busy ? (when === "once" ? "Scheduling…" : "Sending…") : when === "once" ? `Schedule for ${sendAtLabel}` : `Send to ${preview.recipients.length}`}</button>
               : <button className="th-btn" disabled={busy} onClick={doSchedule}>{busy ? "Saving…" : `Schedule every ${WEEKDAYS[when]}`}</button>}
             <button className="th-btn ghost" disabled={busy} onClick={() => setPreview(null)}>Edit</button>
           </div>
@@ -368,6 +381,15 @@ function Templates({ data, onChange, notify, editId }) {
   const [editing, setEditing] = useState(editId || null);
   const [form, setForm] = useState(() => { const t = data.templates.find((x) => String(x.id) === String(editId)); return t ? { name: t.name, body: t.body } : { name: "", body: "" }; });
   const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newTpl, setNewTpl] = useState({ name: "", body: "" });
+  const addTemplate = async () => {
+    setBusy(true);
+    const r = await hubFetch("POST", { action: "template-save", name: newTpl.name, body: newTpl.body });
+    setBusy(false);
+    if (r.ok) { setAdding(false); notify?.({ text: "Template added." }); onChange(); }
+    else notify?.({ bad: true, text: r.error || "Couldn't save the template." });
+  };
   const remove = async (id) => { await hubFetch("POST", { action: "template-delete", id }); onChange(); };
   const start = (t) => { setEditing(t.id); setForm({ name: t.name, body: t.body }); };
   const save = async () => {
@@ -378,7 +400,19 @@ function Templates({ data, onChange, notify, editId }) {
     else notify?.({ bad: true, text: r.error || "Couldn't save the template." });
   };
   return (
-    <Card title="Templates" sub={data.templatesSaved ? "Saved by the team · tap Edit to change one" : "Starter templates · save your own from Send a text"}>
+    <Card title="Templates" sub={data.templatesSaved ? "Saved by the team · tap Edit to change one" : "Starter templates · tap + to add your own"}
+      right={<button type="button" className="th-plus" aria-label="Add a template" title="Add a template" onClick={() => { setAdding(true); setNewTpl({ name: "", body: "" }); }}>+</button>}>
+      {adding && (
+        <div className="th-tpl-edit th-tpl-new">
+          <input className="th-input" value={newTpl.name} maxLength={60} placeholder="Template name, e.g. Monday assignments" onChange={(e) => setNewTpl({ ...newTpl, name: e.target.value })} autoFocus />
+          <textarea className="th-text" rows={4} value={newTpl.body} maxLength={MAX_CHARS} placeholder="Hi {first name}! …" onChange={(e) => setNewTpl({ ...newTpl, body: e.target.value })} />
+          <div className="th-hint">{newTpl.body.length}/{MAX_CHARS} · {"{first name}"} fills in automatically · “Reply STOP to opt out.” is always added when it sends</div>
+          <div className="th-btns">
+            <button className="th-btn" disabled={busy || !newTpl.name.trim() || !newTpl.body.trim()} onClick={addTemplate}>{busy ? "Saving…" : "Save template"}</button>
+            <button className="th-btn ghost" disabled={busy} onClick={() => setAdding(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
       <ul className="th-templates">
         {data.templates.map((t) => (
           <li key={t.id} className={editing === t.id ? "editing" : ""}>
@@ -403,7 +437,7 @@ function Templates({ data, onChange, notify, editId }) {
           </li>
         ))}
       </ul>
-      {!data.templatesSaved && <p className="th-hint">Starter templates can't be edited. Save a template from Send a text and it becomes yours to edit.</p>}
+      {!data.templatesSaved && <p className="th-hint">Starter templates can't be edited. Add your own with + and it becomes yours to edit.</p>}
     </Card>
   );
 }

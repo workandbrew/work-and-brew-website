@@ -40,6 +40,10 @@ var EXTRA_COLUMNS = [
   'AssignedTo', 'AssignedAt', 'DueAt', 'LeadLink', 'LeadAddr', 'AddressFlag', 'AddressFlagNote', 'AddressFlagName', 'AddressFlagAddr', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted', 'HoursByDay', 'PrevStatus', 'AfterHours'
 ];
 
+// Bump this with every change. The scout map compares it with the version it expects and warns admins
+// when the live deployment is older (the usual cause: pasting into a different deployment).
+var SCRIPT_VERSION = 'v31-2026-10-29';
+
 // ------------------------------------------------------------ entry points
 function doPost(e) {
   var out;
@@ -89,7 +93,7 @@ function doGet(e) {
   if (action === 'markers') {
     return ContentService.createTextOutput(buildMarkersCsv_()).setMimeType(ContentService.MimeType.CSV);
   }
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, service: 'workandbrew-scout-api', version: 'v22 two-step hours + after hours' })).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, service: 'workandbrew-scout-api', version: SCRIPT_VERSION })).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ------------------------------------------------------------ auth
@@ -1023,16 +1027,16 @@ function handleSyncCafes_(body, user) {
   var cS = sh.getRange(2, h.Status, n, 1).getValues();
   var cN = sh.getRange(2, h.Notes, n, 1).getValues();
   var cA = sh.getRange(2, h.AssignedTo, n, 1).getValues();
-  var done = 0;
+  var done = 0, missing = [];
   (body.rows || []).forEach(function (r) {
     var i = rowByNum[norm_(r.number)];
-    if (i === undefined) return;
+    if (i === undefined) { missing.push(String(r.number || '')); return; }
     if (r.status !== undefined && ALLOWED_STATUSES.indexOf(String(r.status)) !== -1) cS[i][0] = String(r.status) === 'Unvisited' ? 'Ready To Be Assigned' : String(r.status);
     if (r.notes !== undefined) cN[i][0] = String(r.notes || '');
     if (r.assigned_to !== undefined) cA[i][0] = String(r.assigned_to || '');
     done++;
   });
-  if (!done) return { updated: 0 };
+  if (!done) return { updated: 0, missing: missing, version: SCRIPT_VERSION };
   // A strict dropdown can refuse a value: loosen it to a warning and write again rather than lose the change
   var write = function () {
     sh.getRange(2, h.Status, n, 1).setValues(cS);
@@ -1045,7 +1049,7 @@ function handleSyncCafes_(body, user) {
     write();
   }
   CacheService.getScriptCache().remove('markers_csv');
-  return { updated: done };
+  return { updated: done, missing: missing, version: SCRIPT_VERSION };
 }
 // Approver removes a café: its row leaves the sheet
 function handleDeleteCafe_(body, user) {

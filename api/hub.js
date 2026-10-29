@@ -330,6 +330,7 @@ export default async function handler(req, res) {
     }
     const { status, json } = await deliver({
       to, message, dryRun: action === "preview", sentBy: `Team Hub · ${me.name || me.email}`,
+      sendAt: extra.sendAt || undefined, // one-off scheduled text: Twilio holds it until then (15 min to 7 days out)
     });
     res.status(status).json(json);
   } catch (e) {

@@ -306,3 +306,7 @@
 .th-week ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 14px; color: var(--ink2); }
 .th-week li b { color: var(--navy); font-size: 17px; margin-right: 4px; font-variant-numeric: tabular-nums; }
 @media (max-width: 760px) { .th-week { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 14px; } .th-week ul { gap: 6px 16px; } }
+.th-plus { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--navy); color: var(--soft); font: 600 22px/1 Inter, system-ui, sans-serif; display: inline-grid; place-items: center; cursor: pointer; flex-shrink: 0; padding: 0 0 2px; }
+.th-plus:hover { background: var(--slate); }
+.th-tpl-new { border: 1px solid var(--navy); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+.th-once .th-input { flex: 0 1 260px; min-width: 0; }

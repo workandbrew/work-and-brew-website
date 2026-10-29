@@ -1721,6 +1721,9 @@ body { background: var(--wb-cream); color: var(--wb-espresso); font-family: 'Int
 /* scout's own list header (D style) */
 .wb-hello { margin: 2px 0 12px; }
 .wb-load-bear { animation: none; }
+#wb-script-warn { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 100000; max-width: min(560px, calc(100vw - 24px)); background: #FFF7E6; color: #2B1A12; border: 1.5px solid #B4442A; border-radius: 14px; padding: 12px 14px; font: 500 13px/1.45 Inter, system-ui, sans-serif; box-shadow: 0 10px 30px rgba(43,26,18,.18); }
+#wb-script-warn b { color: #B4442A; }
+#wb-script-warn button { margin-left: 8px; border: 0; background: #17274E; color: #F8F6F1; border-radius: 999px; padding: 4px 12px; font: 700 12px Inter, sans-serif; cursor: pointer; }
 /* Maps app choice (iPhone/iPad only): one-time chooser + "change" link under the scout's name */
 .wb-maps-pref { font-size: 0.72rem; font-weight: 600; color: var(--wb-slate); margin: -8px 0 12px; display: none; }
 .wb-maps-pref a { color: var(--wb-navy); text-decoration: underline; cursor: pointer; }
@@ -2279,7 +2282,12 @@ async function sbUpdateRows(rows) {
   });
   if (!out.length) return { error: null };
   try {
-    for (let i = 0; i < out.length; i += 150) await wfApi('syncCafes', { rows: out.slice(i, i + 150) });
+    for (let i = 0; i < out.length; i += 150) {
+      const r = await wfApi('syncCafes', { rows: out.slice(i, i + 150) });
+      // An old deployment answers without a version: the change did not land the way this map expects
+      if (!r || !r.version) throw new Error('the spreadsheet script is out of date, redeploy it');
+      if (r.missing && r.missing.length) showToast('⚠ Not found in the spreadsheet: ' + r.missing.slice(0, 3).join(', '));
+    }
     out.forEach(o => { const c = state.cafes.find(x => x.number === o.number); if (c) _sheetSnap[c.number] = cafeSyncKey(c); });
     return { error: null };
   } catch (e) { return { error: e }; }
@@ -2600,6 +2608,23 @@ document.getElementById('sb-login-form').addEventListener('submit', async (e) =>
   }
   await sbOnAuthSuccess(data.user);
 });
+
+// The Apps Script this map was built for. If the live deployment answers with anything else, tell the admins:
+// their edits are going to a script that does not know about them.
+const EXPECTED_SCRIPT_VERSION = 'v31-2026-10-29';
+async function wbCheckScriptVersion() {
+  try {
+    const r = await fetch(SCOUT_API_URL + '?action=ping', { cache: 'no-store' });
+    const j = await r.json();
+    if (j && j.version === EXPECTED_SCRIPT_VERSION) return;
+    if (!_wfIsApprover && !_wfIsAdmin) return;
+    if (document.getElementById('wb-script-warn')) return;
+    const d = document.createElement('div');
+    d.id = 'wb-script-warn';
+    d.innerHTML = '<b>Spreadsheet script is out of date</b> (live: ' + escHtml((j && j.version) || 'unknown') + ', expected: ' + EXPECTED_SCRIPT_VERSION + '). Status changes may not save. In Apps Script use Deploy → <b>Manage deployments</b> → pencil on the <b>existing</b> deployment → Version: New version → Deploy. <button type="button" onclick="this.parentNode.remove()">Dismiss</button>';
+    document.body.appendChild(d);
+  } catch (e) {}
+}
 
 // Restore existing session on page load.
 // Someone who is already logged in should never glimpse the login form: if the browser holds a saved
@@ -5905,6 +5930,7 @@ function wfDetectRole(user) {
   }
   wfSyncFilterBar();
   if (typeof renderHomeBaseMarkers === 'function') renderHomeBaseMarkers(); // re-draw so approvers get long-press-to-move
+  setTimeout(wbCheckScriptVersion, 1500);
 }
 
 // Approvers keep the filter bar on every tab (for the status filter); the scout-only
