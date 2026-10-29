@@ -33,7 +33,7 @@
 .hc-rank li { display: flex; align-items: center; gap: 10px; outline: none; transition: opacity 0.15s; }
 .hc-rank li.dim { opacity: 0.45; }
 .hc-rank li:focus-visible { outline: 2px solid #2C1A0E; outline-offset: 3px; border-radius: 6px; }
-.hc-avatar { flex: 0 0 30px; height: 30px; border-radius: 50%; background: #2C1A0E; color: #FFFDF9; font-size: 11px; font-weight: 700;
+.hc-avatar { flex: 0 0 30px; height: 30px; border-radius: 50%; background: #17274E; color: #FFFDF9; font-size: 11px; font-weight: 700;
   display: grid; place-items: center; letter-spacing: 0.02em; }
 .hc-rank-body { flex: 1; min-width: 0; }
 .hc-rank-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-bottom: 5px; }
@@ -41,12 +41,12 @@
 .hc-rank-val { font-weight: 700; font-variant-numeric: tabular-nums; }
 .hc-rank-pct { font-weight: 500; color: rgba(44, 26, 14, 0.5); }
 .hc-rank-track { display: block; height: 6px; border-radius: 999px; background: #F1E9DD; overflow: hidden; }
-.hc-rank-bar { display: block; height: 100%; min-width: 4px; border-radius: 999px; background: #2C1A0E; }
+.hc-rank-bar { display: block; height: 100%; min-width: 4px; border-radius: 999px; background: #17274E; }
 
 .hc-meter-value { font-size: 2.6rem; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
 .hc-meter-sub { font-size: 12px; color: rgba(44, 26, 14, 0.6); margin: 4px 0 14px; }
 .hc-meter-track { height: 8px; border-radius: 999px; overflow: hidden; background: #F1E9DD; }
-.hc-meter-fill { height: 100%; border-radius: 999px; background: #2C1A0E; }
+.hc-meter-fill { height: 100%; border-radius: 999px; background: #17274E; }
 .hc-meter-legend { display: flex; gap: 18px; margin-top: 14px; font-size: 12px; color: rgba(44, 26, 14, 0.7); }
 .hc-meter-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .hc-meter-legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
