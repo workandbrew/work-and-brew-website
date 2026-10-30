@@ -69,6 +69,13 @@ const keepSlow = (prev) => (prev ? Object.fromEntries(SLOW_KEYS.filter((k) => k 
 const LiveLoading = ({ what = "live numbers" }) => <p className="th-empty th-loading-live">Loading {what}…</p>;
 
 const sendTime = (iso) => new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+// Delivered = the carrier confirmed it reached the phone; Sent = handed to the carrier, no confirmation yet.
+const deliveryLine = (b) => {
+  const waiting = b.sent - (b.delivered || 0);
+  return [b.delivered ? `✓ ${b.delivered} delivered` : "", waiting ? `${waiting} sent, not confirmed yet` : "", b.failed ? `✗ ${b.failed} not delivered` : ""].filter(Boolean).join(" · ") || "Nothing sent";
+};
+const deliveryTag = (b) => (b.state === "scheduled" ? ["n", "Scheduled"] : b.state === "canceled" ? ["n", "Canceled"] : b.failed ? ["b", "Not delivered"]
+  : b.delivered === b.recipients.length ? ["g", "Delivered"] : ["n", "Sent"]);
 const batchStatus = (b) => (b.state === "scheduled" ? `Scheduled · ${sendTime(b.scheduledFor)}` : b.state === "canceled" ? "Canceled" : null);
 
 const fromLabel = (from) => (from === "gwen" ? "Den (via Gwen)" : String(from || "").replace(/^Team Hub · /, ""));
@@ -490,9 +497,9 @@ function Log({ log, compact, onMore, reload, notify }) {
                 <span className="th-av">{initials(fromLabel(b.from))}</span>
                 <div>
                   <div className="th-act-t">{fromLabel(b.from)} → {b.recipients.length === 1 ? b.recipients[0].name : `${b.recipients.length} people`}</div>
-                  <div className="th-act-m">{b.body.slice(0, 48)}{b.body.length > 48 ? "…" : ""} · {batchStatus(b) || (b.failed ? `${b.failed} failed` : `${b.sent} sent`)} · {when(b.at)}</div>
+                  <div className="th-act-m">{b.body.slice(0, 48)}{b.body.length > 48 ? "…" : ""} · {batchStatus(b) || deliveryLine(b)} · {when(b.at)}</div>
                 </div>
-                <span className={`th-tag ${b.state === "scheduled" ? "n" : b.state === "canceled" ? "n" : b.failed ? "b" : "g"}`}>{b.state === "scheduled" ? "Scheduled" : b.state === "canceled" ? "Canceled" : b.failed ? "Failed" : "Sent"}</span>
+                <span className={`th-tag ${deliveryTag(b)[0]}`}>{deliveryTag(b)[1]}</span>
               </li>
             ))}
           </ul>
@@ -502,8 +509,8 @@ function Log({ log, compact, onMore, reload, notify }) {
   }
   return (
     <Card title="Sent texts" sub="Shared log: every lead sees what scouts were told"
-      right={<div className="th-chips">{["all", "failed"].map((f) => <button key={f} className={`th-chip sm ${filter === f ? "on" : ""}`} onClick={() => setFilter(f)}>{f === "all" ? "All" : "Failed"}</button>)}</div>}>
-      {!rows.length ? <p className="th-empty">{filter === "failed" ? "No failed texts." : "No texts sent yet."}</p> : (
+      right={<div className="th-chips">{["all", "failed"].map((f) => <button key={f} className={`th-chip sm ${filter === f ? "on" : ""}`} onClick={() => setFilter(f)}>{f === "all" ? "All" : "Not delivered"}</button>)}</div>}>
+      {!rows.length ? <p className="th-empty">{filter === "failed" ? "Every text went through." : "No texts sent yet."}</p> : (
         <ul className="th-log">
           {rows.slice(0, 25).map((b) => (
             <li key={b.id}>
@@ -513,10 +520,10 @@ function Log({ log, compact, onMore, reload, notify }) {
                 <span>To {b.recipients.length} · {b.recipients.map((r) => r.name).join(", ")}</span>
                 {batchStatus(b)
                   ? <b className="th-sched-state">{batchStatus(b)}{b.state === "scheduled" && <button type="button" className="th-x" onClick={() => cancelScheduled(b)}>Cancel</button>}</b>
-                  : <b className={b.failed ? "bad" : "good"}>✓ {b.sent} sent{b.failed ? ` · ✗ ${b.failed} failed` : ""}</b>}
+                  : <b className={b.failed ? "bad" : b.delivered === b.recipients.length ? "good" : ""}>{deliveryLine(b)}</b>}
               </div>
               {b.failed > 0 && (
-                <details className="th-fail"><summary>Why it failed</summary>
+                <details className="th-fail"><summary>Why it didn't arrive</summary>
                   {b.recipients.filter((r) => !r.ok).map((r, i) => <div key={i}>{r.name}: {r.error}</div>)}
                 </details>
               )}
@@ -882,7 +889,7 @@ function Analytics({ data }) {
       </div>
       <div className="th-row th-stats">
         <Stat label="Texts sent" value={sent} foot={<Delta now={sent} before={prev} label={`vs. previous ${days} days`} />} />
-        <Stat label="Delivered" value={`${sent} of ${sent + failed}`} foot={`${failed} failed`} />
+        <Stat label="Went through" value={`${sent} of ${sent + failed}`} foot={`${failed} not delivered`} />
         <Stat label="Reachable by text" value={`${textable} of ${data.team.length}`} foot={`${data.team.length - textable} can't be texted`} />
         <Stat label="Sends" value={recent.length} foot={`batches in the ${label}`} />
       </div>

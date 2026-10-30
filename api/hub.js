@@ -19,7 +19,7 @@
 // Sending goes through the same deliver() as Gwen, so the same rules apply: only active,
 // opted-in team members, STOP line always added, max 25 recipients per send.
 
-import { readBody, db, loadScouts, publicScout, deliver, last4, twilioCancel, GROUP_LABELS, MAX_MESSAGE_CHARS } from "./_lib/sms.js";
+import { readBody, db, loadScouts, publicScout, deliver, last4, twilioCancel, refreshDelivery, GROUP_LABELS, MAX_MESSAGE_CHARS } from "./_lib/sms.js";
 import { listSchedules, saveSchedule, updateSchedule, approveSignup, rejectSignup, WEEKDAYS } from "./_lib/automation.js";
 import { growthSnapshot, saveManual, tiktokReady, brevo } from "./_lib/growth.js";
 import { makeState } from "./_lib/connectState.js";
@@ -290,6 +290,7 @@ async function recentLog() {
     db().from("sms_contacts").select("id, name"),
   ]);
   if (error) throw new Error(error.message);
+  await refreshDelivery(rows || []).catch(() => {});
   const names = new Map((people || []).map((p) => [p.id, p.name]));
   const batches = new Map();
   for (const r of rows || []) {
@@ -302,7 +303,9 @@ async function recentLog() {
     b.recipients.push({
       name: names.get(r.scout_id) || "Removed contact",
       ok: r.status !== "failed" && r.status !== "canceled",
-      state: r.status === "canceled" ? "canceled" : r.status === "failed" ? "failed" : r.status === "scheduled" && r.scheduled_for > nowIso ? "scheduled" : "sent",
+      // "sent" = handed to the carrier, not confirmed yet; "delivered" = the carrier confirmed it reached the phone
+      state: r.status === "canceled" ? "canceled" : r.status === "failed" ? "failed" : r.status === "delivered" ? "delivered"
+        : r.status === "scheduled" && (!r.scheduled_for || r.scheduled_for > nowIso) ? "scheduled" : "sent",
       error: r.error || null,
     });
   }
@@ -310,6 +313,7 @@ async function recentLog() {
     ...b,
     sent: b.recipients.filter((x) => x.ok).length,
     failed: b.recipients.filter((x) => x.state === "failed").length,
+    delivered: b.recipients.filter((x) => x.state === "delivered").length,
     // "scheduled" = Twilio is still holding it; "canceled" = called off before it went out
     state: b.recipients.some((x) => x.state === "scheduled") ? "scheduled" : b.recipients.every((x) => x.state === "canceled") ? "canceled" : "sent",
   }));

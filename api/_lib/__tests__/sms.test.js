@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from "vitest";
-import { isAuthorized, normalizePhone, withStopLine, resolveRecipients, publicScout, teamGroup, personalize } from "../sms.js";
+import { isAuthorized, normalizePhone, withStopLine, resolveRecipients, publicScout, teamGroup, personalize, deliveryReason } from "../sms.js";
 
 const scouts = [
   { id: "11111111-1111-1111-1111-111111111111", name: "Orlando S.", phone: "+17185550001", chapters: ["Bronx"], sms_opt_in: true, active: true },
@@ -116,5 +116,16 @@ describe("also_groups", () => {
   });
   it("still keeps them in their own group", () => {
     expect(resolveRecipients("group:leads", roster).recipients.map((s) => s.name).sort()).toEqual(["Lead Lee", "Lead Lu"]);
+  });
+});
+
+describe("deliveryReason", () => {
+  it("explains the common carrier codes in plain English", () => {
+    expect(deliveryReason(30034)).toMatch(/A2P 10DLC/);
+    expect(deliveryReason("30007")).toMatch(/spam/);
+  });
+  it("falls back to Twilio's own message", () => {
+    expect(deliveryReason(30999, "Odd")).toBe("Twilio error 30999: Odd");
+    expect(deliveryReason(null, null)).toBe("Not delivered.");
   });
 });

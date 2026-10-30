@@ -229,6 +229,53 @@ export async function twilioCancel(sid) {
   return res.ok ? { ok: true, status: data.status } : { ok: false, error: data.message || `Twilio HTTP ${res.status}` };
 }
 
+// What Twilio knows about one message now: queued → sent → delivered, or undelivered/failed with a code.
+export async function twilioStatus(sid) {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const user = process.env.TWILIO_API_KEY_SID || accountSid;
+  const pass = process.env.TWILIO_API_KEY_SECRET || process.env.TWILIO_AUTH_TOKEN;
+  if (!accountSid || !pass) throw new Error("Twilio credentials are not configured");
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages/${sid}.json`, {
+    headers: { Authorization: "Basic " + Buffer.from(`${user}:${pass}`).toString("base64") },
+  });
+  const data = await res.json().catch(() => ({}));
+  return res.ok ? { ok: true, status: data.status, code: data.error_code, error: data.error_message } : { ok: false, error: data.message || `Twilio HTTP ${res.status}` };
+}
+
+// Plain-English reasons for the carrier error codes we are most likely to see.
+const DELIVERY_REASONS = {
+  30003: "Phone unreachable (off or no signal).",
+  30004: "Blocked by the person's phone or carrier settings.",
+  30005: "That number doesn't exist anymore.",
+  30006: "That number is a landline or can't get texts.",
+  30007: "The carrier filtered it as spam.",
+  30008: "The carrier didn't say why.",
+  30032: "Blocked: the toll-free number isn't verified with Twilio yet.",
+  30034: "Blocked: the Twilio number isn't registered for business texting (A2P 10DLC) yet.",
+  21610: "This person replied STOP.",
+};
+export function deliveryReason(code, fallback) {
+  return DELIVERY_REASONS[Number(code)] || (code ? `Twilio error ${code}${fallback ? `: ${fallback}` : ""}` : fallback || "Not delivered.");
+}
+
+// Statuses Twilio can still change: re-check those so the log shows what really reached people.
+export const PENDING_STATUSES = ["queued", "accepted", "sending", "sent", "scheduled"];
+export async function refreshDelivery(rows, { max = 25, timeoutMs = 2500 } = {}) {
+  const nowIso = new Date().toISOString(), weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
+  const due = rows.filter((r) => r.twilio_sid && PENDING_STATUSES.includes(r.status) && r.created_at > weekAgo &&
+    !(r.status === "scheduled" && r.scheduled_for > nowIso)).slice(0, max);
+  if (!due.length) return;
+  const work = Promise.all(due.map(async (r) => {
+    const t = await twilioStatus(r.twilio_sid).catch(() => null);
+    if (!t?.ok || !t.status || t.status === r.status) return;
+    const bad = t.status === "undelivered" || t.status === "failed";
+    const patch = { status: bad ? "failed" : t.status, error: bad ? deliveryReason(t.code, t.error) : null };
+    Object.assign(r, patch);
+    await db().from("sms_messages").update(patch).eq("id", r.id);
+  }));
+  await Promise.race([work, new Promise((ok) => setTimeout(ok, timeoutMs))]); // never hold the hub up for long
+}
+
 // ---- the one send path (used by /api/send for Gwen & co, and /api/hub for the Team Hub) ----
 
 // Logs one row. If the database is missing a newer optional column (batch_id, scheduled_for),
