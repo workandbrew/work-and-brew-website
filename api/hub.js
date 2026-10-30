@@ -11,7 +11,9 @@
 //   POST { action: "template-save", name, body } → saves a reusable message
 //   POST { action: "template-delete", id }       → removes one
 //   POST { action: "schedule-save", name, body, to, weekday }  → a weekly text (sent by /api/cron)
+//   POST { action: "schedule-edit", id, name, body, weekday, endsOn }  → changes a weekly text
 //   POST { action: "schedule-toggle" | "schedule-delete", id }
+//   POST { action: "scheduled-edit", id, message, sendAt }  → new text/time for a one-off scheduled text
 //   POST { action: "signup-approve", id, chapters, role } / { action: "signup-reject", id }
 //   POST { action: "growth-manual", platform, followers }        → hand-entered follower count
 //   POST { action: "tiktok-connect" }                            → a one-time link to connect TikTok
@@ -19,7 +21,7 @@
 // Sending goes through the same deliver() as Gwen, so the same rules apply: only active,
 // opted-in team members, STOP line always added, max 25 recipients per send.
 
-import { readBody, db, loadScouts, publicScout, deliver, last4, twilioCancel, refreshDelivery, GROUP_LABELS, MAX_MESSAGE_CHARS } from "./_lib/sms.js";
+import { readBody, db, loadScouts, publicScout, deliver, last4, twilioCancel, refreshDelivery, toTemplate, GROUP_LABELS, MAX_MESSAGE_CHARS } from "./_lib/sms.js";
 import { listSchedules, saveSchedule, updateSchedule, approveSignup, rejectSignup, WEEKDAYS } from "./_lib/automation.js";
 import { growthSnapshot, saveManual, tiktokReady, brevo } from "./_lib/growth.js";
 import { makeState } from "./_lib/connectState.js";
@@ -296,7 +298,7 @@ async function recentLog() {
   for (const r of rows || []) {
     const key = r.batch_id || r.id;
     if (!batches.has(key)) {
-      batches.set(key, { id: key, at: r.created_at, from: r.sent_by || "unknown", body: r.body, recipients: [], scheduledFor: null });
+      batches.set(key, { id: key, at: r.created_at, from: r.sent_by || "unknown", body: r.body, template: toTemplate(r.body, names.get(r.scout_id)), recipients: [], scheduledFor: null });
     }
     const b = batches.get(key);
     if (r.scheduled_for && !b.scheduledFor) b.scheduledFor = r.scheduled_for;
@@ -319,6 +321,37 @@ async function recentLog() {
   }));
   const days = dailyCounts(rows || [], 60);
   return { log, daily: days.slice(30), prevSent30: days.slice(0, 30).reduce((n, d) => n + d.sent, 0) };
+}
+
+// Twilio can't change a text it is holding, so an edit cancels the held texts and schedules the new
+// version for the same people. It checks the new version first, so a bad edit never cancels anything.
+async function editScheduled(batchId, message, sendAt, sentBy) {
+  const { data: rows, error } = await db().from("sms_messages").select("id, twilio_sid, scout_id").eq("batch_id", batchId).eq("status", "scheduled");
+  if (error) return { status: 500, error: error.message };
+  if (!rows?.length) return { status: 404, error: "This text already went out or was canceled, so it can't be edited." };
+  const ids = [...new Set(rows.map((m) => m.scout_id).filter(Boolean))];
+  const check = await deliver({ to: ids, message, sendAt, dryRun: true, sentBy });
+  if (!check.json.ok) return { status: check.status, error: check.json.error };
+  const kept = [];
+  for (const m of rows) {
+    const r = m.twilio_sid ? await twilioCancel(m.twilio_sid).catch((e) => ({ ok: false, error: e.message })) : { ok: false, error: "no Twilio id" };
+    if (r.ok) { kept.push(m.scout_id); await db().from("sms_messages").update({ status: "canceled", error: "Replaced by an edit" }).eq("id", m.id); }
+  }
+  if (!kept.length) return { status: 502, error: "Twilio wouldn't let go of the old text (it may be sending right now). Nothing was changed." };
+  const { json } = await deliver({ to: kept, message, sendAt, sentBy });
+  if (!json.sent) return { status: 502, error: `The old text was canceled, but the new one couldn't be scheduled: ${json.error || "unknown error"}. Schedule it again from Send a text.` };
+  return { sent: json.sent, failed: json.failed, scheduledAt: json.scheduledAt, notChanged: rows.length - kept.length, error: json.error };
+}
+
+async function editSchedule(id, { name, body, weekday, endsOn }) {
+  const day = Number(weekday), text = String(body || "").trim(), until = endsOn ? String(endsOn).slice(0, 10) : null;
+  if (!text) return { status: 400, error: "The weekly text needs a message." };
+  if (text.length > MAX_MESSAGE_CHARS) return { status: 400, error: `Keep it under ${MAX_MESSAGE_CHARS} characters.` };
+  if (!(day >= 0 && day <= 6)) return { status: 400, error: "Pick a day of the week." };
+  if (until && !/^\d{4}-\d{2}-\d{2}$/.test(until)) return { status: 400, error: "That end date doesn't look right." };
+  const patch = { name: String(name || "").trim().slice(0, 60) || `Every ${WEEKDAYS[day]}`, body: text, weekday: day, ends_on: until };
+  const { error } = await db().from("sms_schedules").update(patch).eq("id", id);
+  return error ? { status: 500, error: error.message } : {};
 }
 
 // "Good morning" + "Friday, October 9" in New York time, for the hub's welcome banner.
@@ -409,6 +442,8 @@ export default async function handler(req, res) {
     }
     if (action === "growth-manual") return reply(await saveManual(extra.platform, extra.followers, by));
     if (action === "works-save") return reply(await saveWorks(me, extra));
+    if (action === "schedule-edit") return reply(await editSchedule(String(id || ""), { name, body, weekday: extra.weekday, endsOn: extra.endsOn }));
+    if (action === "scheduled-edit") return reply(await editScheduled(String(id || ""), message, extra.sendAt, `Team Hub · ${by}`));
     if (action === "scheduled-cancel") {
       const { data: rows, error } = await db().from("sms_messages").select("id, twilio_sid").eq("batch_id", String(id || "")).eq("status", "scheduled");
       if (error) return reply({ status: 500, error: error.message });

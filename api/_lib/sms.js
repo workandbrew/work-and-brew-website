@@ -14,7 +14,7 @@ import { timingSafeEqual, randomUUID } from "node:crypto";
 
 export const MAX_RECIPIENTS = 25;    // per request — a guard against runaway sends/charges
 export const MAX_MESSAGE_CHARS = 480; // ~3 SMS segments, before the STOP line
-const STOP_LINE = "Reply STOP to opt out.";
+export const STOP_LINE = "Reply STOP to opt out.";
 
 // ---- auth ----
 
@@ -70,6 +70,14 @@ export function normalizePhone(input) {
 export function withStopLine(message) {
   const body = String(message || "").trim();
   return /\bstop\b/i.test(body) ? body : `${body} ${STOP_LINE}`;
+}
+
+// The reverse of personalize + withStopLine: turns one person's logged text back into the editable message.
+export function toTemplate(body, name) {
+  let t = String(body || "").replace(STOP_LINE, "").trim();
+  const first = String(name || "").trim().split(/\s+/)[0];
+  if (first && first.length > 1) t = t.replace(new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), "{first name}");
+  return t;
 }
 
 export function last4(phone) {

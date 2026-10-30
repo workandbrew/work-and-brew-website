@@ -76,6 +76,7 @@ const deliveryLine = (b) => {
 };
 const deliveryTag = (b) => (b.state === "scheduled" ? ["n", "Scheduled"] : b.state === "canceled" ? ["n", "Canceled"] : b.failed ? ["b", "Not delivered"]
   : b.delivered === b.recipients.length ? ["g", "Delivered"] : ["n", "Sent"]);
+const localInput = (d) => { const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 const batchStatus = (b) => (b.state === "scheduled" ? (b.scheduledFor ? `Scheduled · ${sendTime(b.scheduledFor)}` : "Scheduled (time not saved, see Twilio)") : b.state === "canceled" ? "Canceled" : null);
 
 const fromLabel = (from) => (from === "gwen" ? "Den (via Gwen)" : String(from || "").replace(/^Team Hub · /, ""));
@@ -486,6 +487,20 @@ function Log({ log, compact, onMore, reload, notify }) {
     if (r.ok) { notify?.({ text: `Canceled. ${r.canceled} scheduled text${r.canceled === 1 ? "" : "s"} won't go out.` }); reload?.(); }
     else notify?.({ bad: true, text: r.error || "Couldn't cancel." });
   };
+  const [edit, setEdit] = useState(null); // { id, message, sendAt } while changing a scheduled text
+  const [saving, setSaving] = useState(false);
+  const startEdit = (b, t) => { // t = now; Twilio allows 15 minutes to 7 days out
+    setEdit({ id: b.id, message: b.template || b.body, sendAt: b.scheduledFor ? localInput(new Date(b.scheduledFor)) : "",
+      min: localInput(new Date(t + 16 * 60000)), max: localInput(new Date(t + 7 * 864e5 - 60000)) });
+  };
+  const saveEdit = async (b) => {
+    if (!window.confirm(`Change this scheduled text to ${b.recipients.length} ${b.recipients.length === 1 ? "person" : "people"}?`)) return;
+    setSaving(true);
+    const r = await hubFetch("POST", { action: "scheduled-edit", id: b.id, message: edit.message, sendAt: new Date(edit.sendAt).toISOString() });
+    setSaving(false);
+    if (r.ok) { setEdit(null); notify?.({ text: `Updated. It now goes out ${sendTime(r.scheduledAt)}.${r.notChanged ? ` ${r.notChanged} couldn't be changed.` : ""}` }); reload?.(); }
+    else notify?.({ bad: true, text: r.error || "Couldn't change it." });
+  };
   const rows = filter === "failed" ? log.filter((b) => b.failed) : log;
   if (compact) {
     return (
@@ -515,11 +530,23 @@ function Log({ log, compact, onMore, reload, notify }) {
           {rows.slice(0, 25).map((b) => (
             <li key={b.id}>
               <div className="th-log-top"><span>{when(b.at)}</span><span>{fromLabel(b.from)}</span></div>
-              <div className="th-bubble">{b.body}</div>
+              {edit?.id === b.id ? (
+                <div className="th-tpl-edit">
+                  <textarea className="th-text" rows={4} maxLength={MAX_CHARS} value={edit.message} onChange={(e) => setEdit({ ...edit, message: e.target.value })} />
+                  <div className="th-hint">{edit.message.length}/{MAX_CHARS} · {"{first name}"} fills in for each person · “Reply STOP to opt out.” is always added</div>
+                  <label className="th-hint">Send on
+                    <input className="th-input" type="datetime-local" value={edit.sendAt} min={edit.min} max={edit.max} onChange={(e) => setEdit({ ...edit, sendAt: e.target.value })} />
+                  </label>
+                  <div className="th-btns">
+                    <button className="th-btn" disabled={saving || !edit.message.trim() || !edit.sendAt} onClick={() => saveEdit(b)}>{saving ? "Saving…" : "Save changes"}</button>
+                    <button className="th-btn ghost" disabled={saving} onClick={() => setEdit(null)}>Close</button>
+                  </div>
+                </div>
+              ) : <div className="th-bubble">{b.body}</div>}
               <div className="th-log-bot">
                 <span>To {b.recipients.length} · {b.recipients.map((r) => r.name).join(", ")}</span>
                 {batchStatus(b)
-                  ? <b className="th-sched-state">{batchStatus(b)}{b.state === "scheduled" && <button type="button" className="th-x" onClick={() => cancelScheduled(b)}>Cancel</button>}</b>
+                  ? <b className="th-sched-state">{batchStatus(b)}{b.state === "scheduled" && <><button type="button" className="th-x plain" onClick={() => startEdit(b, Date.now())}>Edit</button><button type="button" className="th-x" onClick={() => cancelScheduled(b)}>Cancel</button></>}</b>
                   : <b className={b.failed ? "bad" : b.delivered === b.recipients.length ? "good" : ""}>{deliveryLine(b)}</b>}
               </div>
               {b.failed > 0 && (
@@ -570,20 +597,46 @@ function Directory({ team, reload, notify }) {
   );
 }
 
-function Schedules({ data, onChange }) {
+function Schedules({ data, onChange, notify }) {
+  const [edit, setEdit] = useState(null); // the weekly text being changed
+  const [saving, setSaving] = useState(false);
   if (!data.schedules) return null;
   const act = async (action, s, extra = {}) => { await hubFetch("POST", { action, id: s.id, ...extra }); onChange(); };
+  const save = async () => {
+    setSaving(true);
+    const r = await hubFetch("POST", { action: "schedule-edit", id: edit.id, name: edit.name, body: edit.body, weekday: Number(edit.weekday), endsOn: edit.endsOn || null });
+    setSaving(false);
+    if (r.ok) { setEdit(null); notify?.({ text: "Weekly text updated." }); onChange(); }
+    else notify?.({ bad: true, text: r.error || "Couldn't save." });
+  };
   return (
     <Card title="Scheduled weekly texts" sub="Sent automatically every week, in the morning (New York time)">
       {!data.schedules.length ? <p className="th-empty">Nothing scheduled. Pick a day under “When” to set one up.</p> : (
         <ul className="th-scheds">
           {data.schedules.map((s) => (
+            edit?.id === s.id ? (
+              <li key={s.id} className="th-tpl-edit th-sched-edit">
+                <input className="th-input" value={edit.name} maxLength={60} placeholder="Name" onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+                <textarea className="th-text" rows={4} maxLength={MAX_CHARS} value={edit.body} onChange={(e) => setEdit({ ...edit, body: e.target.value })} />
+                <div className="th-btns">
+                  <select className="th-input" value={edit.weekday} onChange={(e) => setEdit({ ...edit, weekday: e.target.value })}>
+                    {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((d, i) => <option key={d} value={i}>Every {d}</option>)}
+                  </select>
+                  <label className="th-hint">Until (optional)<input className="th-input" type="date" value={edit.endsOn} onChange={(e) => setEdit({ ...edit, endsOn: e.target.value })} /></label>
+                </div>
+                <div className="th-btns">
+                  <button className="th-btn" disabled={saving || !edit.body.trim()} onClick={save}>{saving ? "Saving…" : "Save changes"}</button>
+                  <button className="th-btn ghost" disabled={saving} onClick={() => setEdit(null)}>Close</button>
+                </div>
+              </li>
+            ) :
             <li key={s.id} className={s.active ? "" : "off"}>
               <span className="th-sched-day">{s.weekdayName.slice(0, 3).toUpperCase()}</span>
               <div className="th-sched-body">
                 <b>{s.name}</b>
                 <small>To {s.recipients.map((r) => groupLabel(r, data)).join(", ")}{untilLabel(s)}{s.last_sent_on ? ` · last sent ${s.last_sent_on}` : ""}</small>
               </div>
+              <button className="th-x plain" onClick={() => setEdit({ id: s.id, name: s.name, body: s.body || "", weekday: s.weekday, endsOn: s.ends_on || "" })}>Edit</button>
               <button className="th-x plain" onClick={() => act("schedule-toggle", s, { active: !s.active })}>{s.active ? "Pause" : "Resume"}</button>
               <button className="th-x" onClick={() => act("schedule-delete", s)} aria-label={`Delete ${s.name}`}>Delete</button>
             </li>
@@ -725,7 +778,7 @@ function Messages({ data, reload, notify }) {
       )}
       {tab === "overview" && <Analytics data={data} />}
       {tab === "replies" && <Replies data={data} reload={reload} notify={notify} onReply={(r) => { try { sessionStorage.setItem("wb-hub-draft-to", JSON.stringify([r.contactId])); sessionStorage.setItem("wb-hub-draft", `Hi ${String(r.name || "").split(" ")[0]}! `); } catch { /* private mode */ } setTab("send"); }} />}
-      {tab === "schedules" && <Schedules data={data} onChange={reload} />}
+      {tab === "schedules" && <Schedules data={data} onChange={reload} notify={notify} />}
       {tab === "templates" && <Templates data={data} onChange={reload} notify={notify} editId={params.get("edit")} />}
       {tab === "log" && <Log log={data.log} reload={reload} notify={notify} />}
       {tab === "directory" && <Directory team={data.team} reload={reload} notify={notify} />}

@@ -338,3 +338,7 @@
 .th-sched-state { color: var(--navy); display: inline-flex; align-items: center; gap: 10px; }
 .th-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink2); }
 .th-switch input { width: 18px; height: 18px; accent-color: var(--navy); cursor: pointer; }
+
+/* Editing a weekly text in place */
+.th-scheds li.th-sched-edit { display: grid; gap: 10px; align-items: stretch; justify-items: stretch; text-align: left; }
+.th-scheds li.th-sched-edit .th-btns { justify-content: flex-start; align-items: flex-end; flex-wrap: wrap; }
