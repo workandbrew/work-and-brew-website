@@ -76,7 +76,7 @@ const deliveryLine = (b) => {
 };
 const deliveryTag = (b) => (b.state === "scheduled" ? ["n", "Scheduled"] : b.state === "canceled" ? ["n", "Canceled"] : b.failed ? ["b", "Not delivered"]
   : b.delivered === b.recipients.length ? ["g", "Delivered"] : ["n", "Sent"]);
-const batchStatus = (b) => (b.state === "scheduled" ? `Scheduled · ${sendTime(b.scheduledFor)}` : b.state === "canceled" ? "Canceled" : null);
+const batchStatus = (b) => (b.state === "scheduled" ? (b.scheduledFor ? `Scheduled · ${sendTime(b.scheduledFor)}` : "Scheduled (time not saved, see Twilio)") : b.state === "canceled" ? "Canceled" : null);
 
 const fromLabel = (from) => (from === "gwen" ? "Den (via Gwen)" : String(from || "").replace(/^Team Hub · /, ""));
 const initials = (name) => String(name).trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
