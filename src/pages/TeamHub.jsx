@@ -77,6 +77,7 @@ const deliveryLine = (b) => {
 const deliveryTag = (b) => (b.state === "scheduled" ? ["n", "Scheduled"] : b.state === "canceled" ? ["n", "Canceled"] : b.failed ? ["b", "Not delivered"]
   : b.delivered === b.recipients.length ? ["g", "Delivered"] : ["n", "Sent"]);
 const localInput = (d) => { const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+const snippetText = (t, n) => { const x = String(t || "").replace(/\s+/g, " ").trim(); return x.length > n ? x.slice(0, n - 1) + "…" : x; };
 const batchStatus = (b) => (b.state === "scheduled" ? (b.scheduledFor ? `Scheduled · ${sendTime(b.scheduledFor)}` : "Scheduled (time not saved, see Twilio)") : b.state === "canceled" ? "Canceled" : null);
 
 const fromLabel = (from) => (from === "gwen" ? "Den (via Gwen)" : String(from || "").replace(/^Team Hub · /, ""));
@@ -173,6 +174,8 @@ function CurrentWorks({ data, reload, notify }) {
 function Overview({ data, reload, notify }) {
   const daily = data.daily || [];
   const week = daily.slice(-7);
+  // One-off texts Twilio is holding, soonest first
+  const upcoming = data.log.filter((b) => b.state === "scheduled").sort((a, b) => String(a.scheduledFor || "").localeCompare(String(b.scheduledFor || "")));
   const textable = data.team.filter((p) => p.canText).length;
   const visited = data.cafes ? (data.cafes["Visit Completed"] || 0) + (data.cafes["Official Cafe Listing"] || 0) : null;
   const waiting = !data.slowLoaded;
@@ -254,17 +257,22 @@ function Overview({ data, reload, notify }) {
           </ul>
           <Link to="/team/messages?tab=templates" className="th-link">All templates →</Link>
         </Card>
-        <Card title="Scheduled this week" sub="Texts that send themselves" className="th-grow">
-          {data.schedules?.length ? (
+        <Card title="Scheduled this week" sub="Upcoming texts and weekly texts" className="th-grow">
+          {upcoming.length || data.schedules?.length ? (
             <ul className="th-scheds">
-              {data.schedules.map((x) => (
+              {upcoming.map((b) => (
+                <li key={b.id}><span className="th-sched-day">{b.scheduledFor ? new Date(b.scheduledFor).toLocaleDateString(undefined, { weekday: "short" }).toUpperCase() : "—"}</span>
+                  <div className="th-sched-body"><b>{b.scheduledFor ? sendTime(b.scheduledFor) : "Scheduled"}</b><small>To {b.recipients.length === 1 ? b.recipients[0].name : `${b.recipients.length} people`} · “{snippetText(b.body, 40)}”</small></div>
+                  <Link to="/team/messages?tab=log" className="th-x plain">Edit</Link></li>
+              ))}
+              {(data.schedules || []).map((x) => (
                 <li key={x.id} className={x.active ? "" : "off"}><span className="th-sched-day">{x.weekdayName.slice(0, 3).toUpperCase()}</span>
                   <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}{untilLabel(x)}{x.active ? "" : " · paused"}</small></div>
                   <button type="button" className="th-x plain" onClick={async () => { await hubFetch("POST", { action: "schedule-toggle", id: x.id, active: !x.active }); notify({ text: `${x.name} ${x.active ? "paused" : "resumed"}.` }); reload(); }}>{x.active ? "Pause" : "Resume"}</button></li>
               ))}
             </ul>
           ) : <p className="th-empty">Nothing scheduled this week.</p>}
-          <NavLink to={data.schedules?.length ? "/team/messages?tab=schedules" : "/team/messages?tab=send"} className="th-link">{data.schedules?.length ? "Manage →" : "Schedule a weekly text →"}</NavLink>
+          <NavLink to={upcoming.length || data.schedules?.length ? "/team/messages?tab=schedules" : "/team/messages?tab=send"} className="th-link">{upcoming.length || data.schedules?.length ? "Manage weekly texts →" : "Schedule a text →"}</NavLink>
         </Card>
       </div>
     </>
