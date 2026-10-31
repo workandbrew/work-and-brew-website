@@ -263,7 +263,7 @@ function Overview({ data, reload, notify }) {
               {upcoming.map((b) => (
                 <li key={b.id}><span className="th-sched-day">{b.scheduledFor ? new Date(b.scheduledFor).toLocaleDateString(undefined, { weekday: "short" }).toUpperCase() : "—"}</span>
                   <div className="th-sched-body"><b>{b.scheduledFor ? sendTime(b.scheduledFor) : "Scheduled"}</b><small>To {b.recipients.length === 1 ? b.recipients[0].name : `${b.recipients.length} people`} · “{snippetText(b.body, 40)}”</small></div>
-                  <Link to="/team/messages?tab=log" className="th-x plain">Edit</Link></li>
+                  <Link to="/team/messages?tab=schedules" className="th-x plain">Edit</Link></li>
               ))}
               {(data.schedules || []).map((x) => (
                 <li key={x.id} className={x.active ? "" : "off"}><span className="th-sched-day">{x.weekdayName.slice(0, 3).toUpperCase()}</span>
@@ -272,7 +272,7 @@ function Overview({ data, reload, notify }) {
               ))}
             </ul>
           ) : <p className="th-empty">Nothing scheduled this week.</p>}
-          <NavLink to={upcoming.length || data.schedules?.length ? "/team/messages?tab=schedules" : "/team/messages?tab=send"} className="th-link">{upcoming.length || data.schedules?.length ? "Manage weekly texts →" : "Schedule a text →"}</NavLink>
+          <NavLink to={upcoming.length || data.schedules?.length ? "/team/messages?tab=schedules" : "/team/messages?tab=send"} className="th-link">{upcoming.length || data.schedules?.length ? "See all scheduled →" : "Schedule a text →"}</NavLink>
         </Card>
       </div>
     </>
@@ -487,7 +487,7 @@ function Templates({ data, onChange, notify, editId }) {
   );
 }
 
-function Log({ log, compact, onMore, reload, notify }) {
+function Log({ log, compact, onMore, reload, notify, upcoming }) {
   const [filter, setFilter] = useState("all");
   const cancelScheduled = async (b) => {
     if (!window.confirm(`Cancel this scheduled text to ${b.recipients.length} ${b.recipients.length === 1 ? "person" : "people"}? Nobody will get it.`)) return;
@@ -509,7 +509,9 @@ function Log({ log, compact, onMore, reload, notify }) {
     if (r.ok) { setEdit(null); notify?.({ text: `Updated. It now goes out ${sendTime(r.scheduledAt)}.${r.notChanged ? ` ${r.notChanged} couldn't be changed.` : ""}` }); reload?.(); }
     else notify?.({ bad: true, text: r.error || "Couldn't change it." });
   };
-  const rows = filter === "failed" ? log.filter((b) => b.failed) : log;
+  const rows = upcoming
+    ? log.filter((b) => b.state === "scheduled").sort((a, b) => String(a.scheduledFor || "").localeCompare(String(b.scheduledFor || "")))
+    : filter === "failed" ? log.filter((b) => b.failed) : log;
   if (compact) {
     return (
       <Card title="Sent texts" sub="The shared log" right={<button type="button" className="th-link th-link-btn" onClick={onMore}>Full log →</button>}>
@@ -531,9 +533,9 @@ function Log({ log, compact, onMore, reload, notify }) {
     );
   }
   return (
-    <Card title="Sent texts" sub="Shared log: every lead sees what scouts were told"
-      right={<div className="th-chips">{["all", "failed"].map((f) => <button key={f} className={`th-chip sm ${filter === f ? "on" : ""}`} onClick={() => setFilter(f)}>{f === "all" ? "All" : "Not delivered"}</button>)}</div>}>
-      {!rows.length ? <p className="th-empty">{filter === "failed" ? "Every text went through." : "No texts sent yet."}</p> : (
+    <Card title={upcoming ? "One-time scheduled texts" : "Sent texts"} sub={upcoming ? "Waiting to send · edit or cancel any time before it goes out" : "Shared log: every lead sees what scouts were told"}
+      right={!upcoming && <div className="th-chips">{["all", "failed"].map((f) => <button key={f} className={`th-chip sm ${filter === f ? "on" : ""}`} onClick={() => setFilter(f)}>{f === "all" ? "All" : "Not delivered"}</button>)}</div>}>
+      {!rows.length ? <p className="th-empty">{upcoming ? "No one-time texts scheduled. Pick a date & time under “When” in Send a text." : filter === "failed" ? "Every text went through." : "No texts sent yet."}</p> : (
         <ul className="th-log">
           {rows.slice(0, 25).map((b) => (
             <li key={b.id}>
@@ -752,8 +754,8 @@ function Messages({ data, reload, notify }) {
   const params = new URLSearchParams(search);
   const [tab, setTab] = useState(SCOUT_TABS.includes(params.get("tab")) ? params.get("tab") : "overview");
   const active = (data.schedules || []).filter((x) => x.active).length;
-  const counts = { overview: null, send: null, replies: (data.replies || []).filter((r) => !r.read_at).length, schedules: data.schedules?.length || 0, templates: data.templates.length, log: null, directory: data.team.length, signups: data.signups?.pending || 0 };
-  const labels = { overview: "Overview", templates: "Templates", directory: "Contacts", send: "Send a text", replies: "Replies", schedules: "Schedules", log: "Log", signups: "Sign-ups" };
+  const counts = { overview: null, send: null, replies: (data.replies || []).filter((r) => !r.read_at).length, schedules: (data.schedules?.length || 0) + data.log.filter((b) => b.state === "scheduled").length, templates: data.templates.length, log: null, directory: data.team.length, signups: data.signups?.pending || 0 };
+  const labels = { overview: "Overview", templates: "Templates", directory: "Contacts", send: "Send a text", replies: "Replies", schedules: "Scheduled", log: "Log", signups: "Sign-ups" };
   return (
     <>
       <nav className="th-subnav" aria-label="Text Message System sections">
@@ -786,7 +788,7 @@ function Messages({ data, reload, notify }) {
       )}
       {tab === "overview" && <Analytics data={data} />}
       {tab === "replies" && <Replies data={data} reload={reload} notify={notify} onReply={(r) => { try { sessionStorage.setItem("wb-hub-draft-to", JSON.stringify([r.contactId])); sessionStorage.setItem("wb-hub-draft", `Hi ${String(r.name || "").split(" ")[0]}! `); } catch { /* private mode */ } setTab("send"); }} />}
-      {tab === "schedules" && <Schedules data={data} onChange={reload} notify={notify} />}
+      {tab === "schedules" && <div className="th-stack"><Log log={data.log} upcoming reload={reload} notify={notify} /><Schedules data={data} onChange={reload} notify={notify} /></div>}
       {tab === "templates" && <Templates data={data} onChange={reload} notify={notify} editId={params.get("edit")} />}
       {tab === "log" && <Log log={data.log} reload={reload} notify={notify} />}
       {tab === "directory" && <Directory team={data.team} reload={reload} notify={notify} />}
