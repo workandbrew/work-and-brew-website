@@ -184,23 +184,6 @@ function Overview({ data, reload, notify }) {
 
   return (
     <>
-      <section className="th-hero">
-        <div>
-          <div className="th-caps th-hero-caps">Work &amp; Brew · Team Hub</div>
-          <h2>{data.greeting || "Hi"}, {String(data.me?.name || "").split(" ")[0] || "there"}</h2>
-          <p>{data.me?.role ? `${data.me.role} · ` : ""}Everything Work &amp; Brew is running, in one place.</p>
-        </div>
-        <CurrentWorks data={data} reload={reload} notify={notify} />
-      </section>
-
-      <div className="th-row th-stats">
-        <Stat label="Texts · 30D" value={data.stats?.sent30 ?? 0} foot={<Delta now={data.stats?.sent30 ?? 0} before={data.stats?.prevSent30 ?? 0} />} />
-        <Stat label="Cafés visited" value={visited ?? (waiting ? "…" : "—")} foot={visited == null ? (waiting ? "Loading from the sheet" : "Connect the scout map") : "Visits completed"} />
-        <Stat label="Reachable by text" value={`${textable} of ${data.team.length}`} foot="Opted in to texts" />
-        <Stat label="Sign-ups · 30D" value={data.signups?.last30 ?? "—"} foot={data.signups ? `${data.signups.pending} waiting for approval` : "Not set up yet"} />
-        <Stat label="Chapters" value={data.chapters.length} foot={`${data.team.length} people on the team`} />
-      </div>
-
       <section className="th-week" aria-label="What changed this week">
         <div className="th-caps">This week · last 7 days</div>
         <ul>
@@ -218,6 +201,23 @@ function Overview({ data, reload, notify }) {
           ].map(([n, one, many]) => <li key={many}><b>{n}</b> {n === 1 ? one : many}</li>)}
         </ul>
       </section>
+
+      <section className="th-hero">
+        <div>
+          <div className="th-caps th-hero-caps">Work &amp; Brew · Team Hub</div>
+          <h2>{data.greeting || "Hi"}, {String(data.me?.name || "").split(" ")[0] || "there"}</h2>
+          <p>{data.me?.role ? `${data.me.role} · ` : ""}Everything Work &amp; Brew is running, in one place.</p>
+        </div>
+        <CurrentWorks data={data} reload={reload} notify={notify} />
+      </section>
+
+      <div className="th-row th-stats">
+        <Stat label="Texts · 30D" value={data.stats?.sent30 ?? 0} foot={<Delta now={data.stats?.sent30 ?? 0} before={data.stats?.prevSent30 ?? 0} />} />
+        <Stat label="Cafés visited" value={visited ?? (waiting ? "…" : "—")} foot={visited == null ? (waiting ? "Loading from the sheet" : "Connect the scout map") : "Visits completed"} />
+        <Stat label="Reachable by text" value={`${textable} of ${data.team.length}`} foot="Opted in to texts" />
+        <Stat label="Sign-ups · 30D" value={data.signups?.last30 ?? "—"} foot={data.signups ? `${data.signups.pending} waiting for approval` : "Not set up yet"} />
+        <Stat label="Chapters" value={data.chapters.length} foot={`${data.team.length} people on the team`} />
+      </div>
 
       <div className="th-row">
         <Card title="Texts this week" sub="Last 7 days · all senders" className="th-grow"
