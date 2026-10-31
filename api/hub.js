@@ -164,6 +164,12 @@ async function notifications() {
       : b.state === "canceled" ? `Scheduled text to ${whom} was canceled: “${snippet(b.body, 50)}”`
       : `${senderName(b.from)} texted ${whom}: “${snippet(b.body, 60)}”${b.failed ? ` · ${b.failed} failed` : ""}`;
     add(b.state === "scheduled" ? "scheduled" : "text", text, b.at, "/team/messages?tab=log");
+    for (const e of b.edits || []) {
+      const fmt = (iso) => iso ? new Date(iso).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }) : "?";
+      const moved = e.fromTime !== e.toTime, reworded = e.fromBody !== e.toBody;
+      const what = [moved ? `from ${fmt(e.fromTime)} to ${fmt(e.toTime)}` : "", reworded ? `changed the message to “${snippet(e.toBody, 50)}”` : ""].filter(Boolean).join(" and ");
+      add("scheduled", `${senderName(e.by)} ${moved ? "rescheduled" : "edited"} the text to ${whom} (“${snippet(e.fromBody, 40)}”) ${what || "with no changes"}`, e.at, "/team/messages?tab=schedules");
+    }
   }
   // Going out tomorrow: weekly texts and one-off scheduled texts
   for (const s of schedules.filter((s) => s.active && s.weekday === tomorrowDay && (!s.ends_on || s.ends_on >= tomorrow))) {
@@ -285,7 +291,7 @@ async function hubUser(req) {
 }
 
 // Groups log rows from one send (same batch) into a single entry, newest first.
-async function recentLog() {
+export async function recentLog() {
   const nowIso = new Date().toISOString();
   const [{ data: rows, error }, { data: people }] = await Promise.all([
     db().from("sms_messages").select("*").order("created_at", { ascending: false }).limit(400),
@@ -295,7 +301,12 @@ async function recentLog() {
   await refreshDelivery(rows || []).catch(() => {});
   const names = new Map((people || []).map((p) => [p.id, p.name]));
   const batches = new Map();
+  const versions = new Map(); // batch → every version of one person's row, for edited scheduled texts
   for (const r of rows || []) {
+    const v = versions.get(r.batch_id) || []; if (r.batch_id) versions.set(r.batch_id, v.concat(r));
+  }
+  for (const r of rows || []) {
+    if (r.status === "replaced" || (r.status === "canceled" && r.error === "Replaced by an edit")) continue; // an older version of an edited text
     const key = r.batch_id || r.id;
     if (!batches.has(key)) {
       batches.set(key, { id: key, at: r.created_at, from: r.sent_by || "unknown", body: r.body, template: toTemplate(r.body, names.get(r.scout_id)), recipients: [], scheduledFor: null });
@@ -310,6 +321,15 @@ async function recentLog() {
         : r.status === "scheduled" && (!r.scheduled_for || r.scheduled_for > nowIso) ? "scheduled" : "sent",
       error: r.error || null,
     });
+  }
+  // Each edit of a scheduled text: who changed it, when, and the old and new send time/message
+  for (const b of batches.values()) {
+    const all = versions.get(b.id) || [];
+    if (!all.some((r) => r.status === "replaced")) continue;
+    const one = all[0].scout_id;
+    const steps = all.filter((r) => r.scout_id === one).sort((x, y) => x.created_at.localeCompare(y.created_at));
+    b.at = steps[0].created_at; // when it was first scheduled
+    b.edits = steps.slice(1).map((r, i) => ({ at: r.created_at, by: r.sent_by, fromTime: steps[i].scheduled_for, toTime: r.scheduled_for, fromBody: steps[i].body, toBody: r.body }));
   }
   const log = [...batches.values()].slice(0, 60).map((b) => ({
     ...b,
@@ -335,10 +355,11 @@ async function editScheduled(batchId, message, sendAt, sentBy) {
   const kept = [];
   for (const m of rows) {
     const r = m.twilio_sid ? await twilioCancel(m.twilio_sid).catch((e) => ({ ok: false, error: e.message })) : { ok: false, error: "no Twilio id" };
-    if (r.ok) { kept.push(m.scout_id); await db().from("sms_messages").update({ status: "canceled", error: "Replaced by an edit" }).eq("id", m.id); }
+    // "replaced" rows stay in the database (they feed the "rescheduled" notification) but never show in the log
+    if (r.ok) { kept.push(m.scout_id); await db().from("sms_messages").update({ status: "replaced", error: "Replaced by an edit" }).eq("id", m.id); }
   }
   if (!kept.length) return { status: 502, error: "Twilio wouldn't let go of the old text (it may be sending right now). Nothing was changed." };
-  const { json } = await deliver({ to: kept, message, sendAt, sentBy });
+  const { json } = await deliver({ to: kept, message, sendAt, sentBy, batchId }); // same batch, so the log shows one entry
   if (!json.sent) return { status: 502, error: `The old text was canceled, but the new one couldn't be scheduled: ${json.error || "unknown error"}. Schedule it again from Send a text.` };
   return { sent: json.sent, failed: json.failed, scheduledAt: json.scheduledAt, notChanged: rows.length - kept.length, error: json.error };
 }
@@ -371,7 +392,7 @@ function dailyCounts(rows, days = 30) {
   for (const [k, v] of out) v.date = k;
   const nowIso = new Date().toISOString();
   for (const r of rows) {
-    if (r.status === "canceled" || (r.status === "scheduled" && r.scheduled_for > nowIso)) continue; // not sent (yet)
+    if (r.status === "canceled" || r.status === "replaced" || (r.status === "scheduled" && r.scheduled_for > nowIso)) continue; // not sent (yet)
     const day = out.get(nyDay(r.scheduled_for || r.created_at));
     if (day) day[r.status === "failed" ? "failed" : "sent"]++;
   }

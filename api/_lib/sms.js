@@ -303,7 +303,7 @@ async function logMessage(row) {
 }
 
 // Validates, resolves recipients and (unless dryRun) sends. Returns { status, json } for the caller.
-export async function deliver({ to, message, dryRun, sentBy, sendAt }) {
+export async function deliver({ to, message, dryRun, sentBy, sendAt, batchId }) {
   const text = String(message || "").trim();
   if (!text) return { status: 400, json: { ok: false, error: "message is required" } };
   if (text.length > MAX_MESSAGE_CHARS) {
@@ -341,7 +341,7 @@ export async function deliver({ to, message, dryRun, sentBy, sendAt }) {
   const body = personalize(template, recipients[0]); // what the first person will see
   if (dryRun) return { status: 200, json: { ok: true, dryRun: true, body, template, recipients: recipients.map(publicScout), skipped, scheduledAt: scheduleAt } };
 
-  const batch_id = randomUUID(); // groups one send to many people in the log
+  const batch_id = batchId || randomUUID(); // groups one send to many people in the log (an edit keeps the same one)
   const results = [];
   let heldOk = !scheduleAt; // for a scheduled text: did Twilio confirm it is holding the first one?
   for (const s of recipients) {
