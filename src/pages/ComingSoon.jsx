@@ -138,7 +138,7 @@ export default function ComingSoon({ children }) {
         fontFamily: "'Wizanes', Georgia, serif",
         marginBottom: "10px",
       }}>
-        Launching October 30, 2026 : 12 PM EST
+        Launching November 1, 2026 : 6 PM EST
       </p>
 
       {/* Title */}
