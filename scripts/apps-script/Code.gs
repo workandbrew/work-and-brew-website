@@ -37,12 +37,48 @@ var DEFAULT_APPROVERS = ['denissemedinaflores@gmail.com', 'davidatorres123@gmail
 var EXTRA_COLUMNS = [
   'ReviewStatus', 'Website', 'HoursWeekday', 'HoursWeekend', 'WeekendRestrictions', 'Environment',
   'SeatsType', 'Notes', 'DateScouted', 'SubmittedBy', 'PhotoIds', 'ListingPhotoIds', 'DriveFolderUrl',
-  'AssignedTo', 'AssignedAt', 'DueAt', 'LeadLink', 'LeadAddr', 'AddressFlag', 'AddressFlagNote', 'AddressFlagName', 'AddressFlagAddr', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted', 'HoursByDay', 'PrevStatus', 'AfterHours'
+  'AssignedTo', 'AssignedAt', 'DueAt', 'LeadLink', 'LeadAddr', 'AddressFlag', 'AddressFlagNote', 'AddressFlagName', 'AddressFlagAddr', 'ApprovedBy', 'ApprovedAt', 'SendBackNote', 'ChainFlag', 'SubmittedAt', 'VideosTexted', 'HoursByDay', 'PrevStatus', 'AfterHours', 'JiraKey'
 ];
 
 // Bump this with every change. The scout map compares it with the version it expects and warns admins
 // when the live deployment is older (the usual cause: pasting into a different deployment).
-var SCRIPT_VERSION = 'v31-2026-10-29';
+var SCRIPT_VERSION = 'v33-2026-10-29';
+
+// ------------------------------------------------------------ instant updates
+// Every open café map listens on a Supabase Realtime channel. Whenever the sheet changes (a save from any
+// map, or someone typing in the spreadsheet) this sends one small "changed" message, and the maps reload.
+// The maps still check once a minute as a backup.
+var WRITE_ACTIONS = ['submit', 'flagAddress', 'suggestCafe', 'approveSuggestion', 'rejectSuggestion', 'resolveCorrection',
+  'approve', 'assign', 'editCafe', 'leadSave', 'leadReset', 'saveReview', 'sendBack', 'setStatus', 'syncCafes', 'deleteCafe'];
+function notifyChange_(source, by) {
+  try {
+    UrlFetchApp.fetch(SUPABASE_URL + '/realtime/v1/api/broadcast', {
+      method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
+      payload: JSON.stringify({ messages: [{ topic: 'cafes', event: 'changed', payload: { source: source, by: by || '', at: new Date().toISOString() } }] })
+    });
+  } catch (e) {} // never let a missed signal break a save; the once-a-minute check still catches it
+}
+// Runs when someone edits the spreadsheet by hand (installed by setupInstantUpdates below)
+function onSheetEdit(e) {
+  try {
+    var name = e && e.range ? e.range.getSheet().getName() : (e && e.source ? e.source.getActiveSheet().getName() : '');
+    if (name && name !== sheet_().getName() && name !== SUGGEST_SHEET) return;
+    var cache = CacheService.getScriptCache();
+    if (cache.get('notify_sheet')) return; // a burst of typing sends one signal per second at most
+    cache.put('notify_sheet', '1', 1);
+    notifyChange_('sheet', e && e.user ? String(e.user) : '');
+  } catch (err) {}
+}
+// RUN THIS ONCE from the Apps Script editor (pick it in the function menu, then Run). It makes the spreadsheet
+// call onSheetEdit whenever it is edited or rows are added/removed. Running it again is safe.
+function setupInstantUpdates() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'onSheetEdit') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('onSheetEdit').forSpreadsheet(SPREADSHEET_ID).onEdit().create();
+  ScriptApp.newTrigger('onSheetEdit').forSpreadsheet(SPREADSHEET_ID).onChange().create();
+  notifyChange_('setup', '');
+  Logger.log('Instant updates are on: maps refresh within seconds of any sheet edit.');
+}
 
 // ------------------------------------------------------------ entry points
 function doPost(e) {
@@ -82,6 +118,8 @@ function doPost(e) {
       default: throw new Error('Unknown action: ' + body.action);
     }
     out.ok = true;
+    // Saved something: tell every open map to refresh now (see notifyChange_)
+    if (WRITE_ACTIONS.indexOf(body.action) !== -1) notifyChange_('map', user && user.email);
   } catch (err) {
     out = { ok: false, error: String(err.message || err) };
   }
@@ -644,7 +682,78 @@ function approveSuggestionLocked_(body, user) {
   postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'Cafe added: ' + c.name,
     '*' + c.name + '* has successfully been added to ' + where + '. (' + c.number + '. Approved by ' + user.email + '.)', []);
   c.row = row;
+  // Give the new café its Jira ticket and Drive folder, like every other café on the Cafe Scouts board.
+  // A problem here never undoes the approval; the café is already on the map.
+  try { c.jira = cafeTicket_(sh, h, row, c, cells.DriveFolderUrl || ''); } catch (e) { c.jira = { error: String(e.message || e) }; }
   return { cafe: c };
+}
+
+// ------------------------------------------------------------ jira ticket + drive folder
+// Same setup as the existing tickets: a "Name - street" folder in "Work & Brew - Content Clips", and a
+// WRK Task called "Name — full address" with the cafe-scouting label that links to that folder.
+// Script properties: JIRA_EMAIL + JIRA_API_TOKEN (required), CAFE_FOLDERS_PARENT_ID (optional override).
+var JIRA_SITE = 'https://workandbrewapp.atlassian.net';
+var JIRA_PROJECT = 'WRK';
+var JIRA_TASK_TYPE = '10331';
+var CONTENT_CLIPS_FOLDER_ID = '1YXvfzJRIYZ_P2dkl0BWRZ7xEZYz9szb4';
+var SCOUT_FORM_URL = 'https://forms.gle/yLk7J6YsXqGmt8AE8';
+
+function scoutingFolder_(c) {
+  var id = PropertiesService.getScriptProperties().getProperty('CAFE_FOLDERS_PARENT_ID') || CONTENT_CLIPS_FOLDER_ID;
+  var parent = DriveApp.getFolderById(id);
+  var street = String(c.address || '').split(',')[0].trim();
+  var name = (String(c.name || 'Café').trim() + (street ? ' - ' + street : '')).replace(/[\/\\]/g, '-');
+  var it = parent.getFoldersByName(name);
+  return it.hasNext() ? it.next() : parent.createFolder(name);
+}
+function adfText_(text, marks) { var n = { type: 'text', text: text }; if (marks) n.marks = marks; return n; }
+function cafeTicketDescription_(folderUrl, photosUrl) {
+  var bold = [{ type: 'strong' }];
+  var link = function (href) { return [{ type: 'link', attrs: { href: href } }]; };
+  var para = function () { return { type: 'paragraph', content: Array.prototype.slice.call(arguments) }; };
+  var item = function () { return { type: 'listItem', content: [para.apply(null, arguments)] }; };
+  var content = [
+    para(adfText_('📁 '), adfText_('Cafe Scouting Folder:', bold), adfText_(' '), adfText_('Open in Drive', link(folderUrl))),
+    para(adfText_('Upload all photos and videos from your visit to this folder. Make sure each upload is clearly named or organized so the team can find it later.'))
+  ];
+  if (photosUrl && photosUrl !== folderUrl) content.push(para(adfText_('Photos sent with the suggestion: '), adfText_('Open in Drive', link(photosUrl))));
+  content.push({ type: 'rule' });
+  content.push(para(adfText_('Three things to complete at this cafe:', bold)));
+  content.push({ type: 'orderedList', content: [
+    item(adfText_('Go to the cafe when you want to get real work done')),
+    item(adfText_('Complete the '), adfText_('Google Form', link(SCOUT_FORM_URL)), adfText_(' and confirm whether the WiFi is secured or open')),
+    item(adfText_('Capture 5–6 different photos of the cafe AND record at least 2 minutes of video content showing the cafe from different angles'))
+  ] });
+  return { type: 'doc', version: 1, content: content };
+}
+function cafeTicket_(sh, h, row, c, photosUrl) {
+  var have = h.JiraKey ? String(sh.getRange(row, h.JiraKey).getValue() || '').trim() : '';
+  if (have) return { key: have, url: JIRA_SITE + '/browse/' + have }; // never make a second ticket
+  var props = PropertiesService.getScriptProperties();
+  var email = props.getProperty('JIRA_EMAIL'), token = props.getProperty('JIRA_API_TOKEN');
+  var folder = scoutingFolder_(c);
+  var folderUrl = folder.getUrl();
+  if (!photosUrl) setCells_(sh, h, row, { DriveFolderUrl: folderUrl });
+  if (!email || !token) return { folderUrl: folderUrl, error: 'Jira is not connected yet (add JIRA_EMAIL and JIRA_API_TOKEN to Script properties).' };
+  var res = UrlFetchApp.fetch(JIRA_SITE + '/rest/api/3/issue', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { Authorization: 'Basic ' + Utilities.base64Encode(email + ':' + token), Accept: 'application/json' },
+    payload: JSON.stringify({ fields: {
+      project: { key: JIRA_PROJECT }, issuetype: { id: JIRA_TASK_TYPE },
+      summary: (String(c.name || '').trim() + ' — ' + String(c.address || '').trim()).substring(0, 250),
+      labels: ['cafe-scouting'],
+      description: cafeTicketDescription_(folderUrl, photosUrl)
+    } })
+  });
+  var code = res.getResponseCode(), out = {};
+  try { out = JSON.parse(res.getContentText()); } catch (e) {}
+  if (code < 200 || code >= 300 || !out.key) {
+    var why = out.errorMessages && out.errorMessages.length ? out.errorMessages.join(' ') : JSON.stringify(out.errors || res.getContentText()).substring(0, 300);
+    postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'Jira ticket not created: ' + c.name, 'Jira said (' + code + '): ' + why + '\nFolder: ' + folderUrl, []);
+    return { folderUrl: folderUrl, error: 'Jira error ' + code + ': ' + why };
+  }
+  if (h.JiraKey) setCells_(sh, h, row, { JiraKey: out.key });
+  return { key: out.key, url: JIRA_SITE + '/browse/' + out.key, folderUrl: folderUrl };
 }
 // ---- name/address corrections a scout flagged
 function handleListCorrections_(body, user) {

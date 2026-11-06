@@ -18,7 +18,9 @@ const LIVE_REFRESH_MS = 90 * 1000; // how often the public map re-checks the she
 function fetchMarkersCsv() {
   const local = () => fetch("/markers.csv").then((r) => r.text());
   if (!MARKERS_FEED_URL) return local();
-  return fetch(MARKERS_FEED_URL)
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(), 8000); // a slow spreadsheet must never leave the map on "Loading map…"
+  return fetch(MARKERS_FEED_URL, { signal: ctrl.signal })
     .then((r) => (r.ok ? r.text() : Promise.reject(new Error("feed " + r.status))))
     .then((t) => (t && t.indexOf("Name,") === 0 ? t : Promise.reject(new Error("bad feed"))))
     .catch(() => local());

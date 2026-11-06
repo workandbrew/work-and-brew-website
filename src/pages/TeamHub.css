@@ -51,7 +51,7 @@
 .th-side-col { width: 420px; flex: 0 0 420px; }
 .th-stack { display: flex; flex-direction: column; gap: 16px; }
 
-.th-hero { background: var(--cream); color: var(--espresso); border: 1px solid var(--beige); border-radius: 18px; padding: 32px 36px; display: flex; gap: 32px; align-items: center; }
+.th-hero { background: var(--cream); color: var(--espresso); border: 1px solid var(--beige); border-radius: 18px; padding: 32px 36px; display: flex; gap: 32px; align-items: flex-start; }
 .th-hero > div:first-child { flex: 1; }
 .th-hero-caps { color: var(--navy); }
 .th-hero h2 { font-family: var(--serif); font-size: 46px; font-weight: 600; line-height: 1.1; margin: 10px 0; color: var(--navy); }
@@ -310,3 +310,35 @@
 .th-plus:hover { background: var(--slate); }
 .th-tpl-new { border: 1px solid var(--navy); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
 .th-once .th-input { flex: 0 1 260px; min-width: 0; }
+.th-hero > div:first-child { align-self: flex-start; }
+.th-until { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--ink2); }
+.th-until .th-input { flex: 0 1 190px; min-width: 0; }
+
+/* Replies inbox */
+.th-replies { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.th-replies li { display: flex; gap: 12px; align-items: flex-start; padding: 14px 0; border-top: 1px solid var(--border); }
+.th-replies li:first-child { border-top: 0; }
+.th-replies li.new { background: linear-gradient(90deg, rgba(144,173,201,.14), transparent 70%); margin: 0 -14px; padding-left: 14px; padding-right: 14px; border-radius: 10px; }
+.th-reply-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.th-reply-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+.th-reply-when { font-size: 12px; color: var(--muted); }
+.th-reply-acts { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+.th-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--navy); display: inline-block; }
+@media (max-width: 560px) { .th-replies li { flex-wrap: wrap; } .th-reply-acts { flex-direction: row; width: 100%; justify-content: flex-end; } }
+.th-loading-live { display: flex; align-items: center; gap: 10px; }
+.th-loading-live::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--beige); border-top-color: var(--navy); animation: thSpin .8s linear infinite; }
+@keyframes thSpin { to { transform: rotate(360deg); } }
+
+/* Growth: weekly follower gains, likes and views */
+.th-social-top { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.th-gain { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: normal; white-space: nowrap; }
+.th-gain.up { color: #11734B; background: rgba(17,115,75,.12); }
+.th-gain.down { color: #5F6B78; background: rgba(165,171,176,.2); }
+.th-social-extra { font-size: 13px; color: var(--ink2); }
+.th-sched-state { color: var(--navy); display: inline-flex; align-items: center; gap: 10px; }
+.th-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink2); }
+.th-switch input { width: 18px; height: 18px; accent-color: var(--navy); cursor: pointer; }
+
+/* Editing a weekly text in place */
+.th-scheds li.th-sched-edit { display: grid; gap: 10px; align-items: stretch; justify-items: stretch; text-align: left; }
+.th-scheds li.th-sched-edit .th-btns { justify-content: flex-start; align-items: flex-end; flex-wrap: wrap; }

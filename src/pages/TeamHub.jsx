@@ -41,19 +41,45 @@ const PAGES = [
 ];
 const pathFor = (key) => (key === "overview" ? "/team" : `/team/${key}`);
 
-async function hubFetch(method, body) {
+async function hubFetch(method, body, query = "") {
   const { data } = await supabase.auth.getSession();
   const token = data?.session?.access_token;
-  const r = await fetch("/api/hub", {
-    method,
-    headers: { "content-type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const json = await r.json().catch(() => ({}));
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 25000);
+  let r;
+  try {
+    r = await fetch("/api/hub" + query, {
+      method,
+      headers: { "content-type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    return { status: 0, ok: false, error: e?.name === "AbortError" ? "The Team Hub took too long to load." : "Couldn't reach the Team Hub. Check your connection." };
+  } finally { clearTimeout(timer); }
+  const json = await r.json().catch(() => ({ ok: false, error: r.status >= 500 ? "The Team Hub server had a problem. Try again in a minute." : "Unexpected reply from the Team Hub." }));
   return { status: r.status, ...json };
 }
 
 const when = (iso) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+// The live numbers (café counts from the sheet, social stats) arrive a moment after the rest. Carry the last
+// ones over on refresh so the page never flips back to "Connect…" or old numbers in between.
+const SLOW_KEYS = ["cafes", "cafeList", "cafeWeek", "cafesFrom", "growth", "slowLoaded"];
+const keepSlow = (prev) => (prev ? Object.fromEntries(SLOW_KEYS.filter((k) => k in prev).map((k) => [k, prev[k]])) : {});
+const LiveLoading = ({ what = "live numbers" }) => <p className="th-empty th-loading-live">Loading {what}…</p>;
+
+const sendTime = (iso) => new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+// Delivered = the carrier confirmed it reached the phone; Sent = handed to the carrier, no confirmation yet.
+const deliveryLine = (b) => {
+  const waiting = b.sent - (b.delivered || 0);
+  return [b.delivered ? `✓ ${b.delivered} delivered` : "", waiting ? `${waiting} sent, not confirmed yet` : "", b.failed ? `✗ ${b.failed} not delivered` : ""].filter(Boolean).join(" · ") || "Nothing sent";
+};
+const deliveryTag = (b) => (b.state === "scheduled" ? ["n", "Scheduled"] : b.state === "canceled" ? ["n", "Canceled"] : b.failed ? ["b", "Not delivered"]
+  : b.delivered === b.recipients.length ? ["g", "Delivered"] : ["n", "Sent"]);
+const localInput = (d) => { const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+const snippetText = (t, n) => { const x = String(t || "").replace(/\s+/g, " ").trim(); return x.length > n ? x.slice(0, n - 1) + "…" : x; };
+const batchStatus = (b) => (b.state === "scheduled" ? (b.scheduledFor ? `Scheduled · ${sendTime(b.scheduledFor)}` : "Scheduled (time not saved, see Twilio)") : b.state === "canceled" ? "Canceled" : null);
+
 const fromLabel = (from) => (from === "gwen" ? "Den (via Gwen)" : String(from || "").replace(/^Team Hub · /, ""));
 const initials = (name) => String(name).trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 const sum = (arr, k) => arr.reduce((n, d) => n + d[k], 0);
@@ -148,30 +174,16 @@ function CurrentWorks({ data, reload, notify }) {
 function Overview({ data, reload, notify }) {
   const daily = data.daily || [];
   const week = daily.slice(-7);
+  // One-off texts Twilio is holding, soonest first
+  const upcoming = data.log.filter((b) => b.state === "scheduled").sort((a, b) => String(a.scheduledFor || "").localeCompare(String(b.scheduledFor || "")));
   const textable = data.team.filter((p) => p.canText).length;
   const visited = data.cafes ? (data.cafes["Visit Completed"] || 0) + (data.cafes["Official Cafe Listing"] || 0) : null;
+  const waiting = !data.slowLoaded;
   const byChapter = data.chapters.map((c) => ({ label: c, value: data.team.filter((p) => p.chapters.includes(c)).length })).sort((a, b) => b.value - a.value);
   const cafeRows = data.cafes ? Object.entries(data.cafes).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value) : [];
 
   return (
     <>
-      <section className="th-hero">
-        <div>
-          <div className="th-caps th-hero-caps">Work &amp; Brew · Team Hub</div>
-          <h2>{data.greeting || "Hi"}, {String(data.me?.name || "").split(" ")[0] || "there"}</h2>
-          <p>{data.me?.role ? `${data.me.role} · ` : ""}Everything Work &amp; Brew is running, in one place.</p>
-        </div>
-        <CurrentWorks data={data} reload={reload} notify={notify} />
-      </section>
-
-      <div className="th-row th-stats">
-        <Stat label="Texts · 30D" value={data.stats?.sent30 ?? 0} foot={<Delta now={data.stats?.sent30 ?? 0} before={data.stats?.prevSent30 ?? 0} />} />
-        <Stat label="Cafés visited" value={visited ?? "—"} foot={visited == null ? "Connect the scout map" : "Visits completed"} />
-        <Stat label="Reachable by text" value={`${textable} of ${data.team.length}`} foot="Opted in to texts" />
-        <Stat label="Sign-ups · 30D" value={data.signups?.last30 ?? "—"} foot={data.signups ? `${data.signups.pending} waiting for approval` : "Not set up yet"} />
-        <Stat label="Chapters" value={data.chapters.length} foot={`${data.team.length} people on the team`} />
-      </div>
-
       <section className="th-week" aria-label="What changed this week">
         <div className="th-caps">This week · last 7 days</div>
         <ul>
@@ -183,11 +195,29 @@ function Overview({ data, reload, notify }) {
               [data.cafeWeek.scouted, "visit scouted", "visits scouted"],
               [data.cafeWeek.official, "made official", "made official"],
             ] : []),
+            ...(data.replies ? [[data.replies.filter((r) => !r.read_at).length, "new reply", "new replies"]] : []),
             ...(data.signups ? [[data.signups.pending, "sign-up waiting", "sign-ups waiting"]] : []),
             ...((data.events || []).length ? [[(data.events || []).filter((e) => e.starts_at && new Date(e.starts_at) > new Date() && new Date(e.starts_at) - new Date() < 7 * 864e5).length, "event coming up", "events coming up"]] : []),
           ].map(([n, one, many]) => <li key={many}><b>{n}</b> {n === 1 ? one : many}</li>)}
         </ul>
       </section>
+
+      <section className="th-hero">
+        <div>
+          <div className="th-caps th-hero-caps">Work &amp; Brew · Team Hub</div>
+          <h2>{data.greeting || "Hi"}, {String(data.me?.name || "").split(" ")[0] || "there"}</h2>
+          <p>{data.me?.role ? `${data.me.role} · ` : ""}Everything Work &amp; Brew is running, in one place.</p>
+        </div>
+        <CurrentWorks data={data} reload={reload} notify={notify} />
+      </section>
+
+      <div className="th-row th-stats">
+        <Stat label="Texts · 30D" value={data.stats?.sent30 ?? 0} foot={<Delta now={data.stats?.sent30 ?? 0} before={data.stats?.prevSent30 ?? 0} />} />
+        <Stat label="Cafés visited" value={visited ?? (waiting ? "…" : "—")} foot={visited == null ? (waiting ? "Loading from the sheet" : "Connect the scout map") : "Visits completed"} />
+        <Stat label="Reachable by text" value={`${textable} of ${data.team.length}`} foot="Opted in to texts" />
+        <Stat label="Sign-ups · 30D" value={data.signups?.last30 ?? "—"} foot={data.signups ? `${data.signups.pending} waiting for approval` : "Not set up yet"} />
+        <Stat label="Chapters" value={data.chapters.length} foot={`${data.team.length} people on the team`} />
+      </div>
 
       <div className="th-row">
         <Card title="Texts this week" sub="Last 7 days · all senders" className="th-grow"
@@ -201,8 +231,8 @@ function Overview({ data, reload, notify }) {
                 <li key={b.id} className={b.failed ? "bad" : ""}>
                   <span className="th-act-ic"><Icon name="messages" /></span>
                   <div>
-                    <div className="th-act-t">{fromLabel(b.from)} texted {b.recipients.length === 1 ? b.recipients[0].name : `${b.recipients.length} people`}</div>
-                    <div className="th-act-m">{b.failed ? `${b.failed} failed · ` : `${b.sent} delivered · `}{when(b.at)}</div>
+                    <div className="th-act-t">{fromLabel(b.from)} {b.state === "scheduled" ? "scheduled a text to" : "texted"} {b.recipients.length === 1 ? b.recipients[0].name : `${b.recipients.length} people`}</div>
+                    <div className="th-act-m">{batchStatus(b) ? `${batchStatus(b)} · ` : b.failed ? `${b.failed} failed · ` : `${b.sent} sent · `}{when(b.at)}</div>
                   </div>
                 </li>
               ))}
@@ -215,7 +245,7 @@ function Overview({ data, reload, notify }) {
       <div className="th-row">
         <Card title="Team by chapter" sub="People per NYC chapter" className="th-grow"><RankBars rows={byChapter} unit="People" share={false} suffix="people" /></Card>
         <Card title="Café statuses" sub="From the scout map" className="th-grow">
-          {cafeRows.length ? <RankBars rows={cafeRows} unit="Cafés" share={false} suffix="cafés" /> : <p className="th-empty">No café updates yet.</p>}
+          {cafeRows.length ? <RankBars rows={cafeRows} unit="Cafés" share={false} suffix="cafés" /> : waiting ? <LiveLoading what="café numbers" /> : <p className="th-empty">No café updates yet.</p>}
         </Card>
         <Card title="Templates" sub="Ready-to-send messages" className="th-grow">
           <ul className="th-tlist">
@@ -227,17 +257,22 @@ function Overview({ data, reload, notify }) {
           </ul>
           <Link to="/team/messages?tab=templates" className="th-link">All templates →</Link>
         </Card>
-        <Card title="Scheduled this week" sub="Texts that send themselves" className="th-grow">
-          {data.schedules?.length ? (
+        <Card title="Scheduled this week" sub="Upcoming texts and weekly texts" className="th-grow">
+          {upcoming.length || data.schedules?.length ? (
             <ul className="th-scheds">
-              {data.schedules.map((x) => (
+              {upcoming.map((b) => (
+                <li key={b.id}><span className="th-sched-day">{b.scheduledFor ? new Date(b.scheduledFor).toLocaleDateString(undefined, { weekday: "short" }).toUpperCase() : "—"}</span>
+                  <div className="th-sched-body"><b>{b.scheduledFor ? sendTime(b.scheduledFor) : "Scheduled"}</b><small>To {b.recipients.length === 1 ? b.recipients[0].name : `${b.recipients.length} people`} · “{snippetText(b.body, 40)}”</small></div>
+                  <Link to="/team/messages?tab=schedules" className="th-x plain">Edit</Link></li>
+              ))}
+              {(data.schedules || []).map((x) => (
                 <li key={x.id} className={x.active ? "" : "off"}><span className="th-sched-day">{x.weekdayName.slice(0, 3).toUpperCase()}</span>
-                  <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}{x.active ? "" : " · paused"}</small></div>
+                  <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}{untilLabel(x)}{x.active ? "" : " · paused"}</small></div>
                   <button type="button" className="th-x plain" onClick={async () => { await hubFetch("POST", { action: "schedule-toggle", id: x.id, active: !x.active }); notify({ text: `${x.name} ${x.active ? "paused" : "resumed"}.` }); reload(); }}>{x.active ? "Pause" : "Resume"}</button></li>
               ))}
             </ul>
           ) : <p className="th-empty">Nothing scheduled this week.</p>}
-          <NavLink to={data.schedules?.length ? "/team/messages?tab=schedules" : "/team/messages?tab=send"} className="th-link">{data.schedules?.length ? "Manage →" : "Schedule a weekly text →"}</NavLink>
+          <NavLink to={upcoming.length || data.schedules?.length ? "/team/messages?tab=schedules" : "/team/messages?tab=send"} className="th-link">{upcoming.length || data.schedules?.length ? "See all scheduled →" : "Schedule a text →"}</NavLink>
         </Card>
       </div>
     </>
@@ -255,6 +290,8 @@ function Compose({ data, onSent, notify }) {
   const [tplName, setTplName] = useState("");
   const [when, setWhen] = useState("now"); // "now", "once" (a date and time) or 0-6 (weekday, New York time)
   const [sendAt, setSendAt] = useState(""); // local date-time for a one-off scheduled text
+  const [endsOn, setEndsOn] = useState(""); // optional last day for a weekly text (YYYY-MM-DD)
+  const endsLabel = endsOn ? new Date(endsOn + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
   const local = (d) => { const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
   const [nowAt, setNowAt] = useState(() => Date.now()); // refreshed when "Pick a date & time" is tapped
   const minAt = local(new Date(nowAt + 16 * 60000)), maxAt = local(new Date(nowAt + 7 * 864e5 - 60000));
@@ -280,7 +317,7 @@ function Compose({ data, onSent, notify }) {
     const r = await hubFetch("POST", { action: "send", to: preview.recipients.map((p) => p.id), message, sendAt: sendAtIso });
     setBusy(false);
     if (r.sent) {
-      notify({ bad: !!r.failed, text: r.scheduledAt ? `Scheduled for ${sendAtLabel}: ${r.sent} text${r.sent > 1 ? "s" : ""}${r.failed ? `, ${r.failed} failed` : ""}.` : `Sent to ${r.sent}${r.failed ? `, ${r.failed} failed` : ""}.` });
+      notify({ bad: !!r.failed || !!r.error, text: r.error || (r.scheduledAt ? `Scheduled for ${sendAtLabel}: ${r.sent} text${r.sent > 1 ? "s" : ""} waiting${r.failed ? `, ${r.failed} failed` : ""}. You can cancel it from the Log.` : `Sent to ${r.sent}${r.failed ? `, ${r.failed} failed` : ""}.`) });
       setPreview(null); setMessage(""); setTo([]); setWhen("now"); setSendAt("");
       onSent();
     } else notify({ bad: true, text: r.error || (r.results || []).map((x) => `${x.name}: ${x.error}`).join("; ") || "Not sent." });
@@ -288,11 +325,11 @@ function Compose({ data, onSent, notify }) {
   const doSchedule = async () => {
     setBusy(true);
     // Saves the groups/chapters themselves, so new members are included each week.
-    const r = await hubFetch("POST", { action: "schedule-save", to, body: message, weekday: when, name: data.templates.find((t) => t.body === message)?.name });
+    const r = await hubFetch("POST", { action: "schedule-save", to, body: message, weekday: when, endsOn: endsOn || undefined, name: data.templates.find((t) => t.body === message)?.name });
     setBusy(false);
     if (r.ok) {
-      notify({ text: `Scheduled: goes out every ${WEEKDAYS[when]} morning.` });
-      setPreview(null); setMessage(""); setTo([]); setWhen("now");
+      notify({ text: `Scheduled: goes out every ${WEEKDAYS[when]} morning${endsOn ? ` until ${endsLabel}` : ""}.` });
+      setPreview(null); setMessage(""); setTo([]); setWhen("now"); setEndsOn("");
       onSent();
     } else notify({ bad: true, text: r.error || "Couldn't schedule it." });
   };
@@ -319,7 +356,7 @@ function Compose({ data, onSent, notify }) {
         {data.groups.map((g) => chip(`group:${g.key}`, `${g.label} · ${g.count}`))}
       </div>
       <div className="th-chips">{data.chapters.map((c) => chip(c, c))}</div>
-      <details className="th-people">
+      <details className="th-people" open={to.some((v) => textable.some((p) => p.id === v)) || undefined}>
         <summary>Pick specific people</summary>
         <div className="th-chips">{textable.map((p) => chip(p.id, p.name))}</div>
       </details>
@@ -337,6 +374,14 @@ function Compose({ data, onSent, notify }) {
           <button type="button" key={d} className={`th-chip ${when === d ? "on" : ""}`} onClick={() => { setWhen(d); setPreview(null); }}>Every {WEEKDAYS[d].slice(0, 3)}</button>
         ))}
       </div>
+      {typeof when === "number" && (
+        <div className="th-btns th-once">
+          <label className="th-until">Until
+            <input className="th-input" type="date" value={endsOn} min={local(new Date(nowAt)).slice(0, 10)} onChange={(e) => { setEndsOn(e.target.value); setPreview(null); }} />
+          </label>
+          {endsOn ? <button type="button" className="th-x plain" onClick={() => setEndsOn("")}>No end date</button> : <span className="th-hint">Optional. Leave empty to repeat every {WEEKDAYS[when]} until you pause it.</span>}
+        </div>
+      )}
       {when === "once" && (
         <div className="th-btns th-once">
           <input className="th-input" type="datetime-local" value={sendAt} min={minAt} max={maxAt} onChange={(e) => { setSendAt(e.target.value); setPreview(null); }} />
@@ -367,7 +412,7 @@ function Compose({ data, onSent, notify }) {
           <div className="th-btns">
             {when === "now" || when === "once"
               ? <button className="th-btn" disabled={busy} onClick={doSend}>{busy ? (when === "once" ? "Scheduling…" : "Sending…") : when === "once" ? `Schedule for ${sendAtLabel}` : `Send to ${preview.recipients.length}`}</button>
-              : <button className="th-btn" disabled={busy} onClick={doSchedule}>{busy ? "Saving…" : `Schedule every ${WEEKDAYS[when]}`}</button>}
+              : <button className="th-btn" disabled={busy} onClick={doSchedule}>{busy ? "Saving…" : `Schedule every ${WEEKDAYS[when]}${endsOn ? ` until ${endsLabel}` : ""}`}</button>}
             <button className="th-btn ghost" disabled={busy} onClick={() => setPreview(null)}>Edit</button>
           </div>
         </div>
@@ -442,9 +487,31 @@ function Templates({ data, onChange, notify, editId }) {
   );
 }
 
-function Log({ log, compact, onMore }) {
+function Log({ log, compact, onMore, reload, notify, upcoming }) {
   const [filter, setFilter] = useState("all");
-  const rows = filter === "failed" ? log.filter((b) => b.failed) : log;
+  const cancelScheduled = async (b) => {
+    if (!window.confirm(`Cancel this scheduled text to ${b.recipients.length} ${b.recipients.length === 1 ? "person" : "people"}? Nobody will get it.`)) return;
+    const r = await hubFetch("POST", { action: "scheduled-cancel", id: b.id });
+    if (r.ok) { notify?.({ text: `Canceled. ${r.canceled} scheduled text${r.canceled === 1 ? "" : "s"} won't go out.` }); reload?.(); }
+    else notify?.({ bad: true, text: r.error || "Couldn't cancel." });
+  };
+  const [edit, setEdit] = useState(null); // { id, message, sendAt } while changing a scheduled text
+  const [saving, setSaving] = useState(false);
+  const startEdit = (b, t) => { // t = now; Twilio allows 15 minutes to 7 days out
+    setEdit({ id: b.id, message: b.template || b.body, sendAt: b.scheduledFor ? localInput(new Date(b.scheduledFor)) : "",
+      min: localInput(new Date(t + 16 * 60000)), max: localInput(new Date(t + 7 * 864e5 - 60000)) });
+  };
+  const saveEdit = async (b) => {
+    if (!window.confirm(`Change this scheduled text to ${b.recipients.length} ${b.recipients.length === 1 ? "person" : "people"}?`)) return;
+    setSaving(true);
+    const r = await hubFetch("POST", { action: "scheduled-edit", id: b.id, message: edit.message, sendAt: new Date(edit.sendAt).toISOString() });
+    setSaving(false);
+    if (r.ok) { setEdit(null); notify?.({ text: `Updated. It now goes out ${sendTime(r.scheduledAt)}.${r.notChanged ? ` ${r.notChanged} couldn't be changed.` : ""}` }); reload?.(); }
+    else notify?.({ bad: true, text: r.error || "Couldn't change it." });
+  };
+  const rows = upcoming
+    ? log.filter((b) => b.state === "scheduled").sort((a, b) => String(a.scheduledFor || "").localeCompare(String(b.scheduledFor || "")))
+    : filter === "failed" ? log.filter((b) => b.failed) : log;
   if (compact) {
     return (
       <Card title="Sent texts" sub="The shared log" right={<button type="button" className="th-link th-link-btn" onClick={onMore}>Full log →</button>}>
@@ -455,9 +522,9 @@ function Log({ log, compact, onMore }) {
                 <span className="th-av">{initials(fromLabel(b.from))}</span>
                 <div>
                   <div className="th-act-t">{fromLabel(b.from)} → {b.recipients.length === 1 ? b.recipients[0].name : `${b.recipients.length} people`}</div>
-                  <div className="th-act-m">{b.body.slice(0, 48)}{b.body.length > 48 ? "…" : ""} · {b.failed ? `${b.failed} failed` : `${b.sent} delivered`} · {when(b.at)}</div>
+                  <div className="th-act-m">{b.body.slice(0, 48)}{b.body.length > 48 ? "…" : ""} · {batchStatus(b) || deliveryLine(b)} · {when(b.at)}</div>
                 </div>
-                <span className={`th-tag ${b.failed ? "b" : "g"}`}>{b.failed ? "Failed" : "Delivered"}</span>
+                <span className={`th-tag ${deliveryTag(b)[0]}`}>{deliveryTag(b)[1]}</span>
               </li>
             ))}
           </ul>
@@ -466,20 +533,34 @@ function Log({ log, compact, onMore }) {
     );
   }
   return (
-    <Card title="Sent texts" sub="Shared log: every lead sees what scouts were told"
-      right={<div className="th-chips">{["all", "failed"].map((f) => <button key={f} className={`th-chip sm ${filter === f ? "on" : ""}`} onClick={() => setFilter(f)}>{f === "all" ? "All" : "Failed"}</button>)}</div>}>
-      {!rows.length ? <p className="th-empty">{filter === "failed" ? "No failed texts." : "No texts sent yet."}</p> : (
+    <Card title={upcoming ? "One-time scheduled texts" : "Sent texts"} sub={upcoming ? "Waiting to send · edit or cancel any time before it goes out" : "Shared log: every lead sees what scouts were told"}
+      right={!upcoming && <div className="th-chips">{["all", "failed"].map((f) => <button key={f} className={`th-chip sm ${filter === f ? "on" : ""}`} onClick={() => setFilter(f)}>{f === "all" ? "All" : "Not delivered"}</button>)}</div>}>
+      {!rows.length ? <p className="th-empty">{upcoming ? "No one-time texts scheduled. Pick a date & time under “When” in Send a text." : filter === "failed" ? "Every text went through." : "No texts sent yet."}</p> : (
         <ul className="th-log">
           {rows.slice(0, 25).map((b) => (
             <li key={b.id}>
               <div className="th-log-top"><span>{when(b.at)}</span><span>{fromLabel(b.from)}</span></div>
-              <div className="th-bubble">{b.body}</div>
+              {edit?.id === b.id ? (
+                <div className="th-tpl-edit">
+                  <textarea className="th-text" rows={4} maxLength={MAX_CHARS} value={edit.message} onChange={(e) => setEdit({ ...edit, message: e.target.value })} />
+                  <div className="th-hint">{edit.message.length}/{MAX_CHARS} · {"{first name}"} fills in for each person · “Reply STOP to opt out.” is always added</div>
+                  <label className="th-hint">Send on
+                    <input className="th-input" type="datetime-local" value={edit.sendAt} min={edit.min} max={edit.max} onChange={(e) => setEdit({ ...edit, sendAt: e.target.value })} />
+                  </label>
+                  <div className="th-btns">
+                    <button className="th-btn" disabled={saving || !edit.message.trim() || !edit.sendAt} onClick={() => saveEdit(b)}>{saving ? "Saving…" : "Save changes"}</button>
+                    <button className="th-btn ghost" disabled={saving} onClick={() => setEdit(null)}>Close</button>
+                  </div>
+                </div>
+              ) : <div className="th-bubble">{b.body}</div>}
               <div className="th-log-bot">
                 <span>To {b.recipients.length} · {b.recipients.map((r) => r.name).join(", ")}</span>
-                <b className={b.failed ? "bad" : "good"}>✓ {b.sent} delivered{b.failed ? ` · ✗ ${b.failed} failed` : ""}</b>
+                {batchStatus(b)
+                  ? <b className="th-sched-state">{batchStatus(b)}{b.state === "scheduled" && <><button type="button" className="th-x plain" onClick={() => startEdit(b, Date.now())}>Edit</button><button type="button" className="th-x" onClick={() => cancelScheduled(b)}>Cancel</button></>}</b>
+                  : <b className={b.failed ? "bad" : b.delivered === b.recipients.length ? "good" : ""}>{deliveryLine(b)}</b>}
               </div>
               {b.failed > 0 && (
-                <details className="th-fail"><summary>Why it failed</summary>
+                <details className="th-fail"><summary>Why it didn't arrive</summary>
                   {b.recipients.filter((r) => !r.ok).map((r, i) => <div key={i}>{r.name}: {r.error}</div>)}
                 </details>
               )}
@@ -491,12 +572,21 @@ function Log({ log, compact, onMore }) {
   );
 }
 
-function Directory({ team }) {
+function Directory({ team, reload, notify }) {
+  const [busy, setBusy] = useState(null);
+  const toggleScouts = async (p) => {
+    const has = p.alsoGroups.includes("scouts");
+    setBusy(p.id);
+    const r = await hubFetch("POST", { action: "contact-also", id: p.id, alsoGroups: has ? p.alsoGroups.filter((g) => g !== "scouts") : [...p.alsoGroups, "scouts"] });
+    setBusy(null);
+    if (r.ok) { notify?.({ text: `${p.name.split(" ")[0]} ${has ? "no longer gets" : "now also gets"} Café scout texts.` }); reload?.(); }
+    else notify?.({ bad: true, text: r.error || "Couldn't update." });
+  };
   return (
     <Card title="Contacts" sub="Everyone the system can text · phone numbers stay hidden, only the last 4 digits show" right={<span className="th-tag n">{team.length} members</span>}>
       <div className="th-table-wrap">
         <table className="th-table">
-          <thead><tr><th>Name</th><th>Role</th><th>Chapters</th><th>Phone</th><th>Status</th></tr></thead>
+          <thead><tr><th>Name</th><th>Role</th><th>Chapters</th><th>Phone</th><th>Status</th><th>Gets Café scout texts</th></tr></thead>
           <tbody>
             {team.map((p) => (
               <tr key={p.id}>
@@ -505,6 +595,9 @@ function Directory({ team }) {
                 <td>{p.chapters.join(", ") || "All"}</td>
                 <td>{p.phoneLast4 ? `•••• ${p.phoneLast4}` : "n/a"}</td>
                 <td><span className={`th-tag ${p.canText ? "g" : "b"}`}>{p.canText ? "Texts on" : p.optedOut ? "Opted out" : "No texts"}</span></td>
+                <td>{p.group === "scouts" ? <span className="th-hint">Yes (café scout)</span> : (
+                  <label className="th-switch"><input type="checkbox" checked={p.alsoGroups.includes("scouts")} disabled={busy === p.id} onChange={() => toggleScouts(p)} /><span>{p.alsoGroups.includes("scouts") ? "Yes" : "No"}</span></label>
+                )}</td>
               </tr>
             ))}
           </tbody>
@@ -514,20 +607,46 @@ function Directory({ team }) {
   );
 }
 
-function Schedules({ data, onChange }) {
+function Schedules({ data, onChange, notify }) {
+  const [edit, setEdit] = useState(null); // the weekly text being changed
+  const [saving, setSaving] = useState(false);
   if (!data.schedules) return null;
   const act = async (action, s, extra = {}) => { await hubFetch("POST", { action, id: s.id, ...extra }); onChange(); };
+  const save = async () => {
+    setSaving(true);
+    const r = await hubFetch("POST", { action: "schedule-edit", id: edit.id, name: edit.name, body: edit.body, weekday: Number(edit.weekday), endsOn: edit.endsOn || null });
+    setSaving(false);
+    if (r.ok) { setEdit(null); notify?.({ text: "Weekly text updated." }); onChange(); }
+    else notify?.({ bad: true, text: r.error || "Couldn't save." });
+  };
   return (
     <Card title="Scheduled weekly texts" sub="Sent automatically every week, in the morning (New York time)">
       {!data.schedules.length ? <p className="th-empty">Nothing scheduled. Pick a day under “When” to set one up.</p> : (
         <ul className="th-scheds">
           {data.schedules.map((s) => (
+            edit?.id === s.id ? (
+              <li key={s.id} className="th-tpl-edit th-sched-edit">
+                <input className="th-input" value={edit.name} maxLength={60} placeholder="Name" onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+                <textarea className="th-text" rows={4} maxLength={MAX_CHARS} value={edit.body} onChange={(e) => setEdit({ ...edit, body: e.target.value })} />
+                <div className="th-btns">
+                  <select className="th-input" value={edit.weekday} onChange={(e) => setEdit({ ...edit, weekday: e.target.value })}>
+                    {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((d, i) => <option key={d} value={i}>Every {d}</option>)}
+                  </select>
+                  <label className="th-hint">Until (optional)<input className="th-input" type="date" value={edit.endsOn} onChange={(e) => setEdit({ ...edit, endsOn: e.target.value })} /></label>
+                </div>
+                <div className="th-btns">
+                  <button className="th-btn" disabled={saving || !edit.body.trim()} onClick={save}>{saving ? "Saving…" : "Save changes"}</button>
+                  <button className="th-btn ghost" disabled={saving} onClick={() => setEdit(null)}>Close</button>
+                </div>
+              </li>
+            ) :
             <li key={s.id} className={s.active ? "" : "off"}>
               <span className="th-sched-day">{s.weekdayName.slice(0, 3).toUpperCase()}</span>
               <div className="th-sched-body">
                 <b>{s.name}</b>
-                <small>To {s.recipients.map((r) => groupLabel(r, data)).join(", ")}{s.last_sent_on ? ` · last sent ${s.last_sent_on}` : ""}</small>
+                <small>To {s.recipients.map((r) => groupLabel(r, data)).join(", ")}{untilLabel(s)}{s.last_sent_on ? ` · last sent ${s.last_sent_on}` : ""}</small>
               </div>
+              <button className="th-x plain" onClick={() => setEdit({ id: s.id, name: s.name, body: s.body || "", weekday: s.weekday, endsOn: s.ends_on || "" })}>Edit</button>
               <button className="th-x plain" onClick={() => act("schedule-toggle", s, { active: !s.active })}>{s.active ? "Pause" : "Resume"}</button>
               <button className="th-x" onClick={() => act("schedule-delete", s)} aria-label={`Delete ${s.name}`}>Delete</button>
             </li>
@@ -538,13 +657,20 @@ function Schedules({ data, onChange }) {
   );
 }
 
+// "until Nov 30" / "ended Nov 30" for a weekly text with an end date
+function untilLabel(s) {
+  if (!s.ends_on) return "";
+  const d = new Date(s.ends_on + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return new Date(s.ends_on + "T23:59:59") < new Date() ? ` · ended ${d}` : ` · until ${d}`;
+}
+
 function groupLabel(v, data) {
   if (v === "all") return "Everyone";
   if (v.startsWith("group:")) return data.groups.find((g) => `group:${g.key}` === v)?.label || v.slice(6);
   return data.team.find((p) => p.id === v)?.name || v;
 }
 
-const SCOUT_TABS = ["overview", "templates", "directory", "send", "schedules", "log", "signups"];
+const SCOUT_TABS = ["overview", "templates", "directory", "send", "replies", "schedules", "log", "signups"];
 
 // Who has cafés on their plate right now (from the café database), with the quiet ones called out.
 function WhosScouting({ data }) {
@@ -574,13 +700,62 @@ function WhosScouting({ data }) {
   );
 }
 
+// Texts people sent back to the Work & Brew number
+function Replies({ data, reload, notify, onReply }) {
+  const [busy, setBusy] = useState(false);
+  const list = data.replies;
+  if (!list) {
+    return (
+      <Card title="Replies" sub="Not set up yet">
+        <p className="th-empty">Two one-time steps: run the sms_replies block at the end of supabase/sms.sql in Supabase, then paste https://workandbrew.app/api/inbound into Twilio as the incoming-message webhook. Replies show up here after that.</p>
+      </Card>
+    );
+  }
+  const unread = list.filter((r) => !r.read_at).length;
+  const markRead = async (id) => {
+    setBusy(true);
+    const r = await hubFetch("POST", { action: "replies-read", id });
+    setBusy(false);
+    if (r.ok) reload(); else notify({ bad: true, text: r.error || "Couldn't update." });
+  };
+  const at = (iso) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return (
+    <Card title="Replies" sub={unread ? `${unread} new · texts people sent back to the Work & Brew number` : "Texts people sent back to the Work & Brew number"}
+      right={unread ? <button type="button" className="th-btn ghost sm" disabled={busy} onClick={() => markRead()}>Mark all read</button> : null}>
+      {!list.length ? <p className="th-empty">No replies yet. When someone texts back, it shows up here.</p> : (
+        <ul className="th-replies">
+          {list.map((r) => (
+            <li key={r.id} className={r.read_at ? "" : "new"}>
+              <span className="th-av">{r.name ? initials(r.name) : "?"}</span>
+              <div className="th-reply-body">
+                <div className="th-reply-top">
+                  <b>{r.name || `Unknown number •••• ${r.phoneLast4}`}</b>
+                  {r.kind === "stop" && <span className="th-tag b">Opted out</span>}
+                  {r.kind === "start" && <span className="th-tag g">Opted back in</span>}
+                  {!r.read_at && <span className="th-dot" aria-label="New" />}
+                </div>
+                <div className="th-bubble">{r.body || <i>(empty message)</i>}</div>
+                <small className="th-reply-when">{at(r.received_at)}</small>
+              </div>
+              <div className="th-reply-acts">
+                {r.canReply && <button type="button" className="th-btn sm" onClick={() => onReply(r)}>Reply</button>}
+                {!r.read_at && <button type="button" className="th-x plain" disabled={busy} onClick={() => markRead(r.id)}>Mark read</button>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 function Messages({ data, reload, notify }) {
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   const [tab, setTab] = useState(SCOUT_TABS.includes(params.get("tab")) ? params.get("tab") : "overview");
   const active = (data.schedules || []).filter((x) => x.active).length;
-  const counts = { overview: null, send: null, schedules: data.schedules?.length || 0, templates: data.templates.length, log: null, directory: data.team.length, signups: data.signups?.pending || 0 };
-  const labels = { overview: "Overview", templates: "Templates", directory: "Contacts", send: "Send a text", schedules: "Schedules", log: "Log", signups: "Sign-ups" };
+  const counts = { overview: null, send: null, replies: (data.replies || []).filter((r) => !r.read_at).length, schedules: (data.schedules?.length || 0) + data.log.filter((b) => b.state === "scheduled").length, templates: data.templates.length, log: null, directory: data.team.length, signups: data.signups?.pending || 0 };
+  const labels = { overview: "Overview", templates: "Templates", directory: "Contacts", send: "Send a text", replies: "Replies", schedules: "Scheduled", log: "Log", signups: "Sign-ups" };
   return (
     <>
       <nav className="th-subnav" aria-label="Text Message System sections">
@@ -601,7 +776,7 @@ function Messages({ data, reload, notify }) {
                   <ul className="th-scheds">
                     {data.schedules.slice(0, 3).map((x) => (
                       <li key={x.id} className={x.active ? "" : "off"}><span className="th-sched-day">{x.weekdayName.slice(0, 3).toUpperCase()}</span>
-                        <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}{x.last_sent_on ? ` · last sent ${x.last_sent_on}` : ""}</small></div></li>
+                        <div className="th-sched-body"><b>{x.name}</b><small>To {x.recipients.map((r) => groupLabel(r, data)).join(", ")}{untilLabel(x)}{x.last_sent_on ? ` · last sent ${x.last_sent_on}` : ""}</small></div></li>
                     ))}
                   </ul>
                 )}
@@ -612,10 +787,11 @@ function Messages({ data, reload, notify }) {
         </div>
       )}
       {tab === "overview" && <Analytics data={data} />}
-      {tab === "schedules" && <Schedules data={data} onChange={reload} />}
+      {tab === "replies" && <Replies data={data} reload={reload} notify={notify} onReply={(r) => { try { sessionStorage.setItem("wb-hub-draft-to", JSON.stringify([r.contactId])); sessionStorage.setItem("wb-hub-draft", `Hi ${String(r.name || "").split(" ")[0]}! `); } catch { /* private mode */ } setTab("send"); }} />}
+      {tab === "schedules" && <div className="th-stack"><Log log={data.log} upcoming reload={reload} notify={notify} /><Schedules data={data} onChange={reload} notify={notify} /></div>}
       {tab === "templates" && <Templates data={data} onChange={reload} notify={notify} editId={params.get("edit")} />}
-      {tab === "log" && <Log log={data.log} />}
-      {tab === "directory" && <Directory team={data.team} />}
+      {tab === "log" && <Log log={data.log} reload={reload} notify={notify} />}
+      {tab === "directory" && <Directory team={data.team} reload={reload} notify={notify} />}
       {tab === "signups" && (
         <>
           <div className="th-row th-stats">
@@ -647,6 +823,14 @@ function Cafes({ data }) {
   const [borough, setBorough] = useState("all");
   const [q, setQ] = useState("");
   const [shown, setShown] = useState(25);
+  if (!data.cafes && !data.slowLoaded) {
+    return (
+      <>
+        <Headline title="Cafés" sub="Every café in the database, live from the scout map." />
+        <Card title="Café statuses" sub="From the café spreadsheet"><LiveLoading what="cafés from the spreadsheet" /></Card>
+      </>
+    );
+  }
   if (!data.cafes) {
     return (
       <>
@@ -768,7 +952,7 @@ function Analytics({ data }) {
       </div>
       <div className="th-row th-stats">
         <Stat label="Texts sent" value={sent} foot={<Delta now={sent} before={prev} label={`vs. previous ${days} days`} />} />
-        <Stat label="Delivered" value={`${sent} of ${sent + failed}`} foot={`${failed} failed`} />
+        <Stat label="Went through" value={`${sent} of ${sent + failed}`} foot={`${failed} not delivered`} />
         <Stat label="Reachable by text" value={`${textable} of ${data.team.length}`} foot={`${data.team.length - textable} can't be texted`} />
         <Stat label="Sends" value={recent.length} foot={`batches in the ${label}`} />
       </div>
@@ -866,19 +1050,27 @@ function ConnectTikTok({ notify }) {
   );
 }
 
+const gainChip = (n, label = "this week") => (n ? <span className={`th-gain ${n > 0 ? "up" : "down"}`} title={`${n > 0 ? "+" : ""}${n} ${label}`}>{n > 0 ? "+" : ""}{n.toLocaleString()} {label}</span> : null);
+
 function SocialCard({ meta, src, manualReady, onChange, notify }) {
   const live = src?.connected && !src.error;
   const manual = src?.manual;
   const value = live ? src.followers : manual?.followers;
   const fresh = !!manual?.fresh; // hand-entered numbers count as fresh for a week
+  const gain = src?.weekGain ?? (manual && manual.previous != null ? manual.followers - manual.previous : null);
+  const extra = live ? [
+    src.likes != null && `${Number(src.likes).toLocaleString()} likes`,
+    src.views != null && `${Number(src.views).toLocaleString()} views${src.viewsWindow === "30d" ? " (30 days)" : ""}`,
+    src.posts != null && `${Number(src.posts).toLocaleString()} ${meta.key === "youtube" || meta.key === "tiktok" ? "videos" : "posts"}`,
+  ].filter(Boolean) : [];
   return (
     <Card title={meta.label} sub={live ? `Live${src.handle ? ` · ${src.handle}` : ""}` : manual ? `Updated by hand · ${manual.on}` : "Not connected yet"} className="th-half"
       right={live ? <span className="th-tag g">Live</span> : manual ? <span className={`th-tag ${fresh ? "g" : "b"}`}>{fresh ? "Up to date" : "Update due"}</span> : null}>
       {value != null ? (
         <div className="th-social">
-          <div className="th-stat-v">{Number(value).toLocaleString()}</div>
-          <div className="th-stat-c">{meta.unit}{live && src.posts != null ? ` · ${src.posts.toLocaleString()} posts` : ""}{live && src.views ? ` · ${src.views.toLocaleString()} views` : ""}</div>
-          {!live && manual?.previous != null && <Delta now={manual.followers} before={manual.previous} label="vs. last update" />}
+          <div className="th-social-top"><div className="th-stat-v">{Number(value).toLocaleString()}</div>{gainChip(gain, live ? "this week" : "since last update")}</div>
+          <div className="th-stat-c">{meta.unit}</div>
+          {extra.length > 0 && <div className="th-social-extra">{extra.join(" · ")}</div>}
         </div>
       ) : src?.error ? <p className="th-note bad">Couldn't load: {src.error}</p>
         : <NotConnected icon={meta.icon} source={meta.label} what={`${meta.unit} and growth`} setup={meta.setup} />}
@@ -889,6 +1081,14 @@ function SocialCard({ meta, src, manualReady, onChange, notify }) {
 }
 
 function Growth({ data, reload, notify }) {
+  if (!data.slowLoaded && !data.growth) {
+    return (
+      <>
+        <Headline title="Who's finding Work & Brew." sub="Website, email and social reach across Instagram, TikTok, YouTube and Lemon8 · last 30 days" />
+        <Card title="Growth & Social" sub="Website, email and social"><LiveLoading what="website, email and social numbers" /></Card>
+      </>
+    );
+  }
   const s = data.signups;
   const g = data.growth || {};
   const web = g.website || {};
@@ -905,7 +1105,7 @@ function Growth({ data, reload, notify }) {
       <div className="th-row th-stats">
         <Stat label="Website visitors · 30D" value={web.connected && !web.error ? web.visitors30.toLocaleString() : "—"} foot={web.connected && !web.error ? <Delta now={web.visitors30} before={web.prior30} /> : "Connect Google Analytics"} />
         <Stat label="Email subscribers" value={email.connected && !email.error ? email.subscribers.toLocaleString() : "—"} foot={email.connected && !email.error ? (email.new30 != null ? `+${email.new30} in 30 days` : "Brevo") : "Connect Brevo"} />
-        <Stat label="Social followers" value={followers ? followers.toLocaleString() : "—"} foot="Instagram, TikTok, YouTube, Lemon8" />
+        <Stat label="Social followers" value={followers ? <span className="th-social-top">{followers.toLocaleString()}{gainChip(g.followersWeekGain)}</span> : "—"} foot="Instagram, TikTok, YouTube, Lemon8" />
       </div>
 
       <div className="th-row">
@@ -1131,17 +1331,28 @@ export default function TeamHub() {
     return () => clearTimeout(t);
   }, [notice]);
 
-  const load = useCallback(async () => {
-    const r = await hubFetch("GET");
-    if (r.ok) { setData(r); setError(null); } else setError(r.error || "Couldn't load the Team Hub.");
-  }, []);
+  // Two steps so the hub appears right away: everything saved in our database first, then the live
+  // café numbers from the Google Sheet and the social stats, which can take a few seconds.
+  const fetchAll = (isAlive) => hubFetch("GET").then((r) => {
+    if (!isAlive()) return;
+    if (!r.ok) { setError(r.error || "Couldn't load the Team Hub."); return; }
+    setData((prev) => ({ ...r, ...keepSlow(prev) })); setError(null);
+    return hubFetch("GET", undefined, "?more=1").then((more) => {
+      if (isAlive()) setData((d) => (d ? { ...d, ...(more.ok ? more : {}), slowLoaded: true } : d));
+    });
+  });
+  const load = useCallback(() => fetchAll(() => true), []);
 
   useEffect(() => {
     if (!user) return;
     let alive = true;
     hubFetch("GET").then((r) => {
       if (!alive) return;
-      if (r.ok) { setData(r); setError(null); } else setError(r.error || "Couldn't load the Team Hub.");
+      if (!r.ok) { setError(r.error || "Couldn't load the Team Hub."); return; }
+      setData((prev) => ({ ...r, ...keepSlow(prev) })); setError(null);
+      return hubFetch("GET", undefined, "?more=1").then((more) => {
+        if (alive) setData((d) => (d ? { ...d, ...(more.ok ? more : {}), slowLoaded: true } : d));
+      });
     });
     return () => { alive = false; };
   }, [user]);
@@ -1151,7 +1362,7 @@ export default function TeamHub() {
   let body;
   if (!user) {
     body = <div className="th-card th-center"><p>The Team Hub is for Work &amp; Brew department heads.</p><Link className="th-btn" to={`/login?next=${pathFor(page.key)}`}>Log in</Link></div>;
-  } else if (error) body = <div className="th-card th-center"><p>{error}</p></div>;
+  } else if (error) body = <div className="th-card th-center"><p>{error}</p><button className="th-btn" onClick={() => { setError(null); setData(null); load(); }}>Try again</button></div>;
   else if (!data) body = <p className="th-empty">Loading…</p>;
   else {
     const View = { overview: Overview, messages: Messages, cafes: Cafes, growth: Growth, events: Events }[page.key];

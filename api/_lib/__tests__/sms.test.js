@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from "vitest";
-import { isAuthorized, normalizePhone, withStopLine, resolveRecipients, publicScout, teamGroup, personalize } from "../sms.js";
+import { isAuthorized, normalizePhone, withStopLine, resolveRecipients, publicScout, teamGroup, personalize, deliveryReason } from "../sms.js";
 
 const scouts = [
   { id: "11111111-1111-1111-1111-111111111111", name: "Orlando S.", phone: "+17185550001", chapters: ["Bronx"], sms_opt_in: true, active: true },
@@ -101,5 +101,31 @@ describe("personalize", () => {
   });
   it("leaves messages without the placeholder alone", () => {
     expect(personalize("Due Friday.", { name: "Iris" })).toBe("Due Friday.");
+  });
+});
+
+describe("also_groups", () => {
+  const roster = [
+    { id: "s1", name: "Scout Sam", role: "Cafe Scout", phone: "+17185550101", chapters: [], sms_opt_in: true, active: true },
+    { id: "l1", name: "Lead Lu", role: "Scout Lead", phone: "+17185550102", chapters: [], sms_opt_in: true, active: true, also_groups: ["scouts"] },
+    { id: "l2", name: "Lead Lee", role: "Scout Lead", phone: "+17185550103", chapters: [], sms_opt_in: true, active: true },
+  ];
+  it("adds leads who opted into Café scout texts to the scouts group, and only them", () => {
+    const r = resolveRecipients("group:scouts", roster);
+    expect(r.recipients.map((s) => s.name).sort()).toEqual(["Lead Lu", "Scout Sam"]);
+  });
+  it("still keeps them in their own group", () => {
+    expect(resolveRecipients("group:leads", roster).recipients.map((s) => s.name).sort()).toEqual(["Lead Lee", "Lead Lu"]);
+  });
+});
+
+describe("deliveryReason", () => {
+  it("explains the common carrier codes in plain English", () => {
+    expect(deliveryReason(30034)).toMatch(/A2P 10DLC/);
+    expect(deliveryReason("30007")).toMatch(/spam/);
+  });
+  it("falls back to Twilio's own message", () => {
+    expect(deliveryReason(30999, "Odd")).toBe("Twilio error 30999: Odd");
+    expect(deliveryReason(null, null)).toBe("Not delivered.");
   });
 });
