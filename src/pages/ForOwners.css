@@ -1,0 +1,41 @@
+/* Business Inquiries & Content Creators: brand type system on the existing dark layout.
+   Druk Wide (headline) · Franklin Gothic (section titles) · Sofia Sans Condensed (body, inputs) · Inconsolata Condensed (labels, button)
+   · Editors Note Extralight Italic (tagline only). */
+
+@font-face { font-family: "Druk Wide"; src: url("/fonts/DrukWideBold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Sofia Sans Condensed"; src: url("/fonts/SofiaSansCondensed.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Franklin Gothic"; src: url("/fonts/FranklinGothic.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Editors Note"; src: url("/fonts/EditorsNoteExtralightItalic.otf") format("opentype"); font-weight: 200; font-style: italic; font-display: swap; }
+@font-face { font-family: "Inconsolata Cond"; src: url("/fonts/InconsolataCondensed.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Inconsolata Cond"; src: url("/fonts/InconsolataCondensedBold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+
+.owners-content { --ow-display: "Druk Wide", Impact, sans-serif; --ow-serif: "Sofia Sans Condensed", "Arial Narrow", sans-serif; --ow-head: "Franklin Gothic", "Arial Narrow", sans-serif; --ow-italic: "Editors Note", Georgia, serif; --ow-mono: "Inconsolata Cond", "Courier New", monospace; }
+.owners-content :where(p, li, span, label, a, input, textarea, button) { font-family: inherit; }
+
+/* eyebrow */
+.owners-content .page-badge { font-family: var(--ow-mono); font-weight: 700; font-size: 0.78rem; letter-spacing: 0.22em; }
+
+/* headline */
+.owners-content .page-title { font-family: var(--ow-display); font-weight: 700; font-size: clamp(1.5rem, 3.4vw, 2.6rem); line-height: 1.08; letter-spacing: 0.005em; text-transform: uppercase; }
+
+/* intro + tagline */
+.owners-content .page-body { font-family: var(--ow-serif); font-weight: 400; font-size: 1.18rem; line-height: 1.7; }
+.owners-content .owners-tagline { font-family: var(--ow-italic); font-weight: 200; font-style: italic; font-size: 1.45rem; line-height: 1.35; letter-spacing: 0.01em; }
+
+/* sections */
+.owners-content .owners-why h2,
+.owners-content .owner-form h2 { font-family: var(--ow-head); font-weight: 400; font-size: 1.7rem; letter-spacing: 0.005em; }
+.owners-content .owners-why { font-family: var(--ow-serif); font-weight: 500; }
+.owners-content .owners-why li { font-size: 1.05rem; line-height: 1.6; }
+.owners-content .owners-why-arrow { font-family: var(--ow-mono); }
+.owners-content .owners-why-footnote { font-family: var(--ow-mono); font-size: 0.85rem; letter-spacing: 0.04em; }
+
+/* form */
+.owners-content .owner-form { font-family: var(--ow-serif); }
+.owners-content .owner-field-label { font-family: var(--ow-mono); font-weight: 700; font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; }
+.owners-content .owner-form input,
+.owners-content .owner-form textarea { font-family: var(--ow-serif); font-weight: 500; font-size: 1rem; }
+.owners-content .owner-form button,
+.owners-content .owner-form-success button { font-family: var(--ow-mono); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.2em; text-transform: uppercase; }
+.owners-content .form-status { font-family: var(--ow-mono); letter-spacing: 0.04em; }
+.owners-content .owner-form-success p { font-family: var(--ow-serif); font-weight: 500; }

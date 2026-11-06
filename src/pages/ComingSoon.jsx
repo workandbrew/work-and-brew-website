@@ -66,7 +66,10 @@ export default function ComingSoon({ children }) {
   }, []);
 
   const path = window.location.pathname;
-  const isBypass = BYPASS_PATHS.includes(path) || path.startsWith("/ops/");
+  // Local development (npm run dev) skips the launch gate so pages can be checked without a team login.
+  // Add `?gate` to the URL to see the Coming Soon screen locally. Production builds are unaffected.
+  const devPreview = import.meta.env.DEV && !new URLSearchParams(window.location.search).has("gate");
+  const isBypass = BYPASS_PATHS.includes(path) || path.startsWith("/ops/") || devPreview;
 
   if (authed === null && !isBypass) return null;
   if (authed || isBypass) return children;

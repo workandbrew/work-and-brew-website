@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./PageShared.css";
+import "./ForOwners.css";
 
 function MinimalNav() {
   const navigate = useNavigate();
@@ -17,9 +18,9 @@ function MinimalNav() {
       zIndex: 100,
     }}>
       <img
-        src="/logo.png"
+        src="/bear-logo-black.png"
         alt="Work & Brew"
-        style={{ height: "32px", cursor: "pointer", opacity: 0.92 }}
+        style={{ height: "34px", cursor: "pointer", filter: "invert(1)", opacity: 0.92 }}
         onClick={() => navigate("/")}
       />
       <div style={{ display: "flex", gap: "10px" }}>

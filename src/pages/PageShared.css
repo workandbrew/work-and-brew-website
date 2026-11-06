@@ -205,6 +205,10 @@
 
 .page-badge {
   display: inline-block;
+  width: max-content;      /* never stretch to the column in flex / grid parents */
+  max-width: 100%;
+  align-self: flex-start;
+  justify-self: start;
   background: rgba(224, 217, 207, 0.07);
   border: 1.5px solid rgba(224, 217, 207, 0.25);
   color: #E0D9CF;

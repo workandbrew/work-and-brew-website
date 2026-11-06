@@ -27,14 +27,23 @@
   align-items: center;
   text-decoration: none;
   flex-shrink: 0;
+  user-select: none;            /* no text caret / selection bar when the mark is clicked */
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  border-radius: 8px;
 }
+.navbar-logo:focus-visible { outline: 2px solid #2E5482; outline-offset: 4px; }
+.navbar-logo-img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 
 .navbar-logo-img {
-  height: 70px;
+  height: 54px;
   width: auto;
   object-fit: contain;
   display: block;
+  transition: transform 0.2s;
 }
+.navbar-logo:hover .navbar-logo-img { transform: translateY(-1px) scale(1.04); }
 
 /* ═══════════════════════════════════════════════════════════
    DESKTOP NAVIGATION LINKS
@@ -232,7 +241,7 @@
 ════════════════════════════════════════════════════════════ */
 @media (max-width: 1000px) {
   .navbar { padding: 0 1rem; }
-  .navbar-logo-img { height: 48px; }
+  .navbar-logo-img { height: 44px; }
   .navbar-links {
     display: none;
   }

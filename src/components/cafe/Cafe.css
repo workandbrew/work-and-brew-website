@@ -1,0 +1,132 @@
+/* Shared café pieces: geometric-overlay card, details panel, scout avatars, postcards.
+   Light-dominant palette v2: cream surfaces, navy / coffee for text, nav, buttons, accents. */
+
+/* Brand Fonts: Druk Wide Bold (headlines, café names) · Franklin Gothic (section titles, names) · Sofia Sans Condensed 300–700 (all UI and body text) */
+@font-face { font-family: "Druk Wide"; src: url("/fonts/DrukWideBold.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Franklin Gothic"; src: url("/fonts/FranklinGothic.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Franklin Gothic"; src: url("/fonts/FranklinGothicItalic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Sofia Sans Condensed"; src: url("/fonts/SofiaSansCondensed.ttf") format("truetype"); font-weight: 100 900; font-style: normal; font-display: swap; }
+
+/* index.css gives every span/p/label the Imbue face. Inside these pieces, inherit the component's font instead.
+   Kept at specificity (0,1,0) and placed before the class rules below, so any class that sets a font still wins. */
+.home :where(span, p, label, li, small, em, b, input, button),
+.cafe-card :where(span, p, label, li, small, em, b),
+.cafe-panel :where(span, p, label, li, small, em, b, input, button),
+.postcards :where(span, p, label, li, small, em, b, button) { font-family: inherit; }
+
+:root {
+  --wb-navy: #0F1A2E;
+  --wb-mid: #1C2E52;
+  --wb-coffee: #372414;
+  --wb-steel: #2E5482;
+  --wb-caramel: #C8A77A;
+  --wb-cream: #E0D9CF;
+  --wb-bg: #E0D9CF;
+  --wb-surface: #EAE5DD;
+  --wb-surface-2: #F5F2EC;
+  --wb-ink: #0F1A2E;
+  --wb-ink-soft: #33415C;
+  --wb-muted: #4C5872;
+  --wb-accent-ink: #7A5A2E;
+  --wb-line: rgba(55, 36, 20, 0.28);
+  --wb-display: "Franklin Gothic", "Arial Narrow", sans-serif;
+  --wb-body: "Sofia Sans Condensed", "Arial Narrow", sans-serif;
+  --wb-sans: "Sofia Sans Condensed", "Arial Narrow", sans-serif;
+  --wb-caps: "Druk Wide", Impact, sans-serif;
+}
+
+/* ── scout avatars ── */
+.scout-av { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: var(--wb-steel); border: 1.5px solid var(--wb-caramel); overflow: hidden; flex-shrink: 0; vertical-align: middle; font-size: 12px; color: var(--wb-cream); }
+.scout-av img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
+.scout-av--sm { width: 18px; height: 18px; font-size: 9px; border-width: 1px; }
+.scout-av--lg { width: 92px; height: 92px; border-width: 2.5px; font-size: 28px; }
+
+/* ── geometric overlay card ── */
+.cafe-card { position: relative; display: block; width: 100%; aspect-ratio: 300 / 380; border: 0; padding: 0; border-radius: 22px; overflow: hidden; background: var(--wb-steel); color: var(--wb-cream); text-align: left; cursor: pointer; box-shadow: 0 12px 26px rgba(15, 26, 46, 0.2); transition: transform 0.18s, box-shadow 0.18s; font-family: var(--wb-sans); }
+.cafe-card:hover { transform: translateY(-3px); box-shadow: 0 18px 34px rgba(15, 26, 46, 0.28); }
+.cafe-card:focus-visible { outline: 3px solid var(--wb-steel); outline-offset: 3px; }
+.cafe-card__photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.cafe-card__sample { position: absolute; right: 12px; top: 16px; padding: 3px 7px; border-radius: 999px; background: rgba(15, 26, 46, 0.82); color: var(--wb-cream); font-family: var(--wb-sans); font-weight: 500; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1.2; pointer-events: none; }
+.cafe-card__overlay { position: absolute; left: 0; right: 0; bottom: 0; padding: 90px 18px 18px; background: linear-gradient(transparent, rgba(15, 26, 46, 0.95) 55%); display: flex; flex-direction: column; }
+.cafe-card__name { font-family: var(--wb-caps); font-size: 19px; text-transform: uppercase; line-height: 1.05; letter-spacing: 0.01em; color: var(--wb-cream); overflow-wrap: anywhere; }
+.cafe-card__hood { font-weight: 400; font-size: 14px; color: var(--wb-caramel); margin-top: 6px; letter-spacing: 0.04em; }
+.cafe-card__stats { font-weight: 400; font-size: 14px; margin-top: 10px; line-height: 1.6; color: rgba(224, 217, 207, 0.9); }
+@media (max-width: 460px) { .cafe-card__name { font-size: 15px; } .cafe-card__overlay { padding-top: 60px; } }
+
+/* ── details panel ── */
+.cafe-scrim { position: fixed; inset: 0; background: rgba(15, 26, 46, 0.45); z-index: 1100; animation: cafeFade 0.25s ease both; }
+.cafe-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100vw; background: var(--wb-surface-2); color: var(--wb-ink); border-left: 3px solid var(--wb-coffee); z-index: 1101; overflow-y: auto; padding: 16px max(18px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) 18px; animation: cafeSlide 0.3s cubic-bezier(0.4, 0, 0.2, 1) both; font-family: var(--wb-body); }
+@keyframes cafeFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cafeSlide { from { transform: translateX(100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cafe-scrim, .cafe-panel { animation: none; } .cafe-card, .postcard { transition: none; } }
+.cafe-panel__close { position: absolute; right: 14px; top: 12px; width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--wb-coffee); background: var(--wb-surface); color: var(--wb-ink); font-size: 14px; cursor: pointer; z-index: 2; }
+.cafe-panel__photo { position: relative; height: 220px; border-radius: 12px; overflow: hidden; margin-top: 40px; background: var(--wb-steel); }
+.cafe-panel__photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cafe-panel__name { font-family: var(--wb-display); font-weight: 400; font-size: 28px; margin: 14px 0 0; line-height: 1.05; color: var(--wb-ink); }
+.cafe-panel__addr { font-family: var(--wb-sans); font-weight: 300; font-size: 12px; color: var(--wb-muted); margin: 4px 0 0; }
+.cafe-panel__boro { display: inline-block; margin-top: 8px; padding: 5px 10px; border-radius: 999px; color: var(--wb-cream); font-family: var(--wb-sans); font-weight: 500; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.cafe-panel__locs { font-family: var(--wb-sans); font-size: 12px; color: var(--wb-accent-ink); margin: 8px 0 0; }
+.cafe-panel__rule { border-top: 1px dashed var(--wb-line); margin: 14px 0; }
+.cafe-panel__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.cafe-panel__cell { padding: 10px 12px; border-radius: 10px; background: var(--wb-surface); border: 1px solid var(--wb-line); }
+.cafe-panel__cell span { display: block; font-family: var(--wb-sans); font-weight: 300; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--wb-muted); }
+.cafe-panel__cell b { display: block; font-family: var(--wb-sans); font-weight: 500; font-size: 14px; margin-top: 3px; color: var(--wb-ink); }
+.cafe-panel__k { font-family: var(--wb-sans); font-weight: 300; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--wb-muted); margin: 0; }
+.cafe-panel__about { font-size: 14px; line-height: 1.55; color: var(--wb-ink-soft); margin: 8px 0 0; }
+.cafe-panel__scout { display: flex; align-items: center; gap: 8px; font-family: var(--wb-sans); font-weight: 500; font-size: 12px; color: var(--wb-accent-ink); margin: 12px 0 0; }
+.cafe-panel__btns { display: flex; gap: 8px; margin-bottom: 14px; }
+.cafe-panel__scout--foot { margin: 0 0 20px; padding-top: 12px; border-top: 1px dashed var(--wb-line); }
+.cafe-panel__btn { flex: 1; text-align: center; padding: 11px; border-radius: 999px; font-family: var(--wb-sans); font-weight: 500; font-size: 12px; text-decoration: none; border: 1.5px solid var(--wb-navy); background: transparent; color: var(--wb-navy); cursor: pointer; }
+.cafe-panel__btn--primary { background: var(--wb-navy); color: var(--wb-cream); }
+.cafe-panel__btn.is-saved { background: var(--wb-coffee); border-color: var(--wb-coffee); color: var(--wb-cream); }
+
+/* ── postcards (Our Story → under the team) ── */
+.postcards { padding: 36px 0 10px; border-top: 1.5px dashed var(--wb-line); margin-top: 24px; font-family: var(--wb-body); color: var(--wb-ink); }
+.postcards__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.postcards__k { font-family: var(--wb-sans); font-weight: 500; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--wb-accent-ink); }
+.postcards__title { font-family: var(--wb-display); font-weight: 400; font-size: clamp(26px, 3.6vw, 36px); line-height: 1.05; margin: 6px 0 0; color: var(--wb-ink); }
+.postcards__arrows { display: flex; gap: 8px; }
+.postcards__arrows button { width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--wb-steel); background: transparent; color: var(--wb-ink); font-size: 18px; cursor: pointer; }
+.postcards__arrows button.is-primary { background: var(--wb-navy); border-color: var(--wb-navy); color: var(--wb-cream); }
+.postcards__scouts { display: flex; gap: 10px; padding-top: 18px; flex-wrap: wrap; }
+.postcards__scouts button { display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 6px; border-radius: 999px; background: var(--wb-surface); border: 1.5px solid var(--wb-line); color: var(--wb-ink); font-family: var(--wb-sans); font-weight: 500; font-size: 12px; cursor: pointer; }
+.postcards__scouts button.is-on { border-color: var(--wb-navy); box-shadow: 0 0 0 1.5px var(--wb-navy) inset; }
+.postcards__scouts em { font-style: normal; color: var(--wb-muted); }
+.postcards__rail { display: flex; gap: 24px; padding: 24px 6px 34px; overflow-x: auto; align-items: flex-start; scroll-snap-type: x mandatory; scrollbar-width: thin; }
+.postcard { width: 340px; max-width: 86vw; flex-shrink: 0; scroll-snap-align: start; border-radius: 6px; background: var(--wb-surface-2); color: var(--wb-navy); outline: 1px solid var(--wb-line); box-shadow: 0 14px 30px rgba(15, 26, 46, 0.18); display: flex; flex-direction: column; overflow: hidden; border: 0; padding: 0; text-align: left; cursor: pointer; font-family: var(--wb-body); transform: rotate(var(--tilt, 0deg)); transition: transform 0.2s; }
+.postcard:hover { transform: rotate(0deg) translateY(-4px); }
+.postcard:focus-visible { outline: 3px solid var(--wb-steel); }
+.postcard__photo { position: relative; height: 210px; margin: 12px 12px 0; display: block; overflow: hidden; background: var(--wb-steel); }
+.postcard__photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.postcard__photo .cafe-card__sample { top: auto; bottom: 8px; left: 8px; right: auto; }
+.postcard__stamp { position: absolute; right: 12px; top: 12px; width: 74px; height: 74px; border-radius: 50%; border: 2.5px solid var(--wb-caramel); color: var(--wb-caramel); display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--wb-sans); font-weight: 500; font-size: 9px; letter-spacing: 0.08em; text-align: center; line-height: 1.2; transform: rotate(-12deg); background: rgba(15, 26, 46, 0.6); }
+.postcard__stamp span { font-size: 11px; }
+.postcard__body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+.postcard__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.postcard__name { display: block; font-family: var(--wb-display); font-size: 22px; line-height: 1.05; }
+.postcard__hood { display: block; font-size: 12px; color: #5A4A3A; margin-top: 3px; }
+.postcard__boro { font-family: var(--wb-sans); font-weight: 500; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 9px; border-radius: 999px; color: var(--wb-cream); white-space: nowrap; }
+.postcard__am { border-top: 1.5px dashed var(--wb-coffee); padding-top: 10px; margin-top: 2px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; font-size: 13px; font-weight: 700; }
+.postcard__am i { display: inline-block; width: 14px; height: 14px; border: 1.5px solid var(--wb-coffee); border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
+.postcard__am i.is-on { background: var(--wb-coffee); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3.5' fill='none' stroke='%23E0D9CF' stroke-width='1.8'/%3E%3C/svg%3E"); background-size: 10px; background-position: center; background-repeat: no-repeat; }
+.postcard__am b { color: var(--wb-steel); }
+.postcard__quote { font-family: var(--wb-display); font-style: italic; font-size: 14px; color: var(--wb-coffee); line-height: 1.35; }
+.postcard__foot { display: flex; justify-content: space-between; align-items: center; font-family: var(--wb-sans); font-weight: 500; font-size: 11px; color: #5A4A3A; }
+.postcard__by { display: inline-flex; align-items: center; gap: 6px; }
+.postcard__open { color: var(--wb-steel); }
+
+
+/* open / closed tag on cards (only when hours are on file) */
+.cafe-card__open { position: absolute; left: 16px; top: 16px; padding: 7px 11px; border-radius: 999px; background: rgba(15, 26, 46, 0.82); border: 1.5px solid rgba(224, 217, 207, 0.5); color: var(--wb-cream); font-family: var(--wb-sans); font-weight: 500; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1; }
+.cafe-card__open.is-open { border-color: #9BC58F; color: #9BC58F; }
+
+/* Scrollbars inside the redesigned pages: thin, rounded, brand-coloured, no track */
+:where(.home, .story, .cafe-panel) :where(.home__mcards, .postcards__rail, .home__tablewrap, .home__tabs, .team__list, .journey__track, .cafe-panel) { scrollbar-width: thin; scrollbar-color: rgba(55, 36, 20, 0.45) transparent; }
+:where(.home, .story) :where(.home__mcards, .postcards__rail, .home__tablewrap, .team__list, .journey__track)::-webkit-scrollbar { height: 6px; width: 6px; }
+:where(.home, .story) :where(.home__mcards, .postcards__rail, .home__tablewrap, .team__list, .journey__track)::-webkit-scrollbar-track { background: transparent; }
+:where(.home, .story) :where(.home__mcards, .postcards__rail, .home__tablewrap, .team__list, .journey__track)::-webkit-scrollbar-thumb { background: rgba(55, 36, 20, 0.45); border-radius: 999px; }
+:where(.home, .story) :where(.home__mcards, .postcards__rail, .home__tablewrap, .team__list, .journey__track)::-webkit-scrollbar-thumb:hover { background: var(--wb-coffee); }
+:where(.home, .story) :where(.home__mcards, .postcards__rail, .home__tablewrap, .team__list, .journey__track)::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.cafe-panel::-webkit-scrollbar { width: 6px; }
+.cafe-panel::-webkit-scrollbar-thumb { background: rgba(55, 36, 20, 0.45); border-radius: 999px; }
+.cafe-panel::-webkit-scrollbar-track { background: transparent; }
