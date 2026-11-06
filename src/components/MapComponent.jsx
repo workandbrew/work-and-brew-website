@@ -257,7 +257,9 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-plot when saved cafés change (Dashboard mode)
+  // Re-plot when the supplied café list changes (Dashboard + home map view).
+  // Keyed on the cafés themselves, not the array identity, so a parent re-render doesn't refit the map.
+  const cafesKey = cafes ? cafes.map((c) => `${c.Name}|${c.Address}`).join("\n") : "";
   useEffect(() => {
     if (!cafes || !mapRef.current) return;
     plotMarkers(cafes);
@@ -271,7 +273,7 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
       coords.forEach((c) => bounds.extend(c));
       mapRef.current.fitBounds(bounds, { padding: 70, maxZoom: 13 });
     }
-  }, [cafes]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cafesKey, mapLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resize map when panel opens/closes
   useEffect(() => {
@@ -355,7 +357,7 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
     })).filter((d) => !isNaN(d._distKm)).sort((a, b) => a._distKm - b._distKm);
 
     setNearestCafes(withDist.slice(0, 5));
-  }, [userCoords, mapLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userCoords, mapLoaded]);
 
   const resetView = () => {
     if (!mapRef.current || !mlRef.current) return;
