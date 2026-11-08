@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import IntroAnimation from "../components/IntroAnimation";
 
-const LAUNCH_DATE = new Date("2026-11-08T18:00:00-05:00");
+const LAUNCH_DATE = new Date("2026-11-09T18:00:00-05:00");
 
 const BYPASS_PATHS = ["/login", "/privacy", "/terms", "/sms-privacy", "/sms-terms", "/for-owners"];
 
@@ -135,10 +135,10 @@ export default function ComingSoon({ children }) {
         fontSize: "0.85rem",
         fontWeight: 400,
         letterSpacing: "0.06em",
-        fontFamily: "'Wizanes', Georgia, serif",
+        fontFamily: "'Instrument Serif', Georgia, serif",
         marginBottom: "10px",
       }}>
-        Launching November 8, 2026 : 6 PM EST
+        Launching November 9, 2026 : 6 PM EST
       </p>
 
       {/* Title */}
@@ -195,7 +195,7 @@ export default function ComingSoon({ children }) {
                 fontWeight: 800,
                 fontVariantNumeric: "tabular-nums",
                 display: "block",
-                fontFamily: "'Inter', system-ui, sans-serif",
+                fontFamily: "'Instrument Serif', Georgia, serif",
                 letterSpacing: "-0.02em",
               }}>{value}</span>
             </div>
