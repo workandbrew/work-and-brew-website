@@ -6580,6 +6580,43 @@ function wfFileToBase64(file) {
   });
 }
 
+// Phone photos are 3–6 MB each. Shrinking them to 2560px (still sharp for listings and posts) makes each
+// upload about 5x smaller, so it goes much faster. Videos and anything we can't read go up untouched.
+const UPLOAD_MAX_PX = 2560;
+async function wfShrinkPhoto(file) {
+  if (!/^image\/(jpeg|png|heic|heif|webp)$/i.test(file.type || '') || file.size < 600 * 1024) return file;
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = url; });
+    URL.revokeObjectURL(url);
+    const scale = Math.min(1, UPLOAD_MAX_PX / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.85));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch (e) { return file; }
+}
+
+// Leaving Safari for a second pauses the page and cuts off the upload in progress. Wait until the
+// page is back on screen, then try again (twice at most) instead of losing that photo.
+const wfVisible = () => document.visibilityState === 'visible' ? Promise.resolve()
+  : new Promise((ok) => { const on = () => { if (document.visibilityState === 'visible') { document.removeEventListener('visibilitychange', on); ok(); } }; document.addEventListener('visibilitychange', on); });
+async function wfUploadOne(cafe, f) {
+  const file = await wfShrinkPhoto(f);
+  const data = await wfFileToBase64(file);
+  const body = { cafe: { id: cafe.id, number: cafe.number, name: cafe.name }, filename: file.name, mimeType: file.type || 'application/octet-stream', data };
+  for (let attempt = 0; ; attempt++) {
+    try { return await wfApi('upload', body); } catch (e) {
+      const network = /reach the spreadsheet|took too long/.test(e.message);
+      if (!network || attempt >= 2) throw e;
+      await wfVisible();
+      await new Promise((ok) => setTimeout(ok, 1200));
+    }
+  }
+}
+
 async function wfUploadFiles(id, fileList) {
   const cafe = wfFindCafe(id);
   const files = Array.from(fileList || []);
@@ -6590,18 +6627,16 @@ async function wfUploadFiles(id, fileList) {
   _wfUploading = true;
   const text = document.getElementById('wf-drop-text');
   let done = 0, failed = 0;
-  for (const f of files) {
-    if (f.size > MAX_UPLOAD_MB * 1024 * 1024) {
-      showToast(`⚠ ${f.name} is over ${MAX_UPLOAD_MB} MB: add it to the Drive folder instead`);
-      failed++; continue;
-    }
-    if (text) text.textContent = `Uploading ${done + failed + 1}/${files.length}… ${f.name}`;
+  const show = () => { if (text) text.textContent = `Uploading… ${done + failed}/${files.length} done`; };
+  const ok = files.filter((f) => {
+    if (f.size <= MAX_UPLOAD_MB * 1024 * 1024) return true;
+    showToast(`⚠ ${f.name} is over ${MAX_UPLOAD_MB} MB: add it to the Drive folder instead`);
+    failed++; return false;
+  });
+  show();
+  const one = async (f) => {
     try {
-      const data = await wfFileToBase64(f);
-      const res = await wfApi('upload', {
-        cafe: { id: cafe.id, number: cafe.number, name: cafe.name },
-        filename: f.name, mimeType: f.type || 'application/octet-stream', data,
-      });
+      const res = await wfUploadOne(cafe, f);
       const d = wfReadDraftFromForm(id);
       d.photos = d.photos || [];
       d.photos.push({ id: res.fileId, name: f.name, thumb: res.thumbUrl, url: res.viewUrl, isVideo: (f.type || '').startsWith('video/') });
@@ -6612,14 +6647,19 @@ async function wfUploadFiles(id, fileList) {
       done++;
     } catch (e) {
       console.warn('upload failed', e);
-      showToast('⚠ Upload failed: ' + e.message);
+      showToast(`⚠ ${f.name} didn't upload (${e.message}). Add it again.`);
       failed++;
     }
-  }
+    show();
+  };
+  // The first one alone (it creates the café's Drive folder), then 3 at a time
+  if (ok.length) await one(ok[0]);
+  const rest = ok.slice(1);
+  await Promise.all([0, 1, 2].map(async () => { while (rest.length) await one(rest.shift()); }));
   _wfUploading = false;
   if (text) text.textContent = '＋ Add photos or video';
   if (input) input.value = '';
-  if (done) showToast(`📸 ${done} file${done > 1 ? 's' : ''} saved to Drive`);
+  if (done) showToast(`📸 ${done} file${done > 1 ? 's' : ''} saved to Drive${failed ? ` · ${failed} didn't upload` : ''}`);
   if (state.formCafeId === id) { const d = wfLoadDraft(id); renderScoutForm(Object.assign({}, cafe)); wfSaveDraft(id, d); }
 }
 
