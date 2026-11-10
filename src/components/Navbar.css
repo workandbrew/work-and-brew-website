@@ -264,8 +264,6 @@
   .navbar-links { font-size: 0.98rem; gap: 1rem; padding: 0 0.5rem; }
 }
 
-/* Team Hub on phones: the bottom tab bar does the navigating, so the hamburger steps aside */
-@media (max-width: 760px) { .navbar.on-hub .navbar-hamburger { display: none; } }
 
 /* ═══ Notification bell (hub admins) ═══ */
 .nb { position: relative; display: flex; align-items: center; margin-left: auto; margin-right: 10px; flex-shrink: 0; }
