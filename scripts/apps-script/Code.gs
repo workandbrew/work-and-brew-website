@@ -26,6 +26,8 @@
  *   DRIVE_FOLDER_ID            (optional)  parent folder for café photos; created if missing
  *   SHEET_NAME                 (optional)  tab name; defaults to the first tab
  *   APPROVER_EMAILS            (optional)  comma list; defaults to the list below
+ *   SLACK_STATUS_WEBHOOK       (optional)  incoming webhook for #cafe-status-updates (café ⇄ Jira changes)
+ *   JIRA_EMAIL, JIRA_API_TOKEN (required for Jira)  Atlassian login email + API token
  */
 
 var SUPABASE_URL = 'https://occdbhckswnhzkubfyge.supabase.co';
@@ -761,8 +763,9 @@ function cafeTicket_(sh, h, row, c, photosUrl) {
 // It remembers each café's last status in a hidden "Automation" tab, so it only reacts to changes.
 var JIRA_TO_MAP = {
   'Upcoming': 'Ready To Be Assigned', 'Assigned': 'Assigned', 'Revisit Required': 'Incomplete', 'Incomplete Listings': 'Incomplete',
-  'Temporarily Closed': 'Temporarily Unavailable', 'Ineligible For Listing': 'Ineligible Cafe'
-}; // In Progress and Archieved leave the map alone (no clear match)
+  'Temporarily Closed': 'Temporarily Unavailable', 'Ineligible For Listing': 'Ineligible Cafe',
+  'In Progress': 'In Progress', 'Archieved': 'Visit Completed'
+};
 var AUTO_SHEET = 'Automation';
 
 function jiraFetch_(method, path, payload) {
@@ -925,7 +928,7 @@ function runCafeAutomation_(quick, linkAll) {
       if (log.ineligible.length) lines.push('*Marked ineligible:*\n' + log.ineligible.join('\n'));
       if (log.fromJira.length) lines.push('*Updated from Jira:*\n' + log.fromJira.join('\n'));
       if (log.errors.length) lines.push('*Problems:*\n' + log.errors.slice(0, 10).join('\n'));
-      postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'Café map ⇄ Jira update', lines.join('\n\n'), []);
+      postSlack_('SLACK_STATUS_WEBHOOK', 'Café map ⇄ Jira update', lines.join('\n\n'), []); // #cafe-status-updates
     }
     return log;
   } finally { lock.releaseLock(); }
