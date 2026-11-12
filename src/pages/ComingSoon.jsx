@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import IntroAnimation from "../components/IntroAnimation";
 
-const LAUNCH_DATE = new Date("2026-11-12T20:00:00-05:00");
+const LAUNCH_DATE = new Date("2026-11-14T18:00:00-05:00"); // Sat Nov 14, 2026, 6 PM Eastern (EST)
 
 const BYPASS_PATHS = ["/login", "/privacy", "/terms", "/sms-privacy", "/sms-terms", "/for-owners"];
 
@@ -138,7 +138,7 @@ export default function ComingSoon({ children }) {
         fontFamily: "'Instrument Serif', Georgia, serif",
         marginBottom: "10px",
       }}>
-        Launching November 12, 2026 : 8 PM EST
+        Launching Saturday, November 14, 2026 : 6 PM EST
       </p>
 
       {/* Title */}
