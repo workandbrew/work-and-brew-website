@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /team
+Disallow: /ops/
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /login
+Disallow: /scout-map.html
+Disallow: /api/
+
+Sitemap: https://workandbrew.app/sitemap.xml

@@ -9,9 +9,9 @@ export default function NotFound() {
       <Navbar />
       <div className="page-content page-content--centered">
         <div className="page-badge">404</div>
-        <h1 className="page-title">This page is invalid.</h1>
+        <h1 className="page-title">We couldn't find that page.</h1>
         <p className="page-body">
-          Looks like this page isn't here. Let's get you back to the map.
+          The link may be old or mistyped. Let's get you back to the café map.
         </p>
         <button
           onClick={() => navigate("/")}
@@ -35,7 +35,7 @@ export default function NotFound() {
           onMouseOver={e => { e.currentTarget.style.opacity = "0.88"; e.currentTarget.style.transform = "translateY(-1px)"; }}
           onMouseOut={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "translateY(0)"; }}
         >
-          ☕ Back to Home
+          ☕ Back to the café map
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon-bear.png" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#17274E" />
@@ -11,19 +12,26 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Work & Brew - Based In NYC</title>
+    <meta name="description" content="Scout-verified NYC cafés for getting work done: Wi-Fi, outlets, seating, and noise checked in person by the Work & Brew team." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Lateef:wght@400;500&family=IM+Fell+Double+Pica+SC&family=Rozha+One&family=Averia+Serif+Libre&family=Instrument+Serif&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
     <!-- Map performance: connect to tile server and preload data early -->
-    <!-- Google Analytics GA4 -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-KCRDJE9GK0"></script>
+    <!-- Google Analytics GA4: loads only after the visitor accepts cookies (src/components/CookieConsent.jsx) -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-KCRDJE9GK0', {
-        page_path: window.location.pathname,
-      });
+      window.wbLoadAnalytics = function () {
+        if (window.wbAnalyticsLoaded) return;
+        window.wbAnalyticsLoaded = true;
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-KCRDJE9GK0';
+        document.head.appendChild(s);
+        gtag('js', new Date());
+        gtag('config', 'G-KCRDJE9GK0', { page_path: window.location.pathname });
+      };
+      try { if (localStorage.getItem('wb_cookie_consent') === 'granted') window.wbLoadAnalytics(); } catch (e) {}
     </script>
 
     <link rel="preconnect" href="https://api.maptiler.com" />

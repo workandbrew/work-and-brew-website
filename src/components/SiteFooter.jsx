@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import "./SiteFooter.css";
+import { openCookieSettings } from "../lib/cookieConsent";
 
 export default function SiteFooter() {
   return (
@@ -11,6 +12,8 @@ export default function SiteFooter() {
         <Link to="/terms" className="site-footer-link">Terms of Service</Link>
         <span className="site-footer-dot" aria-hidden="true">·</span>
         <a href="mailto:support@workandbrew.app" className="site-footer-link">Contact</a>
+        <span className="site-footer-dot" aria-hidden="true">·</span>
+        <button type="button" className="site-footer-link site-footer-btn" onClick={openCookieSettings}>Cookie settings</button>
       </div>
     </footer>
   );

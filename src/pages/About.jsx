@@ -2,6 +2,21 @@ import { useState, useEffect, useRef } from "react";
 import Navbar from "../components/Navbar";
 import "./PageShared.css";
 
+// Shows the member's favorite-drink art, or their initial if the art is missing or fails to load.
+function DrinkAvatar({ member }) {
+  const [failed, setFailed] = useState(false);
+  if (!member.avatar || failed) return member.initial;
+  return (
+    <img
+      src={member.avatar}
+      alt={member.drink}
+      className="ed-list-avatar-img"
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 const TEAM = [
   {
     name: "Denisse Medina Flores",
@@ -231,7 +246,7 @@ export default function About() {
             </p>
           </div>
           <div className="about-hero-right">
-            <img src="/about-us-images/cafe-desktop.jpg" alt="NYC Coffee Spot" className="about-img about-img--hero" />
+            <img src="/about-us-images/cafe-desktop-web.jpg" alt="A laptop set up at a sunny NYC café table" className="about-img about-img--hero" />
           </div>
         </div>
 
@@ -423,15 +438,7 @@ export default function About() {
             >
               {/* Favorite Drink Cover Icon */}
               <div className="ed-list-avatar">
-                {member.avatar ? (
-                  <img
-                    src={member.avatar}
-                    alt={member.drink}
-                    className="ed-list-avatar-img"
-                  />
-                ) : (
-                  member.initial
-                )}
+                <DrinkAvatar member={member} />
               </div>
               <div className="ed-list-info">
                 <span className="ed-list-name">{member.name}</span>

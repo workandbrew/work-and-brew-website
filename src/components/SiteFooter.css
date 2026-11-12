@@ -14,7 +14,7 @@
 .site-footer-copy {
   font-family: 'Imbue', serif;
   font-size: 0.8rem;
-  color: rgba(224, 217, 207, 0.5);
+  color: rgba(224, 217, 207, 0.75); /* was 0.5: below 4.5:1 contrast */
   margin: 0;
 }
 
@@ -40,3 +40,5 @@
   color: rgba(55, 36, 20, 0.7);
   font-size: 0.75rem;
 }
+
+.site-footer-btn { background: none; border: 0; padding: 0; cursor: pointer; line-height: inherit; }

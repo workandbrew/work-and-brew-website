@@ -1956,7 +1956,7 @@
 .owners-why-footnote {
   margin-top: auto;
   padding-top: 1.75rem;
-  color: rgba(55, 36, 20, 0.65);
+  color: rgba(55, 36, 20, 0.85); /* was 0.65: below 4.5:1 contrast */
   font-size: 0.9rem;
 }
 
@@ -3162,7 +3162,7 @@
 .legal-meta {
   font-family: 'Imbue', serif;
   font-size: 0.85rem;
-  color: rgba(224, 217, 207, 0.5);
+  color: rgba(224, 217, 207, 0.75); /* was 0.5: below 4.5:1 contrast */
   margin: 0 0 2rem;
 }
 
@@ -3635,3 +3635,9 @@
 
 .timeline-swipe-hint { text-align: center; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: #A5ABB0; margin: 6px 0 -6px; }
 @media (min-width: 769px) { .timeline-swipe-hint { display: none; } }
+
+/* Accessibility: the login / scout sign-up card is white, so its labels and badge need dark text
+   (the light #E0D9CF version above is for dark backgrounds and measured 1.4:1 here). */
+.auth-card .auth-field-label { color: #5C3D2E; }
+.auth-card .page-badge { color: #5C3D2E; border-color: rgba(92, 61, 46, 0.35); background: rgba(92, 61, 46, 0.06); }
+.auth-card .auth-forgot { color: #5C3D2E; }

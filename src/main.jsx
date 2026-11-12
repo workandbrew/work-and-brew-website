@@ -18,6 +18,8 @@ import SmsPrivacy from "./pages/SmsPrivacy";
 import SmsTerms from "./pages/SmsTerms";
 import Event from "./pages/Event";
 import TeamHub from "./pages/TeamHub";
+import CookieConsent from "./components/CookieConsent";
+import { applyPageMeta } from "./lib/pageMeta";
 import "./index.css";
 
 // fades each page in on navigation + scrolls back to top + fires GA page_view
@@ -25,9 +27,10 @@ function AppRoutes() {
   const location = useLocation();
 
   useEffect(() => {
+    applyPageMeta(location.pathname); // title + description before GA reads document.title
     window.scrollTo(0, 0);
     // Tell GA4 about the new page — needed for SPAs since the page doesn't reload
-    if (typeof window.gtag === "function") {
+    if (window.wbAnalyticsLoaded && typeof window.gtag === "function") { // only after cookie consent
       window.gtag("event", "page_view", {
         page_path: location.pathname + location.search,
         page_title: document.title,
@@ -75,5 +78,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         </BrowserRouter>
       </AuthProvider>
     </ComingSoon>
+    <CookieConsent />
   </React.StrictMode>
 );

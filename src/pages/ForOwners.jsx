@@ -1,4 +1,6 @@
 import { useState } from "react";
+import Honeypot from "../components/Honeypot";
+import { isBot } from "../lib/honeypot";
 import Navbar from "../components/Navbar";
 import "./PageShared.css";
 
@@ -37,6 +39,8 @@ export default function ForOwners() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isBot(e)) { setStatus("sent"); return; } // drop silently
+    if (!form.name.trim() || !form.email.trim() || !form.reason.trim()) { setStatus("invalid"); return; }
     setStatus("sending");
     try {
       const res = await fetch(FORM_ENDPOINT, {
@@ -45,6 +49,7 @@ export default function ForOwners() {
         body: JSON.stringify({
           _subject: `New café interest: ${form.cafe}`,
           _template: "table",
+          _honey: "",
           ...form,
         }),
       });
@@ -118,11 +123,15 @@ export default function ForOwners() {
           ) : (
           <form className="owner-form" onSubmit={handleSubmit}>
             <h2>Let's Connect!</h2>
+            <Honeypot />
             <span className="owner-field-label">Your Name <span className="owner-req">*</span></span>
             <input
               type="text"
               name="name"
               placeholder="Your name"
+              aria-label="Your name"
+              autoComplete="name"
+              maxLength={100}
               value={form.name}
               onChange={handleChange}
               required
@@ -132,6 +141,8 @@ export default function ForOwners() {
               type="text"
               name="cafe"
               placeholder="Name"
+              aria-label="Café name or platform"
+              maxLength={150}
               value={form.cafe}
               onChange={handleChange}
             />
@@ -140,6 +151,9 @@ export default function ForOwners() {
               type="email"
               name="email"
               placeholder="your@email.com"
+              aria-label="Your email"
+              autoComplete="email"
+              maxLength={254}
               value={form.email}
               onChange={handleChange}
               required
@@ -149,6 +163,11 @@ export default function ForOwners() {
               type="tel"
               name="phone"
               placeholder="Phone number (optional)"
+              aria-label="Phone number (optional)"
+              autoComplete="tel"
+              maxLength={25}
+              pattern="[0-9+()\-\s.]{7,25}"
+              title="Digits, spaces, and + ( ) - only"
               value={form.phone}
               onChange={handleChange}
             />
@@ -156,6 +175,8 @@ export default function ForOwners() {
             <textarea
               name="reason"
               placeholder="Tell us a little about your café..."
+              aria-label="Message"
+              maxLength={2000}
               rows={5}
               value={form.reason}
               onChange={handleChange}
@@ -164,6 +185,11 @@ export default function ForOwners() {
             <button type="submit" disabled={status === "sending"}>
               {status === "sending" ? "Sending... ☕" : "Submit Interest ☕"}
             </button>
+            {status === "invalid" && (
+              <p className="form-status form-status--err" role="alert">
+                Please fill in your name, email, and a message.
+              </p>
+            )}
             {status === "error" && (
               <p className="form-status form-status--err">
                 Hmm, that didn't go through. Try again or email us directly at

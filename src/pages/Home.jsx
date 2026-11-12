@@ -8,16 +8,17 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import "./Home.css";
 
+// Web-sized copies (public/cafes-web). Originals stay in public/cafes/Website Cafes.
 const CAFE_PHOTOS = {
-  "Artizen Cafe":              "/cafes/Website Cafes/Artizen Cafe/IMG_8975.PNG",
-  "Avenue Coffee House":       "/cafes/Website Cafes/Avenue Coffee House/IMG_5873.jpg",
-  "Burly Coffee BK":           "/cafes/Website Cafes/Burly Coffee BK/IMG_1422.JPG",
-  "Full Moon Cafe Queens":     "/cafes/Website Cafes/Full Moon Cafe Queens/IMG_1449.JPG",
-  "Koffee BK":                 "/cafes/Website Cafes/Koffee BK/IMG_1434.JPG",
-  "PostMark Cafe BK":          "/cafes/Website Cafes/PostMark Cafe BK/IMG_1407.JPG",
-  "Savor Coffee and More":     "/cafes/Website Cafes/Savor Coffee and More/IMG_8988.PNG",
-  "Stepping Stone Cafe":       "/cafes/Website Cafes/Stepping Stone Cafe/IMG_5685.jpg",
-  "The Boogie Down Grind":     "/cafes/Website Cafes/The Boogie Down Grind/IMG_8955.PNG",
+  "Artizen Cafe":              "/cafes-web/artizen-cafe.jpg",
+  "Avenue Coffee House":       "/cafes-web/avenue-coffee-house.jpg",
+  "Burly Coffee BK":           "/cafes-web/burly-coffee-bk.jpg",
+  "Full Moon Cafe Queens":     "/cafes-web/full-moon-cafe-queens.jpg",
+  "Koffee BK":                 "/cafes-web/koffee-bk.jpg",
+  "PostMark Cafe BK":          "/cafes-web/postmark-cafe-bk.jpg",
+  "Savor Coffee and More":     "/cafes-web/savor-coffee-and-more.jpg",
+  "Stepping Stone Cafe":       "/cafes-web/stepping-stone-cafe.jpg",
+  "The Boogie Down Grind":     "/cafes-web/the-boogie-down-grind.jpg",
 };
 
 function CafePhoto({ name }) {

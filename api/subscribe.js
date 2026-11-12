@@ -3,14 +3,27 @@
 // BREVO_API_KEY and BREVO_LIST_ID live only in Vercel's server-side
 // environment variables and are never exposed to the browser.
 
+import { isHoneypotFilled, isRateLimited, verifyRecaptcha } from "./_lib/spam.js";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { email } = req.body || {};
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  // Spam checks: bots get a quiet "ok" so they don't learn what tripped them.
+  if (isHoneypotFilled(req.body)) return res.status(200).json({ ok: true });
+  if (isRateLimited(req, { limit: 5, windowMs: 10 * 60 * 1000 })) {
+    return res.status(429).json({ error: "Too many tries. Please wait a few minutes." });
+  }
+
+  const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+  if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: "Valid email required." });
+  }
+
+  const captcha = await verifyRecaptcha(req.body?.recaptchaToken, "waitlist").catch(() => ({ ok: false }));
+  if (!captcha.ok) {
+    return res.status(400).json({ error: "We couldn't verify you're human. Please refresh and try again." });
   }
 
   const apiKey     = process.env.BREVO_API_KEY;

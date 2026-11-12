@@ -26,16 +26,22 @@ function fetchMarkersCsv() {
     .catch(() => local());
 }
 
+// Web-sized copies (public/cafes-web). Originals stay in public/cafes/Website Cafes.
+// The café feed comes from a spreadsheet, so escape it before it goes into popup HTML.
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+// Only allow site-relative or https photo links.
+const safeUrl = (u) => (typeof u === "string" && (/^https:\/\//i.test(u) || u.startsWith("/")) ? u : "");
+
 const CAFE_PHOTOS = {
-  "Artizen Cafe":              "/cafes/Website Cafes/Artizen Cafe/IMG_8975.PNG",
-  "Avenue Coffee House":       "/cafes/Website Cafes/Avenue Coffee House/IMG_5873.jpg",
-  "Burly Coffee BK":           "/cafes/Website Cafes/Burly Coffee BK/IMG_1422.JPG",
-  "Full Moon Cafe Queens":     "/cafes/Website Cafes/Full Moon Cafe Queens/IMG_1449.JPG",
-  "Koffee BK":                 "/cafes/Website Cafes/Koffee BK/IMG_1434.JPG",
-  "PostMark Cafe BK":          "/cafes/Website Cafes/PostMark Cafe BK/IMG_1407.JPG",
-  "Savor Coffee and More":     "/cafes/Website Cafes/Savor Coffee and More/IMG_8988.PNG",
-  "Stepping Stone Cafe":       "/cafes/Website Cafes/Stepping Stone Cafe/IMG_5685.jpg",
-  "The Boogie Down Grind":     "/cafes/Website Cafes/The Boogie Down Grind/IMG_8955.PNG",
+  "Artizen Cafe":              "/cafes-web/artizen-cafe.jpg",
+  "Avenue Coffee House":       "/cafes-web/avenue-coffee-house.jpg",
+  "Burly Coffee BK":           "/cafes-web/burly-coffee-bk.jpg",
+  "Full Moon Cafe Queens":     "/cafes-web/full-moon-cafe-queens.jpg",
+  "Koffee BK":                 "/cafes-web/koffee-bk.jpg",
+  "PostMark Cafe BK":          "/cafes-web/postmark-cafe-bk.jpg",
+  "Savor Coffee and More":     "/cafes-web/savor-coffee-and-more.jpg",
+  "Stepping Stone Cafe":       "/cafes-web/stepping-stone-cafe.jpg",
+  "The Boogie Down Grind":     "/cafes-web/the-boogie-down-grind.jpg",
 };
 
 const API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
@@ -146,21 +152,21 @@ export default function MapComponent({ onMarkerClick, filterQuery, panelOpen, ca
         .addTo(mapRef.current);
       visibleMarkersRef.current.add(markerIdx);
 
-      const photo = (row.Photo && row.Photo.trim()) || CAFE_PHOTOS[row.Name];
+      const photo = safeUrl((row.Photo && row.Photo.trim()) || CAFE_PHOTOS[row.Name]);
       const boroColor = BORO_COLORS[borough] || "#9E9E9E";
       const popup = new maplibregl.Popup({ offset: 16, maxWidth: "240px", focusAfterOpen: false }).setHTML(`
         <div style="font-family:'Inter',sans-serif;border-radius:12px;overflow:hidden;min-width:200px;">
           ${photo
-            ? `<img src="${photo}" alt="${row.Name}" style="width:100%;height:130px;object-fit:cover;display:block;" />`
+            ? `<img src="${esc(photo)}" alt="${esc(row.Name)}" loading="lazy" style="width:100%;height:130px;object-fit:cover;display:block;" />`
             : `<div style="width:100%;height:130px;background:#2C1A0E;display:flex;align-items:center;justify-content:center;font-size:1.5rem;">☕</div>`
           }
           <div style="padding:10px 14px 13px;">
             <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">
               <span style="width:9px;height:9px;border-radius:50%;background:${boroColor};flex-shrink:0;display:inline-block;"></span>
-              <span style="font-size:0.68rem;font-weight:700;color:${boroColor};text-transform:uppercase;letter-spacing:0.06em;">${borough}</span>
+              <span style="font-size:0.68rem;font-weight:700;color:${boroColor};text-transform:uppercase;letter-spacing:0.06em;">${esc(borough)}</span>
             </div>
-            <strong style="font-size:0.9rem;color:#2C1A0E;display:block;margin-bottom:3px;line-height:1.3;">${row.Name}</strong>
-            <span style="font-size:0.72rem;color:#6E4F3A;line-height:1.4;">${(row.Address || "").replace(/, United States$/, "")}</span>
+            <strong style="font-size:0.9rem;color:#2C1A0E;display:block;margin-bottom:3px;line-height:1.3;">${esc(row.Name)}</strong>
+            <span style="font-size:0.72rem;color:#6E4F3A;line-height:1.4;">${esc((row.Address || "").replace(/, United States$/, ""))}</span>
           </div>
         </div>
       `);

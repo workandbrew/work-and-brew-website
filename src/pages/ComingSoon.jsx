@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import IntroAnimation from "../components/IntroAnimation";
+import Honeypot from "../components/Honeypot";
+import { isBot } from "../lib/honeypot";
+import { getRecaptchaToken } from "../lib/recaptcha";
 
 const LAUNCH_DATE = new Date("2026-11-12T20:00:00-05:00");
 
@@ -75,14 +78,16 @@ export default function ComingSoon({ children }) {
 
   const handleSignUp = async (e) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email.trim()) return;
+    if (isBot(e)) { setSubmitted(true); return; } // drop silently
     setSubError("");
     setSubLoading(true);
     try {
+      const recaptchaToken = await getRecaptchaToken("waitlist");
       const res  = await fetch("/api/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim(), recaptchaToken }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Something went wrong.");
@@ -237,9 +242,13 @@ export default function ComingSoon({ children }) {
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSignUp} style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+          <form onSubmit={handleSignUp} style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%", position: "relative" }}>
+            <Honeypot />
             <input
               type="email"
+              aria-label="Your email for the app waitlist"
+              autoComplete="email"
+              maxLength={254}
               placeholder="your@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}

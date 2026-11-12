@@ -1,5 +1,7 @@
 import { useState } from "react";
 import "./SuggestionForm.css";
+import Honeypot from "./Honeypot";
+import { isBot } from "../lib/honeypot";
 
 // Submissions go to workandbrew.app@gmail.com via formsubmit.co (same as the
 // For Owners form). No account or API keys needed — formsubmit.co will send a
@@ -23,6 +25,8 @@ export default function SuggestionForm({ cafeName }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isBot(e)) { setStatus("sent"); return; } // drop silently
+    if (!form.name.trim() || !form.message.trim()) { setStatus("error"); return; }
     setStatus("sending");
     try {
       const res = await fetch(FORM_ENDPOINT, {
@@ -31,6 +35,7 @@ export default function SuggestionForm({ cafeName }) {
         body: JSON.stringify({
           _subject: `Café suggestion: ${cafeName}`,
           _template: "table",
+          _honey: "",
           cafe_name:  cafeName,
           from_name:  form.name,
           from_email: form.email,
@@ -82,10 +87,14 @@ export default function SuggestionForm({ cafeName }) {
               </div>
             ) : (
               <form className="suggestion-form" onSubmit={handleSubmit}>
+                <Honeypot />
                 <input
                   type="text"
                   name="name"
                   placeholder="Your Name"
+                  aria-label="Your name"
+                  autoComplete="name"
+                  maxLength={100}
                   value={form.name}
                   onChange={handleChange}
                   required
@@ -94,6 +103,9 @@ export default function SuggestionForm({ cafeName }) {
                   type="email"
                   name="email"
                   placeholder="Your Email"
+                  aria-label="Your email"
+                  autoComplete="email"
+                  maxLength={254}
                   value={form.email}
                   onChange={handleChange}
                   required
@@ -103,6 +115,7 @@ export default function SuggestionForm({ cafeName }) {
                   <textarea
                     name="message"
                     placeholder="What should we know? (e.g. hours changed, WiFi is down…)"
+                    aria-label="Your suggestion"
                     value={form.message}
                     onChange={handleChange}
                     rows={5}

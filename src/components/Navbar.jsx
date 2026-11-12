@@ -20,7 +20,7 @@ export default function Navbar() {
   return (
     <nav className={`navbar${location.pathname.startsWith("/team") ? " on-hub" : ""}`}>
       <Link to="/" className="navbar-logo" onClick={close}>
-        <img src="/logo.png" alt="Work & Brew" className="navbar-logo-img" />
+        <img src="/logo-nav.png" alt="Work & Brew home" className="navbar-logo-img" width="70" height="70" />
       </Link>
 
       {!isLoginPage && (
