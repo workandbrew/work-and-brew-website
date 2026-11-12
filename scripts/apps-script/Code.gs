@@ -42,7 +42,7 @@ var EXTRA_COLUMNS = [
 
 // Bump this with every change. The scout map compares it with the version it expects and warns admins
 // when the live deployment is older (the usual cause: pasting into a different deployment).
-var SCRIPT_VERSION = 'v33-2026-10-29';
+var SCRIPT_VERSION = 'v34-2026-11-12';
 
 // ------------------------------------------------------------ instant updates
 // Every open café map listens on a Supabase Realtime channel. Whenever the sheet changes (a save from any
@@ -682,9 +682,7 @@ function approveSuggestionLocked_(body, user) {
   postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'Cafe added: ' + c.name,
     '*' + c.name + '* has successfully been added to ' + where + '. (' + c.number + '. Approved by ' + user.email + '.)', []);
   c.row = row;
-  // Give the new café its Jira ticket and Drive folder, like every other café on the Cafe Scouts board.
-  // A problem here never undoes the approval; the café is already on the map.
-  try { c.jira = cafeTicket_(sh, h, row, c, cells.DriveFolderUrl || ''); } catch (e) { c.jira = { error: String(e.message || e) }; }
+  // The Jira ticket and Drive folder come later, when the café is marked Ready To Be Assigned (see runCafeAutomation)
   return { cafe: c };
 }
 
@@ -754,6 +752,183 @@ function cafeTicket_(sh, h, row, c, photosUrl) {
   }
   if (h.JiraKey) setCells_(sh, h, row, { JiraKey: out.key });
   return { key: out.key, url: JIRA_SITE + '/browse/' + out.key, folderUrl: folderUrl };
+}
+// ------------------------------------------------------------ café ⇄ Jira automation
+// Runs every 5 minutes (setupCafeAutomation) and right after a status change on the map:
+//  1. Café becomes Ready To Be Assigned → Jira ticket + Drive folder (like the existing tickets)
+//  2. Café becomes Ineligible Cafe → its Drive folder(s) go to the trash, and its Jira ticket moves to Ineligible For Listing
+//  3. Someone moves a ticket on the Jira board → the café's status on the map and sheet follows
+// It remembers each café's last status in a hidden "Automation" tab, so it only reacts to changes.
+var JIRA_TO_MAP = {
+  'Upcoming': 'Ready To Be Assigned', 'Assigned': 'Assigned', 'Revisit Required': 'Incomplete', 'Incomplete Listings': 'Incomplete',
+  'Temporarily Closed': 'Temporarily Unavailable', 'Ineligible For Listing': 'Ineligible Cafe'
+}; // In Progress and Archieved leave the map alone (no clear match)
+var AUTO_SHEET = 'Automation';
+
+function jiraFetch_(method, path, payload) {
+  var props = PropertiesService.getScriptProperties();
+  var email = props.getProperty('JIRA_EMAIL'), token = props.getProperty('JIRA_API_TOKEN');
+  if (!email || !token) throw new Error('Jira is not connected (add JIRA_EMAIL and JIRA_API_TOKEN in Script properties).');
+  var opt = { method: method, muteHttpExceptions: true, contentType: 'application/json',
+    headers: { Authorization: 'Basic ' + Utilities.base64Encode(email + ':' + token), Accept: 'application/json' } };
+  if (payload) opt.payload = JSON.stringify(payload);
+  var res = UrlFetchApp.fetch(JIRA_SITE + path, opt), code = res.getResponseCode(), out = {};
+  try { out = JSON.parse(res.getContentText() || '{}'); } catch (e) {}
+  if (code < 200 || code >= 300) throw new Error('Jira ' + code + ': ' + ((out.errorMessages || []).join(' ') || JSON.stringify(out.errors || '')).substring(0, 200));
+  return out;
+}
+function jiraSearch_(jql) {
+  var all = [], token = '';
+  for (var page = 0; page < 30; page++) {
+    var q = '/rest/api/3/search/jql?maxResults=100&fields=summary,status&jql=' + encodeURIComponent(jql) + (token ? '&nextPageToken=' + encodeURIComponent(token) : '');
+    var r = jiraFetch_('get', q);
+    all = all.concat(r.issues || []);
+    if (!r.nextPageToken || r.isLast) break;
+    token = r.nextPageToken;
+  }
+  return all;
+}
+function jiraMoveTo_(key, statusName) {
+  var t = (jiraFetch_('get', '/rest/api/3/issue/' + key + '/transitions').transitions || []).filter(function (x) { return x.to && x.to.name === statusName; })[0];
+  if (!t) throw new Error('No Jira transition to "' + statusName + '" for ' + key);
+  jiraFetch_('post', '/rest/api/3/issue/' + key + '/transitions', { transition: { id: t.id } });
+}
+// Folders for a café, without creating any: its photo folder and its "Name - street" folder in Content Clips
+function cafeFolders_(name, address, folderUrl) {
+  var out = [], seen = {};
+  var add = function (f) { if (f && !seen[f.getId()]) { seen[f.getId()] = 1; out.push(f); } };
+  var m = String(folderUrl || '').match(/folders\/([A-Za-z0-9_-]+)/);
+  if (m) { try { add(DriveApp.getFolderById(m[1])); } catch (e) {} }
+  try {
+    var parent = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('CAFE_FOLDERS_PARENT_ID') || CONTENT_CLIPS_FOLDER_ID);
+    var street = String(address || '').split(',')[0].trim();
+    var it = parent.getFoldersByName((String(name || '').trim() + (street ? ' - ' + street : '')).replace(/[\/\\]/g, '-'));
+    while (it.hasNext()) add(it.next());
+  } catch (e) {}
+  return out;
+}
+function autoSheet_() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID), sh = ss.getSheetByName(AUTO_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(AUTO_SHEET);
+    sh.getRange(1, 1, 1, 3).setValues([['Number', 'LastStatus', 'LastJiraStatus']]).setFontWeight('bold');
+    sh.hideSheet();
+  }
+  return sh;
+}
+// Match existing WRK tickets ("Name — address") to cafés that have no JiraKey yet
+function linkTickets_(issues, rows, h) {
+  var linked = 0;
+  var cafes = rows.map(function (v, i) {
+    return { i: i, name: norm_(v[h.Name - 1]), street: norm_(String(v[h.Address - 1] || '').split(',')[0]), key: String(v[h.JiraKey - 1] || '').trim() };
+  });
+  var taken = {}; cafes.forEach(function (c) { if (c.key) taken[c.key] = 1; });
+  issues.forEach(function (is) {
+    if (taken[is.key]) return;
+    var sum = norm_(is.fields && is.fields.summary);
+    var best = null;
+    cafes.forEach(function (c) {
+      if (c.key || !c.name || sum.indexOf(c.name) !== 0) return;
+      if (c.street && sum.indexOf(c.street) === -1) return;
+      if (!best || c.name.length > best.name.length) best = c;
+    });
+    if (best) { best.key = is.key; rows[best.i][h.JiraKey - 1] = is.key; taken[is.key] = 1; linked++; }
+  });
+  return linked;
+}
+
+// RUN THIS ONCE from the Apps Script editor: links the existing Jira tickets to their cafés and turns on the 5-minute check
+function setupCafeAutomation() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'runCafeAutomation') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('runCafeAutomation').timeBased().everyMinutes(5).create();
+  var r = runCafeAutomation_(false, true);
+  Logger.log('Café automation is on. ' + JSON.stringify(r));
+}
+function runCafeAutomation() { return runCafeAutomation_(false, false); }
+
+function runCafeAutomation_(quick, linkAll) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(quick ? 1000 : 20000)) return { skipped: 'busy' };
+  try {
+    var sh = sheet_(), h = ensureColumns_(sh), last = sh.getLastRow();
+    if (last < 2) return {};
+    var n = last - 1, width = sh.getLastColumn();
+    var rows = sh.getRange(2, 1, n, width).getValues();
+    var ash = autoSheet_(), alast = ash.getLastRow();
+    var mem = {}, memRow = {};
+    if (alast >= 2) ash.getRange(2, 1, alast - 1, 3).getValues().forEach(function (v, i) { mem[String(v[0])] = { st: String(v[1]), js: String(v[2]) }; memRow[String(v[0])] = i + 2; });
+    var firstRun = alast < 2;
+    var log = { tickets: [], ineligible: [], fromJira: [], errors: [] };
+    var keyCol = h.JiraKey, stCol = h.Status;
+    var changed = []; // single cells to write back, so a save made on the map meanwhile is never overwritten
+
+    // Jira side: the tickets that changed lately (all of them when linking)
+    var issues = [];
+    if (!quick) {
+      try { issues = jiraSearch_(linkAll || firstRun ? 'project = ' + JIRA_PROJECT + ' ORDER BY created ASC' : 'project = ' + JIRA_PROJECT + ' AND updated >= "-15m"'); }
+      catch (e) { log.errors.push(String(e.message || e)); }
+      if (issues.length) log.linked = linkTickets_(issues, rows, h);
+    }
+    var jiraByKey = {}; issues.forEach(function (is) { jiraByKey[is.key] = is.fields && is.fields.status ? is.fields.status.name : ''; });
+
+    rows.forEach(function (v, i) {
+      var num = String(v[h.Number - 1] || '').trim(); if (!num) return;
+      var st = String(v[stCol - 1] || ''), key = String(v[keyCol - 1] || '').trim();
+      var m = mem[num] || { st: '', js: '' }; // a café added since the last run counts as a change
+      var js = key && jiraByKey[key] !== undefined ? jiraByKey[key] : m.js;
+      if (firstRun) { mem[num] = { st: st, js: js }; return; } // very first run: just remember where everything is
+
+      // 3. Jira board moved → map follows
+      if (key && js && js !== m.js && JIRA_TO_MAP[js] && JIRA_TO_MAP[js] !== st) {
+        st = JIRA_TO_MAP[js]; v[stCol - 1] = st; changed.push({ row: i + 2, col: stCol, val: st });
+        log.fromJira.push(num + ' ' + v[h.Name - 1] + ' → ' + st);
+      }
+      // 1. Ready To Be Assigned with no ticket yet → ticket + folder
+      if (st === 'Ready To Be Assigned' && m.st !== st && !key) {
+        try {
+          var t = cafeTicket_(sh, h, i + 2, { name: v[h.Name - 1], address: v[h.Address - 1] }, String(v[h.DriveFolderUrl - 1] || ''));
+          // cafeTicket_ already saved the key and folder in the sheet
+          if (t.key) { key = t.key; v[keyCol - 1] = key; js = 'Upcoming'; log.tickets.push(num + ' ' + v[h.Name - 1] + ' → ' + key); }
+          if (t.folderUrl && !v[h.DriveFolderUrl - 1]) v[h.DriveFolderUrl - 1] = t.folderUrl;
+          if (t.error) log.errors.push(num + ': ' + t.error);
+        } catch (e) { log.errors.push(num + ': ' + (e.message || e)); }
+      }
+      // 2. Ineligible → folders to the trash, ticket to Ineligible For Listing
+      if (st === 'Ineligible Cafe' && m.st !== st) {
+        var trashed = 0;
+        cafeFolders_(v[h.Name - 1], v[h.Address - 1], v[h.DriveFolderUrl - 1]).forEach(function (f) {
+          try { f.setTrashed(true); trashed++; } catch (e) { log.errors.push(num + ' folder: ' + (e.message || e)); }
+        });
+        if (key && js !== 'Ineligible For Listing') {
+          try { jiraMoveTo_(key, 'Ineligible For Listing'); js = 'Ineligible For Listing'; } catch (e) { log.errors.push(num + ' Jira: ' + (e.message || e)); }
+        }
+        log.ineligible.push(num + ' ' + v[h.Name - 1] + ' (' + trashed + ' folder' + (trashed === 1 ? '' : 's') + ' to trash)');
+      }
+      mem[num] = { st: st, js: js };
+    });
+
+    // Save what changed: statuses from Jira, new/linked ticket keys, the memory
+    if (log.linked) sh.getRange(2, keyCol, n, 1).setValues(rows.map(function (v) { return [v[keyCol - 1]]; })); // tickets matched to cafés
+    changed.forEach(function (c) {
+      var cell = sh.getRange(c.row, c.col);
+      try { cell.setValue(c.val); } catch (e) { if (c.col === stCol) { relaxValidation_(sh, stCol); cell.setValue(c.val); } else throw e; }
+    });
+    var out = Object.keys(mem).map(function (k) { return [k, mem[k].st, mem[k].js]; });
+    if (alast > 1) ash.getRange(2, 1, alast - 1, 3).clearContent();
+    if (out.length) ash.getRange(2, 1, out.length, 3).setValues(out);
+
+    if (log.fromJira.length || log.tickets.length || log.ineligible.length) {
+      CacheService.getScriptCache().remove('markers_csv');
+      notifyChange_('automation', '');
+      var lines = [];
+      if (log.tickets.length) lines.push('*New Jira tickets:*\n' + log.tickets.join('\n'));
+      if (log.ineligible.length) lines.push('*Marked ineligible:*\n' + log.ineligible.join('\n'));
+      if (log.fromJira.length) lines.push('*Updated from Jira:*\n' + log.fromJira.join('\n'));
+      if (log.errors.length) lines.push('*Problems:*\n' + log.errors.slice(0, 10).join('\n'));
+      postSlack_('SLACK_SUBMISSIONS_WEBHOOK', 'Café map ⇄ Jira update', lines.join('\n\n'), []);
+    }
+    return log;
+  } finally { lock.releaseLock(); }
 }
 // ---- name/address corrections a scout flagged
 function handleListCorrections_(body, user) {
@@ -1054,6 +1229,7 @@ function handleSetStatus_(body, user) {
   else if (status === 'Visit Completed') { fields.ReviewStatus = 'Approved'; }
   setCells_(sh, h, row, fields);
   CacheService.getScriptCache().remove('markers_csv');
+  try { runCafeAutomation_(true); } catch (e) {} // Ready → Jira ticket, Ineligible → folder to trash
   if (status === 'Official Cafe Listing') {
     postSlack_('SLACK_SUBMISSIONS_WEBHOOK', '⭐ Now official: ' + (cafe.name || ''), '*' + (cafe.name || '') + '* is live on the public Work & Brew map. Published by ' + user.email + '.', []);
   }
@@ -1158,6 +1334,7 @@ function handleSyncCafes_(body, user) {
     write();
   }
   CacheService.getScriptCache().remove('markers_csv');
+  try { runCafeAutomation_(true); } catch (e) {}
   return { updated: done, missing: missing, version: SCRIPT_VERSION };
 }
 // Approver removes a café: its row leaves the sheet
